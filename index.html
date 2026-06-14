@@ -1079,7 +1079,7 @@
     // Mapy.cz v1 suggest — event delegace (nespoleha na inline oninput)
     window.MAPY_KEY = 'RIiwkZC637nWPlSr-WJYs4HKm06DHnPrt0cgypBbc2E';
     window._ADDR_CFG = {
-        'kyc-street': { cityId: 'kyc-city', zipId: 'kyc-zip' },
+        'kyc-street': { cityId: 'kyc-city', zipId: 'kyc-zip', cpId: 'kyc-cp', coId: 'kyc-co' },
         'co-street':  { cityId: 'co-city',  zipId: 'co-zip'  },
         'phn-street': { cityId: 'phn-city', zipId: 'phn-zip' }
     };
@@ -1092,14 +1092,17 @@
         var cfg = window._ADDR_CFG[id];
         var q   = e.target.value.trim();
 
-        // Uzivatel vybral polozku -> doplnit mesto + PSC
+        // Uzivatel vybral polozku -> doplnit mesto + PSC + cp/co pro KYC
         var hits = window._addrHits[id] || [];
         for (var i = 0; i < hits.length; i++) {
             var h = hits[i];
             if (h.street === q || h.full === q) {
-                e.target.value = h.street;
+                // Pro KYC: ulice bez čísla, čísla do separátních polí
+                e.target.value = cfg.cpId ? h.streetName : h.street;
                 if (cfg.cityId && h.city) { var c = document.getElementById(cfg.cityId); if (c) c.value = h.city; }
                 if (cfg.zipId  && h.zip)  { var z = document.getElementById(cfg.zipId);  if (z) z.value = h.zip;  }
+                if (cfg.cpId) { var cpEl = document.getElementById(cfg.cpId); if (cpEl) cpEl.value = h.cp || ''; }
+                if (cfg.coId) { var coEl = document.getElementById(cfg.coId); if (coEl) coEl.value = h.co || ''; }
                 return;
             }
         }
@@ -1131,9 +1134,15 @@
                     }
                     var zip = (item.zip || '').replace(/\s/g,'');
                     if (zip.length === 5) zip = zip.slice(0,3) + ' ' + zip.slice(3);
-                    var street = item.name || '';
-                    var full = street + (city ? ' — ' + city : '') + (zip ? ' ' + zip : '');
-                    return { street: street, city: city, zip: zip, full: full };
+                    var rawName = item.name || '';
+                    // Parsování: "Sadová 48" → streetName="Sadová", cp="48", co=""
+                    //            "Václavské náměstí 1/846" → streetName="Václavské náměstí", cp="1", co="846"
+                    var m = rawName.match(/^(.*?)\s+(\d+[a-zA-Z]?)(?:\/(\d+[a-zA-Z]?))?$/);
+                    var streetName = m ? m[1].trim() : rawName;
+                    var cp = m ? m[2] : '';
+                    var co = m ? (m[3] || '') : '';
+                    var full = rawName + (city ? ' — ' + city : '') + (zip ? ' ' + zip : '');
+                    return { street: rawName, streetName: streetName, cp: cp, co: co, city: city, zip: zip, full: full };
                 }).filter(function(x) { return x.street; });
 
                 window._addrHits[id] = results;
@@ -2420,6 +2429,7 @@
             if (avatarUrl) profileData.avatar_url = avatarUrl;
             const { error } = await supabaseClient.from('profiles').update(profileData).eq('id', user.id);
             if (error) throw new Error(error.message);
+            window._kycStatus = 'submitted'; // guard v navigate() nesmí blokovat přechod na profil
             showToast('Údaje uloženy ke kontrole!','success');
             navigate('profil');
         } catch (err) {
