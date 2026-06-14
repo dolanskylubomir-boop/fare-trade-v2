@@ -3413,11 +3413,13 @@
             const renderTx = (tx, isSeller) => {
                 const other = isSeller ? tx.buyer_name : tx.seller_name;
                 const dateStr = new Date(tx.created_at).toLocaleDateString('cs-CZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-                return `<div class="flex items-center gap-3 p-3.5 border border-gray-100 rounded-2xl bg-white mb-2.5 hover:shadow-md transition-shadow">
+                const isDirect = tx.payment_type === 'direct';
+                return `<div class="flex items-center gap-3 p-3.5 border ${isDirect ? 'border-orange-200' : 'border-gray-100'} rounded-2xl ${isDirect ? 'bg-orange-50/40' : 'bg-white'} mb-2.5 hover:shadow-md transition-shadow">
                     <img src="${tx.item_image||FALLBACK_IMG}" class="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0">
                     <div class="flex-grow min-w-0">
                         <h4 class="font-bold text-gray-800 truncate text-sm">${tx.item_title}</h4>
                         <div class="text-xs text-gray-500 mt-0.5">${dateStr} · ${isSeller?'Kupující':'Prodejce'}: <span class="font-semibold text-gray-700">${other||'Neznámý'}</span></div>
+                        ${isDirect ? '<div class="text-xs text-orange-600 font-bold mt-1">⚡ Platba po odeslání dobírkou</div>' : ''}
                     </div>
                     <div class="text-right shrink-0">
                         <div class="font-bold text-base text-gray-800 mb-1">${(tx.item_price||tx.price||0).toLocaleString('cs-CZ')} Kč</div>
