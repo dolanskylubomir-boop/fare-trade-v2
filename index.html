@@ -3585,6 +3585,7 @@
         if (!item) return;
         if (item.seller_id === window.currentUser.id) { showToast('Nemůžete koupit vlastní inzerát.','warning'); return; }
         if (item.reserved_until && item.reserved_until > Date.now()) { showToast('Položka je momentálně rezervována jiným kupujícím.','warning'); return; }
+        if (item.payment_type === 'direct') { navigate('direct-checkout', id); return; }
         navigate('platba-hned', id);
     };
 
@@ -4794,8 +4795,9 @@
     };
 
     window.addToCart = function(itemId) {
-        if (window.Cart.isIn(String(itemId))) { navigate('kosik'); return; }
         const item = dataPevnaCena.find(i => String(i.id) === String(itemId));
+        if (item && item.payment_type === 'direct') { navigate('direct-checkout', itemId); return; }
+        if (window.Cart.isIn(String(itemId))) { navigate('kosik'); return; }
         if (!item) return;
         if (window.Cart.add(item)) {
             const btn = document.getElementById('cart-btn-' + itemId);
@@ -4813,6 +4815,7 @@
         document.querySelectorAll('.carrier-card').forEach(c => c.classList.remove('selected'));
         const card = document.querySelector('.carrier-card[data-carrier="' + id + '"]');
         if (card) card.classList.add('selected');
+        // Standardní escrow checkout
         const feeEl = document.getElementById('checkout-shipping-fee');
         if (feeEl) feeEl.textContent = price.toLocaleString('cs-CZ') + ' Kč';
         const sub = parseFloat(document.getElementById('checkout-subtotal')?.dataset?.val || 0);
@@ -4821,7 +4824,17 @@
         const totalEl = document.getElementById('checkout-total');
         const btn = document.getElementById('create-order-btn');
         if (totalEl) totalEl.textContent = total.toLocaleString('cs-CZ') + ' Kč';
-        if (btn) btn.textContent = 'Objednat a zaplatit ' + total.toLocaleString('cs-CZ') + ' Kč';
+        if (btn && !document.getElementById('direct-form-section')) btn.textContent = 'Objednat a zaplatit ' + total.toLocaleString('cs-CZ') + ' Kč';
+        // Direct checkout — aktualizuj dc-* prvky
+        const dcShip = document.getElementById('dc-shipping');
+        const dcTotalNow = document.getElementById('dc-total-now');
+        if (dcShip) {
+            dcShip.textContent = price.toLocaleString('cs-CZ') + ' Kč';
+            const commission = parseFloat(document.getElementById('dc-commission')?.dataset?.val || 0);
+            const nowTotal = commission + price;
+            if (dcTotalNow) dcTotalNow.textContent = nowTotal.toLocaleString('cs-CZ') + ' Kč';
+            if (btn) btn.textContent = 'Objednat — zaplatit ' + nowTotal.toLocaleString('cs-CZ') + ' Kč';
+        }
     };
 
     window.createOrder = async function(sellerId) {
@@ -5117,6 +5130,121 @@
             showToast('Chyba: ' + e.message, 'error');
             if (btn) { btn.disabled = false; btn.textContent = 'Objednat a zaplatit'; }
         }
+    };
+
+    // ══════════════════════════════════════════════════════════════
+    // PŘÍMÁ PLATBA — objednávka bez escrow
+    // ══════════════════════════════════════════════════════════════
+    window.createDirectOrder = async function(itemId) {
+        const get = i => (document.getElementById(i)?.value || '').trim();
+        const name = get('phn-name'), street = get('phn-street'), city = get('phn-city'), zip = get('phn-zip'), phone = get('phn-phone');
+        if (!name || !street || !city || !zip || !phone) { showToast('Vyplňte všechna povinná pole adresy.', 'warning'); return; }
+        if (!_checkoutCarrier) { showToast('Vyberte způsob doručení.', 'warning'); return; }
+        const item = dataPevnaCena.find(i => i.id == itemId);
+        if (!item) { showToast('Položka nenalezena.', 'warning'); return; }
+        if (item.reserved_until && item.reserved_until > Date.now()) { showToast('Položka je rezervována.', 'warning'); return; }
+        const commission  = Math.round(item.price * COMMISSION_PCT) + COMMISSION_FIX;
+        const shippingFee = _checkoutCarrier.price;
+        const nowPayable  = commission + shippingFee;
+        const btn = document.getElementById('create-order-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Zpracovávám…'; }
+        try {
+            const token = await _ensureValidToken();
+            const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+            const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/create_order_with_reserve`, {
+                method: 'POST', headers: hdrs,
+                body: JSON.stringify({
+                    p_buyer_id: window.currentUser.id, p_seller_id: item.seller_id,
+                    p_subtotal: item.price, p_shipping_fee: shippingFee,
+                    p_platform_fee: commission, p_total: nowPayable,
+                    p_shipping_address: { name, street, city, zip, phone },
+                    p_carrier: _checkoutCarrier.id,
+                    p_items: [{ item_id: String(item.id), item_type: item.type, title: item.title, price: item.price, img: item.img }]
+                })
+            });
+            if (!rpcRes.ok) { const e = await rpcRes.json().catch(()=>({})); throw new Error(e.message || e.hint || 'Chyba vytvoření objednávky.'); }
+            const rpcData = await rpcRes.json();
+            const orderId = rpcData?.order_id;
+            if (!orderId) throw new Error('Nepodařilo se získat ID objednávky.');
+            // Označit objednávku jako přímou platbu
+            fetch(`${SUPABASE_URL}/rest/v1/objednavky?id=eq.${orderId}`, {
+                method: 'PATCH',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ payment_type: 'direct' })
+            }).catch(() => {});
+            // Vytvořit pending_payment pro provizi
+            const payment = await window.createPendingPayment('commission', nowPayable, orderId);
+            if (!payment?.id) throw new Error('Nepodařilo se vytvořit platbu.');
+            _checkoutCarrier = null;
+            window._showDirectPaymentQR(item, orderId, payment.id, nowPayable, commission, shippingFee, { name, street, city, zip, phone });
+        } catch(e) {
+            showToast('Chyba: ' + e.message, 'error');
+            if (btn) { btn.disabled = false; btn.textContent = 'Objednat — zaplatit'; }
+        }
+    };
+
+    window._showDirectPaymentQR = function(item, orderId, paymentId, nowPayable, commission, shippingFee, address) {
+        const formEl = document.getElementById('direct-form-section');
+        const qrEl   = document.getElementById('direct-qr-container');
+        if (formEl) formEl.classList.add('hidden');
+        if (!qrEl) return;
+        qrEl.classList.remove('hidden');
+        const vs  = String(paymentId);
+        const msg = 'FT-' + orderId.substring(0, 8);
+        qrEl.innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+                <div class="bg-orange-50 border border-orange-200 rounded-3xl p-6 text-center">
+                    <h3 class="font-bold text-orange-800 text-lg mb-1">⚡ Zaplatit poplatek FairTrade</h3>
+                    <p class="text-xs text-orange-600 mb-4">Provize ${commission.toLocaleString('cs-CZ')} Kč + doprava ${shippingFee.toLocaleString('cs-CZ')} Kč</p>
+                    <div class="bg-white rounded-2xl p-3 inline-block mb-4 shadow-sm border border-orange-100">
+                        <canvas id="direct-pay-qr"></canvas>
+                    </div>
+                    <div class="bg-white rounded-2xl p-4 text-left text-sm border border-orange-100 mb-4">
+                        <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+                            <span class="text-gray-400 text-xs">Číslo účtu</span><span class="font-mono font-bold text-xs text-gray-800">${FIO_ACCT}</span>
+                            <span class="text-gray-400 text-xs">Var. symbol</span><span class="font-mono font-bold text-orange-700">${vs}</span>
+                            <span class="text-gray-400 text-xs">Částka</span><span class="font-extrabold text-orange-700">${nowPayable.toLocaleString('cs-CZ')} Kč</span>
+                            <span class="text-gray-400 text-xs">Zpráva</span><span class="font-mono text-xs text-gray-600">${msg}</span>
+                        </div>
+                    </div>
+                    <div class="bg-orange-100 border border-orange-200 rounded-xl p-3 text-xs text-orange-800 mb-4">
+                        💰 Cena zboží <strong>${item.price.toLocaleString('cs-CZ')} Kč</strong> zaplatíte prodejci <strong>dobírkou při doručení</strong>
+                    </div>
+                    <div class="flex items-center justify-center gap-2 text-sm text-gray-500" id="direct-pay-status">
+                        <div class="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+                        Čekám na potvrzení platby…
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">Automaticky spárováno do 5 minut</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-100 rounded-3xl p-5 flex flex-col gap-4">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2">📦 Zásilka s dobírkou</h3>
+                    <div class="bg-white rounded-2xl p-4 border border-gray-100">
+                        <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-50">
+                            <img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}'" class="w-14 h-14 rounded-xl object-cover shrink-0 bg-gray-100">
+                            <div class="min-w-0"><p class="font-bold text-sm text-gray-800 truncate">${item.title}</p><p class="text-xs text-gray-400">${item.category}</p></div>
+                        </div>
+                        <div class="flex flex-col gap-1.5 text-xs">
+                            <div class="flex justify-between"><span class="text-gray-400">Dopravce</span><span class="font-bold">Zásilkovna</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Adresa</span><span class="font-bold text-right">${address.street}, ${address.city} ${address.zip}</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Příjemce</span><span class="font-bold">${address.name}</span></div>
+                            <div class="flex justify-between pt-1.5 border-t border-gray-100 mt-0.5"><span class="text-gray-500 font-semibold">Dobírka</span><span class="font-extrabold text-green-700 text-sm">${item.price.toLocaleString('cs-CZ')} Kč</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-sky-50 rounded-2xl p-3 text-xs text-sky-700 border border-sky-100">
+                        Po potvrzení platby obdrží prodejce instrukce k odeslání přes Zásilkovnu s nastavenou dobírkou ${item.price.toLocaleString('cs-CZ')} Kč.
+                    </div>
+                    <button onclick="navigate('moje-objednavky')" class="w-full bg-white border border-gray-200 hover:border-gray-300 text-gray-600 font-bold py-3 rounded-2xl text-sm transition-colors">Moje objednávky</button>
+                </div>
+            </div>`;
+        window.renderFioQR('direct-pay-qr', nowPayable, vs, msg);
+        window.startFioPolling(paymentId, function() {
+            const statusEl = document.getElementById('direct-pay-status');
+            if (statusEl) {
+                statusEl.className = '';
+                statusEl.innerHTML = '<div class="bg-green-50 border border-green-200 rounded-2xl p-3 text-green-700 font-bold text-sm">✅ Platba potvrzena! Prodejce byl upozorněn.</div>';
+            }
+            setTimeout(function() { navigate('moje-objednavky'); }, 3000);
+        });
     };
 
     // ── VIEWS ──────────────────────────────────────────────────────
@@ -5609,6 +5737,86 @@
                     <p class="text-center text-xs text-gray-400">Platební brána bude aktivována po integraci poskytovatele</p>
                 </div>
             </div>
+        </div>`;
+    };
+
+    // ══════════════════════════════════════════════════════════════
+    // DIRECT CHECKOUT — formulář + QR pro přímou platbu (bez escrow)
+    // ══════════════════════════════════════════════════════════════
+    views['direct-checkout'] = (id) => {
+        if (!window.currentUser) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center min-h-[300px] flex flex-col items-center justify-center gap-4"><p class="text-gray-500">Přihlaste se pro nákup.</p><button onclick="navigate('login')" class="bg-orange-500 text-white font-bold px-6 py-3 rounded-2xl">Přihlásit se</button></div>`;
+        const item = dataPevnaCena.find(i => i.id == id);
+        if (!item) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in"><button onclick="navigate('pevna-cena')" class="text-orange-500 font-bold flex items-center gap-2">← Zpět</button><p class="mt-8 text-gray-500">${!window.dataLoaded?'⌛ Načítám data…':'Položka nenalezena.'}</p></div>`;
+        if (item.seller_id === window.currentUser.id) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center"><button onclick="navigate('pevna-cena-detail/${item.id}')" class="text-orange-500 font-bold flex items-center gap-2 mb-6 mx-auto justify-center">← Zpět</button><p class="text-gray-500">Nemůžete koupit vlastní inzerát.</p></div>`;
+        if (item.reserved_until && item.reserved_until > Date.now()) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center border border-white/50"><button onclick="navigate('pevna-cena-detail/${item.id}')" class="mb-6 text-orange-500 font-bold hover:text-orange-600 flex items-center gap-2 mx-auto justify-center">← Zpět</button><div class="text-5xl mb-4">🔒</div><h2 class="text-xl font-bold text-gray-800 mb-2">Položka je rezervována</h2><p class="text-gray-500 text-sm">Zkuste to za <strong>${_reserveCountdown(item.reserved_until)}</strong>.</p></div>`;
+        const commission = Math.round(item.price * COMMISSION_PCT) + COMMISSION_FIX;
+        _checkoutCarrier = null;
+        return `<div class="w-full bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
+            <button onclick="navigate('pevna-cena-detail/${item.id}')" class="mb-5 text-orange-500 font-bold hover:text-orange-600 flex items-center gap-2">← Zpět na detail</button>
+            <h2 class="text-2xl font-extrabold text-pastel-text mb-2 flex items-center gap-2">⚡ Přímá platba</h2>
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 flex items-start gap-3 text-sm">
+                <span class="text-xl shrink-0">⚡</span>
+                <div><p class="font-bold text-orange-800">Nákup bez escrow ochrany</p><p class="text-orange-700 text-xs mt-0.5">Nyní uhradíte pouze poplatek FairTrade a dopravné. Cenu zboží zaplatíte prodejci <strong>dobírkou při doručení</strong> zásilky.</p></div>
+            </div>
+            <div id="direct-form-section" class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                <div class="flex flex-col gap-5">
+                    <div class="bg-gray-50 rounded-3xl p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-pastel-text flex items-center gap-2"><svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Doručovací adresa</h3>
+                            <button type="button" onclick="fillAddressFromProfile('phn')" class="text-xs text-sky-500 hover:text-sky-700 font-bold flex items-center gap-1 bg-sky-50 hover:bg-sky-100 px-3 py-1.5 rounded-lg transition-colors">⬇ Z profilu</button>
+                        </div>
+                        <div class="flex flex-col gap-3">
+                            <input id="phn-name"   type="text" placeholder="Jméno a příjmení *"     class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-orange-400 bg-white" autocomplete="name">
+                            <input id="phn-street" type="text" placeholder="Ulice a číslo popisné *" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-orange-400 bg-white" autocomplete="street-address">
+                            <div class="grid grid-cols-2 gap-3">
+                                <input id="phn-city" type="text" placeholder="Město *" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-orange-400 bg-white" autocomplete="address-level2">
+                                <input id="phn-zip"  type="text" placeholder="PSČ *"   class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-orange-400 bg-white" maxlength="6" autocomplete="postal-code">
+                            </div>
+                            <input id="phn-phone" type="tel" placeholder="Telefon *" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-orange-400 bg-white" autocomplete="tel">
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-3xl p-5">
+                        <h3 class="font-bold text-pastel-text mb-4 flex items-center gap-2"><svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>Způsob doručení (s dobírkou)</h3>
+                        <div class="flex flex-col gap-3">${DOPRAVCI.map(d => `<div class="carrier-card" data-carrier="${d.id}" onclick="selectCarrier('${d.id}',${d.price})"><div class="flex items-center justify-between"><div class="flex items-center gap-3"><span class="text-2xl">${d.icon}</span><div><p class="font-bold text-sm text-pastel-text">${d.name}</p><p class="text-xs text-gray-400">${d.desc} · dobírka</p></div></div><span class="font-extrabold text-pastel-text whitespace-nowrap">${d.price} Kč</span></div></div>`).join('')}</div>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-4">
+                    <div class="bg-orange-50 border border-orange-100 rounded-3xl p-5">
+                        <h3 class="font-bold text-pastel-text mb-4">Shrnutí objednávky</h3>
+                        <div class="flex items-center gap-3 py-3 border-b border-orange-100 mb-3">
+                            <img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}'" class="w-14 h-14 rounded-xl object-cover bg-gray-100 shrink-0">
+                            <div class="flex-1 min-w-0"><p class="text-sm font-semibold text-pastel-text truncate">${item.title}</p><p class="text-xs text-gray-400 mt-0.5">${[item.condition,item.brand].filter(Boolean).join(' ')}</p></div>
+                        </div>
+                        <div class="flex flex-col gap-2 text-sm">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-500 flex items-center gap-1.5">Cena zboží <span class="text-[10px] bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded font-bold uppercase">dobírka</span></span>
+                                <span class="font-semibold">${item.price.toLocaleString('cs-CZ')} Kč</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Poplatek FairTrade (${Math.round(COMMISSION_PCT*100)}% + ${COMMISSION_FIX} Kč)</span>
+                                <span id="dc-commission" data-val="${commission}" class="font-semibold">${commission.toLocaleString('cs-CZ')} Kč</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Doprava</span>
+                                <span id="dc-shipping" class="font-semibold text-gray-400">— vyberte dopravce</span>
+                            </div>
+                            <div class="pt-3 border-t border-orange-200 mt-1">
+                                <div class="flex justify-between">
+                                    <span class="font-extrabold text-gray-800">K zaplacení nyní</span>
+                                    <span id="dc-total-now" class="font-extrabold text-lg text-orange-600">—</span>
+                                </div>
+                                <div class="flex justify-between mt-1">
+                                    <span class="text-xs text-gray-400">Dobírka při doručení (prodejci)</span>
+                                    <span class="text-xs font-bold text-gray-600">${item.price.toLocaleString('cs-CZ')} Kč</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="create-order-btn" onclick="createDirectOrder('${item.id}')" class="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 px-8 rounded-2xl transition-all shadow-[0_10px_20px_-10px_rgba(249,115,22,.6)] text-base">Nejprve vyberte způsob doručení</button>
+                    <p class="text-center text-xs text-gray-400">Platba = pouze provize + doprava. Zboží platíte dobírkou.</p>
+                </div>
+            </div>
+            <div id="direct-qr-container" class="hidden"></div>
         </div>`;
     };
 
