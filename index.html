@@ -2106,7 +2106,8 @@
                         last_bidder_id: lastBidderId, last_bidder_name: lastBidderId ? getProfileName(lastBidderId) : null,
                         is_top: checkTopExpiry(item), top_expires_at: item.top_expires_at,
                         top_paid_kc: item.top_paid_kc || 0, views_count: item.views_count || 0,
-                        created_at: item.created_at ? new Date(item.created_at).getTime() : 0
+                        created_at: item.created_at ? new Date(item.created_at).getTime() : 0,
+                        payment_type: item.payment_type || 'escrow'
                     };
                 });
             }
@@ -2128,7 +2129,8 @@
                         reserved_until: item.reserved_until ? new Date(item.reserved_until).getTime() : null,
                         created_at: item.created_at ? new Date(item.created_at).getTime() : 0,
                         db_status: item.status || 'aktivní',
-                        condition_notes: item.condition_notes ? esc(item.condition_notes) : null
+                        condition_notes: item.condition_notes ? esc(item.condition_notes) : null,
+                        payment_type: item.payment_type || 'escrow'
                     };
                 });
             }
