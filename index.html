@@ -2378,6 +2378,7 @@
                 .update({ is_archived: true })
                 .eq('id', window.currentUser.id);
             if (error) throw error;
+            window._banInfo = { reason: 'Vlastník zrušil účet.', is_archived: true, self_deleted: true };
             showToast('Váš účet byl zrušen.', 'success');
             setTimeout(() => window.handleLogout(), 1200);
         } catch(err) {
@@ -5709,6 +5710,22 @@
 
     views['banned'] = () => {
         const info = window._banInfo || {};
+        if (info.self_deleted) {
+            return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50 min-h-[70vh] flex flex-col items-center justify-center text-center gap-6">
+            <div class="text-7xl">🗑️</div>
+            <div class="max-w-md w-full">
+                <h2 class="text-2xl font-extrabold text-gray-700 mb-1">Váš účet byl smazán</h2>
+                <p class="text-gray-500 text-sm mb-5">Vlastník zrušil účet</p>
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-5 text-left mb-4">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Důvod</p>
+                    <p class="text-gray-700 font-semibold">Vlastník zrušil účet.</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm text-gray-500 mb-5">Váš účet byl smazán. Data nelze obnovit.</div>
+                <p class="text-gray-400 text-xs mb-6">Pokud jste se přihlásili omylem, kontaktujte nás na <a href="mailto:support@fairtrade.cz" class="text-sky-500 underline">support@fairtrade.cz</a></p>
+                <button onclick="handleLogout()" class="text-gray-400 text-sm hover:text-gray-600 transition-colors underline">Odhlásit se</button>
+            </div>
+        </div>`;
+        }
         return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50 min-h-[70vh] flex flex-col items-center justify-center text-center gap-6">
             <div class="text-7xl">🚫</div>
             <div class="max-w-md w-full">
