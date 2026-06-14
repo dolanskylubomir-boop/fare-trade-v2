@@ -4933,12 +4933,21 @@
                     p_platform_fee: fee, p_total: total,
                     p_shipping_address: {name, street, city, zip, phone},
                     p_carrier: _checkoutCarrier.id,
+                    p_payment_type: 'escrow',
                     p_items: group.items.map(i => ({ item_id: String(i.id), item_type: i.type, title: i.title, price: i.price, img: i.img }))
                 })
             });
             if (!rpcRes.ok) {
                 const err = await rpcRes.json().catch(() => ({}));
-                throw new Error(err.message || err.hint || 'Chyba vytvoření objednávky.');
+                const msg = (err.message || err.hint || '');
+                if (msg.includes('item_reserved'))        throw new Error('Položka je rezervována jiným kupujícím. Zkuste to za chvíli.');
+                if (msg.includes('item_not_available'))   throw new Error('Jeden z inzerátů již není dostupný.');
+                if (msg.includes('item_not_found'))       throw new Error('Inzerát nebyl nalezen v databázi.');
+                if (msg.includes('seller_unavailable'))   throw new Error('Prodejce není momentálně dostupný.');
+                if (msg.includes('cannot_buy_own_item'))  throw new Error('Nemůžete koupit vlastní inzerát.');
+                if (msg.includes('item_locked'))          throw new Error('Jiný kupující právě zpracovává stejné zboží. Zkuste to znovu za pár sekund.');
+                if (msg.includes('buyer_blocked'))        throw new Error('Váš účet nemá oprávnění nakupovat.');
+                throw new Error(msg || 'Chyba vytvoření objednávky.');
             }
             const rpcData = await rpcRes.json();
             const orderId = rpcData?.order_id;
@@ -4978,19 +4987,23 @@
                     p_platform_fee: commission, p_total: nowPayable,
                     p_shipping_address: { name, street, city, zip, phone },
                     p_carrier: _checkoutCarrier.id,
+                    p_payment_type: 'direct',
                     p_items: group.items.map(i => ({ item_id: String(i.id), item_type: i.type, title: i.title, price: i.price, img: i.img }))
                 })
             });
-            if (!rpcRes.ok) { const e = await rpcRes.json().catch(() => ({})); throw new Error(e.message || e.hint || 'Chyba vytvoření objednávky.'); }
+            if (!rpcRes.ok) {
+                const e = await rpcRes.json().catch(() => ({}));
+                const msg = (e.message || e.hint || '');
+                if (msg.includes('item_reserved'))       throw new Error('Položka je rezervována jiným kupujícím. Zkuste to za chvíli.');
+                if (msg.includes('item_not_available'))  throw new Error('Jeden z inzerátů již není dostupný.');
+                if (msg.includes('item_locked'))         throw new Error('Jiný kupující právě zpracovává stejné zboží. Zkuste znovu za pár sekund.');
+                if (msg.includes('seller_unavailable'))  throw new Error('Prodejce není momentálně dostupný.');
+                if (msg.includes('cannot_buy_own_item')) throw new Error('Nemůžete koupit vlastní inzerát.');
+                throw new Error(msg || 'Chyba vytvoření objednávky.');
+            }
             const rpcData = await rpcRes.json();
             const orderId = rpcData?.order_id;
             if (!orderId) throw new Error('Nepodařilo se získat ID objednávky.');
-            // Označit jako přímou platbu
-            fetch(`${SUPABASE_URL}/rest/v1/objednavky?id=eq.${orderId}`, {
-                method: 'PATCH',
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-                body: JSON.stringify({ payment_type: 'direct' })
-            }).catch(() => {});
             window.Cart.clearSeller(groupKey);
             _checkoutCarrier = null;
             navigate('platba-objednavky', orderId);
