@@ -6115,7 +6115,13 @@
     views['moje-objednavky'] = () => {
         if (!window.currentUser) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center min-h-[300px] flex flex-col items-center justify-center gap-4"><p class="text-gray-500">Přihlaste se pro zobrazení objednávek.</p><button onclick="navigate('login')" class="bg-sky-500 text-white font-bold px-6 py-3 rounded-2xl">Přihlásit se</button></div>`;
         setTimeout(window.loadMojeObjednavky, 0);
-        return `<div class="w-full bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in border border-white/50"><h2 class="text-2xl font-extrabold text-pastel-text mb-6 flex items-center gap-3"><svg class="w-6 h-6 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>Moje objednávky</h2><div id="moje-obj-content"><div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div></div></div>`;
+        return `<div class="w-full bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
+            <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+                <h2 class="text-2xl font-extrabold text-pastel-text flex items-center gap-3"><svg class="w-6 h-6 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>Moje objednávky</h2>
+                <button onclick="window.exportOrdersCSV()" class="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-sm whitespace-nowrap"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Stáhnout Excel</button>
+            </div>
+            <div id="moje-obj-content"><div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div></div>
+        </div>`;
     };
 
     views['objednavka-detail'] = (orderId) => {
@@ -6486,6 +6492,7 @@
                 fetch(`${SUPABASE_URL}/rest/v1/reviews?reviewer_id=eq.${window.currentUser.id}&select=order_id`, { headers: hdrs })
             ]);
             const orders = await rOrders.json();
+            window._myOrdersCache = Array.isArray(orders) ? orders : [];
             const auctOffers = await rOffers.json();
             const _reviewedIds = new Set((await rReviews.json().catch(()=>[])).map(r=>r.order_id));
             const FI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f1f5f9'/%3E%3C/svg%3E";
@@ -6607,6 +6614,55 @@
             }).join('') + `<button onclick="navigate('moje-objednavky')" class="w-full text-center text-xs text-sky-500 font-bold hover:text-sky-600 py-2 mt-1">Zobrazit vše →</button>`;
         } catch(e) { container.innerHTML = '<p class="text-red-500 text-center py-8">Chyba načítání.</p>'; }
     }
+
+    window.exportOrdersCSV = async function() {
+        let orders = window._myOrdersCache;
+        if (!orders || !orders.length) {
+            // Zkusit načíst pokud cache chybí
+            showToast('Načítám objednávky…', 'info');
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?buyer_id=eq.${window.currentUser.id}&order=created_at.desc&select=*,objednavka_polozky(*)`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` }
+            });
+            orders = await r.json().catch(() => []);
+            if (!Array.isArray(orders) || !orders.length) { showToast('Žádné objednávky k exportu.', 'warning'); return; }
+        }
+        const STATUS_LABELS = { created:'Čeká na platbu', pending:'Čeká na platbu', paid:'Zaplaceno', shipped:'Odesláno', completed:'Dokončeno', dispute:'Spor', refunded:'Vráceno', resolved_buyer:'Vyřešeno', cancelled:'Zrušeno' };
+        const PT = { escrow:'Escrow', direct:'Přímá platba (dobírka)' };
+        // BOM pro správné zobrazení češtiny v Excelu
+        const BOM = '﻿';
+        const SEP = ';';
+        const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+        const headers = ['Číslo objednávky','Datum','Status','Typ platby','Zboží','Cena zboží (Kč)','Doprava (Kč)','Poplatek (Kč)','Celkem (Kč)','Dopravce','Tracking'];
+        const rows = orders.map(o => {
+            const items = (o.objednavka_polozky || []).map(i => i.title).join(', ');
+            const carr = DOPRAVCI.find(d => d.id === o.carrier);
+            return [
+                o.id.substring(0,8).toUpperCase(),
+                new Date(o.created_at).toLocaleDateString('cs-CZ'),
+                STATUS_LABELS[o.status] || o.status,
+                PT[o.payment_type] || o.payment_type || 'Escrow',
+                items,
+                Number(o.subtotal || 0),
+                Number(o.shipping_fee || 0),
+                Number(o.platform_fee || 0),
+                Number(o.total || 0),
+                carr ? carr.name : (o.carrier || ''),
+                o.tracking_number || ''
+            ].map(q).join(SEP);
+        });
+        const csv = BOM + headers.map(q).join(SEP) + '\n' + rows.join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'objednavky_fairtrade_' + new Date().toISOString().slice(0,10) + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Export stažen (' + orders.length + ' objednávek)', 'success');
+    };
 
     // ── TEST ONLY — smaž před ostrým provozem ─────────────────
     window._testPay = async function(orderId) {
