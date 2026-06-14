@@ -2368,6 +2368,23 @@
         navigate('home');
     };
 
+    window.deleteAccount = async function() {
+        if (!confirm('Opravdu chcete zrušit svůj účet?\n\nVšechny vaše inzeráty budou deaktivovány a přístup k platformě bude zablokován.')) return;
+        if (!confirm('Jste si jistý/á, že chcete smazat účet? Tuto akci nelze vrátit.')) return;
+        if (!window.currentUser) return;
+        try {
+            const { error } = await supabaseClient
+                .from('profiles')
+                .update({ is_archived: true })
+                .eq('id', window.currentUser.id);
+            if (error) throw error;
+            showToast('Váš účet byl zrušen.', 'success');
+            setTimeout(() => window.handleLogout(), 1200);
+        } catch(err) {
+            showToast('Nepodařilo se zrušit účet: ' + (err.message || err), 'error');
+        }
+    };
+
     window.handleKYCSubmit = async function(e) {
         e.preventDefault();
         if (!supabaseClient) return alert('Supabase není nakonfigurován!');
@@ -3367,6 +3384,16 @@
                     </div>
                     <button onclick="_saveDac7Kyc()" class="bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3 px-6 rounded-2xl transition-colors text-sm w-full sm:w-auto">
                         Uložit identifikaci →
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-8 border-t border-red-100 pt-6">
+                <div class="bg-red-50 border border-red-200 rounded-2xl p-4">
+                    <h4 class="text-sm font-bold text-red-700 mb-1">Zrušení účtu</h4>
+                    <p class="text-xs text-gray-500 mb-3">Trvalé smazání účtu. Všechny vaše inzeráty budou deaktivovány a přístup k platformě bude zablokován.</p>
+                    <button onclick="window.deleteAccount()" class="bg-red-500 hover:bg-red-600 active:scale-95 text-white font-bold py-2 px-5 rounded-xl text-sm transition-all">
+                        Zrušit účet
                     </button>
                 </div>
             </div>`;
