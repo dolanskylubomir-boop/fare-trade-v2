@@ -799,23 +799,27 @@
         });
     } catch(e) { /* Supabase init failed */ }
 
-    // Provize: 3 % z ceny + 29 Kč fixní poplatek (platí kupující)
-    const COMMISSION_PCT  = 0.03;
-    const COMMISSION_FIX  = 29;
-    // Poplatek za aktivaci inzerátu/aukce
-    const LISTING_FEE     = 19;
-    // Ověřovací platba při registraci
-    const VERIFY_FEE      = 1;
-    // FIO účet provozovatele — NAHRAĎTE skutečným číslem/IBAN
-    const FIO_ACCT        = '000000000/2010';          // ← NAHRAĎTE
-    const FIO_IBAN        = 'CZ0000000000000000000000'; // ← NAHRAĎTE (bez mezer)
-    const FIO_BIC         = 'FIOBCZPPXXX';
+    const ESCROW_FEE    = 49;    // poplatek escrow (kupující)
+    const LISTING_FEE   = 19;    // aktivace inzerátu/aukce (bez escrow), platnost 20 dní
+    const TOP_FEE_DIRECT= 40;    // topování bez escrow (7 dní)
+    const VERIFY_FEE    = 1;     // ověření identity (1 Kč)
+    const COMMISSION_PCT= 0.03;  // provize platformy u přímé platby
+    const COMMISSION_FIX= 29;    // fixní část provize
+    // FIO účet provozovatele — NAHRAĎTE skutečnými údaji
+    const FIO_ACCT      = '000000000/2010';           // ← NAHRAĎTE
+    const FIO_IBAN      = 'CZ0000000000000000000000'; // ← NAHRAĎTE (bez mezer)
+    const FIO_BIC       = 'FIOBCZPPXXX';
 
+    // Escrow topování (existující)
     const TOP_TIERS = [
         { days:1,  amount:29,  label:'1 den',   popular:false },
         { days:3,  amount:59,  label:'3 dny',   popular:false },
         { days:7,  amount:99,  label:'7 dní',   popular:true  },
         { days:30, amount:299, label:'30 dní',  popular:false }
+    ];
+    // Topování bez escrow (1 tier: 7 dní / 40 Kč)
+    const TOP_TIERS_DIRECT = [
+        { days:7, amount:TOP_FEE_DIRECT, label:'7 dní', popular:true }
     ];
 
     const KATEGORIE = [
@@ -844,8 +848,8 @@
             ['3. KYC ověření', 'Pro aktivní prodej je vyžadováno ověření totožnosti. Uživatel je povinen poskytnout jméno, příjmení, datum narození, adresu a číslo bankovního účtu.'],
             ['4. Inzerování a aukce', 'Popis a fotografie musí věrně zobrazovat stav zboží. Aukce je závazná – vítěz příhozu je povinen zboží zakoupit. Prodávající musí odeslat zboží do 5 pracovních dnů.'],
             ['5. Zakázané zboží', 'Zakázáno inzerovat: střelné zbraně, drogy, padělky, kradené zboží, živá zvířata (CITES), léčiva bez oprávnění a obsah porušující práva třetích osob.'],
-            ['6. Poplatky', 'Registrace: 1 Kč ověření totožnosti. Aktivace inzerátu: 19 Kč. Kupující hradí: 3 % provizi z ceny + 29 Kč poplatek platformě. TOP inzeráty: 29–299 Kč dle délky zvýraznění.'],
-            ['7. Přímé platby', 'Platba za zboží probíhá přímo mezi kupujícím a prodávajícím. Platforma zajišťuje pouze zprostředkování a inkaso provize. Prodávající je povinen odeslat zboží do 5 pracovních dnů od přijetí platby.'],
+            ['6. Poplatky', 'Kupující hradí: 5% provizi z ceny a 49 Kč escrow poplatek. TOP inzeráty: 29–299 Kč dle délky zvýraznění.'],
+            ['7. Escrow ochrana', 'Platba je držena v úschově do potvrzení přijetí zboží kupujícím. Pokud kupující nepotvrdí do 14 dní, platba se uvolní automaticky.'],
             ['8. Reklamace', 'Reklamaci je nutné uplatnit do 14 dní od přijetí. Stížnost lze řešit přes ČOI (coi.cz) nebo ODR (ec.europa.eu/consumers/odr).'],
             ['9. GDPR', 'Osobní údaje jsou zpracovávány dle GDPR a zák. 110/2019 Sb. Máte právo na přístup, opravu, výmaz a přenositelnost údajů. Stížnost u ÚOOÚ (uoou.cz).'],
             ['10. Rozhodné právo', 'VOP se řídí právem ČR (OZ č. 89/2012 Sb., zákon o ochraně spotřebitele č. 634/1992 Sb.). Spory řeší soudy ČR.'],
@@ -1245,98 +1249,89 @@
     // ──────────────────────────────────────────────────────────────
     // POMOCNÉ FUNKCE
     // ──────────────────────────────────────────────────────────────
-    window.getPriceInfo = function(price) {
-        const fee = Math.round(price * COMMISSION_PCT) + COMMISSION_FIX;
-        return { fee, total: price + fee };
+    window.getPriceInfo = function(price, paymentType) {
+        if (paymentType === 'direct') {
+            const fee = Math.round(price * COMMISSION_PCT) + COMMISSION_FIX;
+            return { fee, total: price + fee };
+        }
+        const fee = Math.round(price * 0.05);
+        return { fee, total: price + fee + ESCROW_FEE };
     };
 
-    // ── FIO QR Platba (ČSN) ──────────────────────────────────────
+    // ── FIO QR Platba (ČSN SPD formát) ──────────────────────────
     window.renderFioQR = function(canvasId, amount, vs, message) {
-        const spdStr = [
-            'SPD*1.0',
-            'ACC:' + FIO_IBAN,
-            'AM:'  + amount.toFixed(2),
-            'CC:CZK',
-            'MSG:' + message.slice(0, 60).replace(/[*]/g, ''),
-            'X-VS:' + vs
-        ].join('*');
         const canvas = document.getElementById(canvasId);
         if (!canvas || typeof QRCode === 'undefined') return;
-        QRCode.toCanvas(canvas, spdStr, { width: 220, margin: 2, color: { dark: '#1e293b', light: '#ffffff' } });
+        const spd = ['SPD*1.0','ACC:'+FIO_IBAN,'AM:'+amount.toFixed(2),'CC:CZK',
+                     'MSG:'+message.slice(0,60).replace(/[*]/g,''),'X-VS:'+vs].join('*');
+        QRCode.toCanvas(canvas, spd, { width:220, margin:2, color:{dark:'#1e293b',light:'#ffffff'} });
     };
 
-    // ── Polling: čeká na potvrzení platby v DB ───────────────────
-    window._fioPollingTimer = null;
+    // ── Polling: čeká na potvrzení platby v DB (každých 30 s) ───
+    window._fioTimer = null;
     window.startFioPolling = function(paymentId, onConfirmed, onExpired) {
-        let attempts = 0;
-        clearInterval(window._fioPollingTimer);
-        window._fioPollingTimer = setInterval(async function() {
-            attempts++;
-            if (attempts > 120) { clearInterval(window._fioPollingTimer); if (onExpired) onExpired(); return; }
+        let n = 0;
+        clearInterval(window._fioTimer);
+        window._fioTimer = setInterval(async function() {
+            if (++n > 120) { clearInterval(window._fioTimer); if (onExpired) onExpired(); return; }
             try {
                 const { data } = await supabaseClient.from('pending_payments').select('status').eq('id', paymentId).single();
-                if (data && data.status === 'confirmed') {
-                    clearInterval(window._fioPollingTimer);
-                    onConfirmed();
-                }
+                if (data?.status === 'confirmed') { clearInterval(window._fioTimer); onConfirmed(); }
             } catch(e) {}
         }, 30000);
     };
 
-    // ── Vytvoří záznam pending_payment, vrátí { id, vs } ────────
+    // ── Vytvoří pending_payment, vrátí { id, vs } ───────────────
     window.createPendingPayment = async function(type, amount, referenceId) {
-        const user = window.currentUser;
-        if (!user) return null;
+        if (!window.currentUser) return null;
         const token = await _ensureValidToken();
         const res = await fetch(SUPABASE_URL + '/rest/v1/pending_payments', {
             method: 'POST',
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-            body: JSON.stringify({ user_id: user.id, type: type, amount: amount, reference_id: referenceId || null, status: 'pending' })
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token,
+                       'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+            body: JSON.stringify({ user_id: window.currentUser.id, type, amount, reference_id: referenceId || null })
         });
         if (!res.ok) return null;
         const rows = await res.json();
-        return rows && rows[0] ? { id: rows[0].id, vs: rows[0].id } : null;
+        return rows?.[0] ? { id: rows[0].id, vs: rows[0].id } : null;
     };
 
-    // ── Generování smlouvy PDF (jsPDF) ───────────────────────────
+    // ── Odečte z peněženky, vrátí true pokud OK ─────────────────
+    window.deductWallet = async function(amount, description) {
+        const token = await _ensureValidToken();
+        const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/wallet_deduct', {
+            method: 'POST',
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_amount: amount, p_description: description })
+        });
+        return res.ok;
+    };
+
+    // ── Generování kupní smlouvy PDF ─────────────────────────────
     window.generateContractPDF = function(order) {
-        if (typeof window.jspdf === 'undefined') { showToast('PDF knihovna se načítá, zkuste za chvíli.', 'warning'); return; }
+        if (typeof window.jspdf === 'undefined') { showToast('PDF knihovna se načítá.', 'warning'); return; }
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const now = new Date().toLocaleDateString('cs-CZ');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.text('KUPNÍ SMLOUVA', 105, 20, { align: 'center' });
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text('Uzavřená dne: ' + now, 20, 32);
-        doc.setFontSize(11);
-        doc.text('PRODÁVAJÍCÍ', 20, 45);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text('Jméno: ' + (order.sellerName || '—'), 20, 52);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.text('KUPUJÍCÍ', 20, 65);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text('Jméno: ' + (order.buyerName || '—'), 20, 72);
-        doc.text('Adresa: ' + (order.buyerAddress || '—'), 20, 78);
-        doc.text('Telefon: ' + (order.buyerPhone || '—'), 20, 84);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.text('PŘEDMĚT SMLOUVY', 20, 97);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text('Zboží: ' + (order.itemTitle || '—'), 20, 104);
-        doc.text('Cena zboží: ' + (order.itemPrice || '—') + ' Kč', 20, 110);
-        doc.text('Doprava: ' + (order.carrier || '—') + ' (' + (order.shippingFee || '—') + ' Kč)', 20, 116);
-        doc.text('Číslo objednávky: ' + (order.orderId || '—'), 20, 122);
-        doc.setFontSize(9);
-        doc.setTextColor(120);
-        doc.text('Platba provedena přes FairTrade tržiště. Provize ' + (Math.round(order.itemPrice * COMMISSION_PCT) + COMMISSION_FIX) + ' Kč uhrazena platformě.', 20, 135);
-        doc.text('Smlouva je platná bez podpisů dle § 2079 a násl. OZ č. 89/2012 Sb.', 20, 141);
-        doc.save('smlouva-' + (order.orderId || 'ft') + '.pdf');
+        const doc = new jsPDF({ unit:'mm', format:'a4' });
+        const d = new Date().toLocaleDateString('cs-CZ');
+        doc.setFont('helvetica','bold'); doc.setFontSize(16);
+        doc.text('KUPNÍ SMLOUVA', 105, 20, { align:'center' });
+        doc.setFont('helvetica','normal'); doc.setFontSize(10);
+        doc.text('Uzavřena dne: ' + d, 20, 30);
+        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('PRODÁVAJÍCÍ', 20, 42);
+        doc.setFont('helvetica','normal'); doc.setFontSize(10);
+        doc.text('Jméno: ' + (order.sellerName||'—'), 20, 49);
+        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('KUPUJÍCÍ', 20, 61);
+        doc.setFont('helvetica','normal'); doc.setFontSize(10);
+        doc.text('Jméno: ' + (order.buyerName||'—'), 20, 68);
+        doc.text('Adresa: ' + (order.buyerAddress||'—'), 20, 74);
+        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('PŘEDMĚT', 20, 86);
+        doc.setFont('helvetica','normal'); doc.setFontSize(10);
+        doc.text('Zboží: ' + (order.itemTitle||'—'), 20, 93);
+        doc.text('Cena: ' + (order.itemPrice||'—') + ' Kč', 20, 99);
+        doc.text('Č. objednávky: ' + (order.orderId||'—'), 20, 105);
+        doc.setFontSize(9); doc.setTextColor(120);
+        doc.text('Smlouva dle § 2079 OZ č. 89/2012 Sb. — platná bez podpisů.', 20, 118);
+        doc.save('smlouva-' + (order.orderId||'ft').slice(0,8) + '.pdf');
     };
 
     window.getTimeRemaining = function(dateString) {
@@ -2256,11 +2251,8 @@
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
             if (error) showToast('Chyba registrace: ' + error.message, 'warning');
             else {
-                showToast('Registrace úspěšná! Zkontrolujte e-mail a potvrďte jej.','success');
-                if (data?.user) {
-                    await checkUserProfileKYC(data.user, true);
-                    navigate('fio-verify');
-                }
+                showToast('Registrace úspěšná! Ověřte e-mail a pak identitu (1 Kč).', 'success');
+                if (data?.user) { await checkUserProfileKYC(data.user, true); navigate('fio-verify'); }
             }
         } else {
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -2868,7 +2860,9 @@
                 weight: parseFloat(document.getElementById('ad-weight').value) || null,
                 dimensions: document.getElementById('ad-dimensions').value || null,
                 shipping_methods: Array.from(document.querySelectorAll('input[name="shipping"]:checked')).map(el=>el.value),
-                images: uploadedImages, has_360: (uploadedImages.length >= 4), status:'neaktivni',
+                images: uploadedImages, has_360: (uploadedImages.length >= 4),
+                payment_type: document.querySelector('input[name="payment_type"]:checked')?.value || 'escrow',
+                status: document.querySelector('input[name="payment_type"]:checked')?.value === 'direct' ? 'neaktivni' : 'aktivní',
                 is_top: false, views_count: 0
             };
             let tableName = isAuction ? 'aukce' : 'pevna_cena';
@@ -2909,18 +2903,23 @@
                 description: esc(adData.description || ''),
                 endTime: isAuction ? adData.end_time : adData.expires_at,
                 last_bidder_id: null, last_bidder_name: null,
-                is_top: false, top_expires_at: null, top_paid_kc: 0, views_count: 0, status: 'aktivní',
+                payment_type: adData.payment_type,
+                is_top: false, top_expires_at: null, top_paid_kc: 0, views_count: 0, status: adData.status,
                 created_at: inserted?.created_at ? new Date(inserted.created_at).getTime() : Date.now()
             };
             if (isAuction) dataAukce.unshift(localItem);
             else dataPevnaCena.unshift(localItem);
 
             window._formDirty = false;
-            // Inzerát čeká na aktivaci — přejít na platbu poplatku
-            window._pendingListingId   = String(inserted?.id || '');
-            window._pendingListingType = tableName;
-            showToast('Inzerát vytvořen! Zaplaťte ' + LISTING_FEE + ' Kč pro aktivaci.', 'info');
-            navigate('aktivovat-inzerat');
+            if (adData.payment_type === 'direct') {
+                window._pendingListingId   = String(inserted?.id || '');
+                window._pendingListingType = tableName;
+                showToast('Inzerát vytvořen! Zaplaťte ' + LISTING_FEE + ' Kč pro aktivaci.', 'info');
+                navigate('aktivovat-inzerat');
+            } else {
+                showToast('Inzerát byl úspěšně zveřejněn!', 'success');
+                navigate('profil');
+            }
         } catch (err) {
             const msg = (err.message||'').includes('rate_limit_exceeded')
                 ? 'Příliš mnoho inzerátů za krátkou dobu. Počkejte hodinu.'
@@ -4267,7 +4266,7 @@
                     </div>
                     <button onclick="handleLogout()" class="shrink-0 text-gray-400 hover:text-red-500 font-bold text-sm transition-colors flex items-center gap-2 bg-gray-50 hover:bg-red-50 px-4 py-2 rounded-xl">Odhlásit se</button>
                 </div>
-                <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-3">
                     <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Aktivní</span><span id="profile-active-ads-count" class="text-xl font-black text-sky-600">0</span></div>
                     <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Prodejů</span><span id="profile-sales-count" class="text-xl font-black text-green-600">0</span></div>
                     <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Nákupů</span><span id="profile-purchase-count" class="text-xl font-black text-pink-600">0</span></div>
@@ -4275,11 +4274,26 @@
                     <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Prodáno</span><span id="profile-earned" class="text-xl font-black text-green-600">0 Kč</span></div>
                     <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Nakoupeno</span><span id="profile-spent" class="text-xl font-black text-pink-600">0 Kč</span></div>
                 </div>
+                <div class="flex flex-wrap gap-3 mb-4">
+                    <button onclick="navigate('penezenka')" class="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-2xl px-4 py-2.5 transition-colors">
+                        <span class="text-lg">💰</span>
+                        <div class="text-left"><p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Peněženka</p><p class="text-sm font-black text-emerald-700" id="profile-wallet-balance">— Kč</p></div>
+                    </button>
+                    <div id="profile-fio-badge" class="hidden flex items-center gap-2 bg-sky-50 border border-sky-200 rounded-2xl px-4 py-2.5">
+                        <span class="text-lg">✅</span>
+                        <div><p class="text-[10px] font-bold text-sky-600 uppercase tracking-wide">Ověřen FIO</p><p class="text-xs text-sky-500">Identita potvrzena</p></div>
+                    </div>
+                    <div id="profile-fio-unverified" class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-2.5 cursor-pointer hover:bg-amber-100" onclick="navigate('fio-verify')">
+                        <span class="text-lg">⚠️</span>
+                        <div><p class="text-[10px] font-bold text-amber-600 uppercase tracking-wide">Neověřen</p><p class="text-xs text-amber-500">Klikněte pro ověření (1 Kč)</p></div>
+                    </div>
+                </div>
                 <div id="dac7-banner"></div>
                 <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 overflow-hidden">
                     <div class="flex border-b border-gray-100">
                         <div class="flex overflow-x-auto scrollbar-hide flex-1 min-w-0">
                             <button id="tab-btn-inzeraty"  onclick="navigate('profil/inzeraty')"   class="${tab('inzeraty')} relative">Inzeráty</button>
+                            <button id="tab-btn-penezenka" onclick="navigate('penezenka')" class="${tab('penezenka')} relative">💰 Peněženka</button>
                             <button id="tab-btn-transakce" onclick="navigate('profil/transakce')"  class="${tab('transakce')} relative">Transakce</button>
                             <button id="tab-btn-objednavky" onclick="navigate('profil/objednavky')" class="${tab('objednavky')} relative">Objednávky 📦<span id="objednavky-alert-dot" class="unread-dot hidden" style="background:#f97316" title="Čekají objednávky k odeslání">!</span></button>
                             <button id="tab-btn-kyc"       onclick="navigate('profil/kyc')"        class="${tab('kyc')} relative">KYC</button>
@@ -4373,6 +4387,20 @@
                     <div class="flex flex-wrap gap-2">
                         ${['Zásilkovna','PPL','Česká pošta','Osobní předání'].map(m=>`<label class="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"><input type="checkbox" name="shipping" value="${m}" class="w-4 h-4 text-sky-500 rounded focus:ring-sky-400" checked><span class="text-xs font-semibold text-gray-700">${m}</span></label>`).join('')}
                     </div>
+                </div>
+                <div class="border-t border-gray-100 pt-5">
+                    <h3 class="text-base font-bold text-gray-800 mb-3">Způsob platby kupujícím</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
+                        <label class="flex items-start gap-3 p-4 rounded-2xl border-2 border-sky-400 bg-sky-50 cursor-pointer has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 transition-all">
+                            <input type="radio" name="payment_type" value="escrow" checked class="mt-1 w-4 h-4 text-sky-500">
+                            <div><p class="font-bold text-sky-700 text-sm">🔒 Escrow ochrana</p><p class="text-xs text-sky-600 mt-0.5">Platba přes platformu — kupující potvrdí doručení. Topování 29–299 Kč.</p></div>
+                        </label>
+                        <label class="flex items-start gap-3 p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 cursor-pointer has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50 transition-all">
+                            <input type="radio" name="payment_type" value="direct" class="mt-1 w-4 h-4 text-emerald-500">
+                            <div><p class="font-bold text-gray-700 text-sm">⚡ Přímá platba</p><p class="text-xs text-gray-500 mt-0.5">Kupující platí přímo vám. Poplatek za inzerát ${LISTING_FEE} Kč. Topování ${TOP_FEE_DIRECT} Kč / 7 dní.</p></div>
+                        </label>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2 mb-4">U přímé platby ručíte za transakci sami — doporučujeme escrow pro vyšší ceny.</p>
                 </div>
                 <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-black py-5 rounded-2xl transition-all shadow-lg text-lg uppercase tracking-wider mt-2">Vložit inzerát na tržiště</button>
                 <p class="text-center text-xs text-gray-400 -mt-3">Vložením inzerátu souhlasíte s VOP tržiště FairTrade.</p>
@@ -5035,7 +5063,7 @@
         const item = dataPevnaCena.find(i => i.id == itemId);
         if (!item) { showToast('Položka nenalezena.','warning'); return; }
         if (item.reserved_until && item.reserved_until > Date.now()) { showToast('Položka je rezervována jiným kupujícím.','warning'); return; }
-        const sub = item.price, fee = Math.round(sub * COMMISSION_PCT) + COMMISSION_FIX, total = sub + _checkoutCarrier.price + fee;
+        const sub = item.price, fee = Math.round(sub * 0.05) + 49, total = sub + _checkoutCarrier.price + fee;
         const btn = document.getElementById('create-order-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Zpracovávám…'; }
         try {
@@ -5060,14 +5088,7 @@
             const orderId = rpcData?.order_id;
             if (!orderId) throw new Error('Nepodařilo se získat ID objednávky.');
             _checkoutCarrier = null;
-            // Uložit kontext pro platbu provize
-            window._pendingOrderId       = orderId;
-            window._pendingOrderFee      = fee;
-            window._pendingOrderItem     = { title: item.title, price: item.price, img: item.img };
-            window._pendingOrderCarrier  = { id: rpcData?.carrier || '', fee: total - sub - fee };
-            window._pendingOrderAddress  = { name, street, city, zip, phone };
-            window._pendingOrderSellerId = item.seller_id;
-            navigate('zaplatit-provizi');
+            navigate('objednavka-ok', orderId);
         } catch(e) {
             showToast('Chyba: ' + e.message, 'error');
             if (btn) { btn.disabled = false; btn.textContent = 'Objednat a zaplatit'; }
@@ -5086,121 +5107,243 @@
         </div>
     </div>`;
 
-    // ── FIO OVĚŘENÍ PŘI REGISTRACI ──────────────────────────────
+    // ══════════════════════════════════════════════════════════════
+    // FIO OVĚŘENÍ IDENTITY (1 Kč po registraci)
+    // ══════════════════════════════════════════════════════════════
     views['fio-verify'] = () => {
-        if (!window.currentUser) return views['not-found']('fio-verify');
+        if (!window.currentUser) { navigate('login'); return ''; }
         setTimeout(async function() {
             const payment = await createPendingPayment('verification', VERIFY_FEE, window.currentUser.id);
-            if (!payment) { showToast('Chyba při vytváření platby.', 'warning'); return; }
-            const vs = payment.vs;
-            document.getElementById('fv-vs').textContent   = vs;
+            if (!payment) { showToast('Chyba vytváření platby.', 'warning'); return; }
+            document.getElementById('fv-vs').textContent   = payment.vs;
             document.getElementById('fv-acct').textContent = FIO_ACCT;
-            renderFioQR('fv-qr', VERIFY_FEE, vs, 'Overeni FairTrade');
-            document.getElementById('fv-amount').textContent = VERIFY_FEE + ' Kč';
-            startFioPolling(payment.id, function() {
-                showToast('Platba přijata! Účet ověřen.', 'success');
-                navigate('home');
+            renderFioQR('fv-qr', VERIFY_FEE, payment.vs, 'Overeni FairTrade');
+            startFioPolling(payment.id, async function() {
+                // Označit jako ověřen v DB
+                const token = await _ensureValidToken();
+                await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id, {
+                    method: 'PATCH',
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                    body: JSON.stringify({ fio_verified: true })
+                });
+                showToast('✅ Identita ověřena! Nyní můžete vkládat inzeráty.', 'success');
+                navigate('novy-inzerat');
             });
         }, 100);
         return `<div class="w-full max-w-md mx-auto bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
             <div class="text-center mb-6">
                 <div class="text-5xl mb-3">🏦</div>
-                <h2 class="text-2xl font-extrabold text-pastel-text">Ověření účtu</h2>
-                <p class="text-gray-500 text-sm mt-1">Zašlete <strong>1 Kč</strong> na náš FIO účet pro ověření vaší totožnosti.</p>
+                <h2 class="text-2xl font-extrabold text-pastel-text">Ověření identity</h2>
+                <p class="text-gray-500 text-sm mt-2">Zašlete <strong>1 Kč</strong> přes FIO banku.<br>Slouží pouze k ověření — banka ji zpětně vrátí.</p>
             </div>
             <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 mb-5 flex flex-col items-center gap-3">
-                <canvas id="fv-qr" class="rounded-xl shadow"></canvas>
+                <canvas id="fv-qr" class="rounded-xl shadow-md"></canvas>
                 <p class="text-xs text-sky-700 font-bold">Naskenujte QR kód v mobilní bance</p>
             </div>
-            <div class="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2 text-sm mb-5">
-                <div class="flex justify-between"><span class="text-gray-500">Číslo účtu</span><span class="font-bold font-mono" id="fv-acct">${FIO_ACCT}</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Částka</span><span class="font-bold text-green-600" id="fv-amount">1 Kč</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Variabilní symbol</span><span class="font-bold font-mono text-pink-600" id="fv-vs">—</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Zpráva</span><span class="font-mono text-xs">Overeni FairTrade</span></div>
+            <div class="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2.5 text-sm mb-5">
+                <div class="flex justify-between items-center"><span class="text-gray-500">Číslo účtu</span><span class="font-bold font-mono" id="fv-acct">${FIO_ACCT}</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-500">Částka</span><span class="font-bold text-green-600">${VERIFY_FEE} Kč</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-500">Variabilní symbol</span><span class="font-bold font-mono text-pink-600" id="fv-vs">načítám…</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-500">Zpráva</span><span class="font-mono text-xs text-gray-600">Overeni FairTrade</span></div>
             </div>
-            <div class="flex items-center gap-2 text-sm text-gray-400 justify-center mb-4">
+            <div class="flex items-center gap-2 text-sm text-gray-400 justify-center mb-5">
                 <div class="w-4 h-4 border-2 border-sky-300 border-t-sky-600 rounded-full animate-spin"></div>
                 Čekáme na platbu (kontrola každých 30 s)…
             </div>
-            <p class="text-center text-xs text-gray-400">Platba slouží pouze k ověření totožnosti — banka vám ji zpětně vrátí.</p>
-            <button onclick="navigate('home')" class="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors">Přeskočit (ověřím později)</button>
+            <button onclick="navigate('home')" class="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors py-2">Přeskočit — ověřím identitu později</button>
         </div>`;
     };
 
-    // ── AKTIVACE INZERÁTU ────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════
+    // AKTIVACE INZERÁTU (19 Kč — přímá platba)
+    // ══════════════════════════════════════════════════════════════
     views['aktivovat-inzerat'] = () => {
-        if (!window.currentUser) return views['not-found']('aktivovat-inzerat');
+        if (!window.currentUser) { navigate('login'); return ''; }
         if (!window._pendingListingId) { navigate('profil'); return ''; }
         const listingId = window._pendingListingId;
         const tableName = window._pendingListingType || 'pevna_cena';
+        const profile   = window._privateProfileCache?.data;
+        const walletBal = profile?.wallet_balance || 0;
         setTimeout(async function() {
-            const payment = await createPendingPayment('listing', LISTING_FEE, listingId);
-            if (!payment) { showToast('Chyba při vytváření platby.', 'warning'); return; }
-            document.getElementById('ai-vs').textContent   = payment.vs;
-            document.getElementById('ai-acct').textContent = FIO_ACCT;
-            renderFioQR('ai-qr', LISTING_FEE, payment.vs, 'Aktivace inzeratu FT');
-            startFioPolling(payment.id, async function() {
-                // Aktivovat inzerát v DB
-                const token = await _ensureValidToken();
-                await fetch(SUPABASE_URL + '/rest/v1/' + tableName + '?id=eq.' + listingId, {
-                    method: 'PATCH',
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-                    body: JSON.stringify({ status: 'aktivní' })
+            if (document.getElementById('ai-qr')) {
+                const payment = await createPendingPayment('listing', LISTING_FEE, listingId);
+                if (!payment) { showToast('Chyba platby.', 'warning'); return; }
+                document.getElementById('ai-vs').textContent   = payment.vs;
+                document.getElementById('ai-acct').textContent = FIO_ACCT;
+                renderFioQR('ai-qr', LISTING_FEE, payment.vs, 'Aktivace inzeratu FT');
+                startFioPolling(payment.id, async function() {
+                    const token = await _ensureValidToken();
+                    await fetch(SUPABASE_URL + '/rest/v1/' + tableName + '?id=eq.' + listingId, {
+                        method: 'PATCH',
+                        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                        body: JSON.stringify({ status: 'aktivní' })
+                    });
+                    window._pendingListingId = null;
+                    showToast('🎉 Platba přijata! Inzerát je aktivní.', 'success');
+                    navigate('profil');
                 });
-                window._pendingListingId = null;
-                showToast('Platba přijata! Inzerát je aktivní.', 'success');
-                navigate('profil');
-            });
+            }
         }, 100);
         return `<div class="w-full max-w-md mx-auto bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
             <div class="text-center mb-6">
                 <div class="text-5xl mb-3">📋</div>
                 <h2 class="text-2xl font-extrabold text-pastel-text">Aktivace inzerátu</h2>
-                <p class="text-gray-500 text-sm mt-1">Zašlete <strong>${LISTING_FEE} Kč</strong> pro zveřejnění inzerátu na tržišti.</p>
+                <p class="text-gray-500 text-sm mt-2">Poplatek za zveřejnění inzerátu na 20 dní.</p>
             </div>
+            ${walletBal >= LISTING_FEE ? `
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-5 flex items-center justify-between">
+                <div><p class="font-bold text-emerald-700 text-sm">💰 Platit z peněženky</p><p class="text-xs text-emerald-600">Zůstatek: ${walletBal} Kč</p></div>
+                <button onclick="window._payListingFromWallet('${listingId}','${tableName}')" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl transition-colors text-sm">Zaplatit ${LISTING_FEE} Kč</button>
+            </div>
+            <p class="text-center text-xs text-gray-400 mb-4">— nebo zaplaťte bankovním převodem —</p>
+            ` : ''}
             <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-5 flex flex-col items-center gap-3">
-                <canvas id="ai-qr" class="rounded-xl shadow"></canvas>
+                <canvas id="ai-qr" class="rounded-xl shadow-md"></canvas>
                 <p class="text-xs text-emerald-700 font-bold">Naskenujte QR kód v mobilní bance</p>
             </div>
-            <div class="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2 text-sm mb-5">
-                <div class="flex justify-between"><span class="text-gray-500">Číslo účtu</span><span class="font-bold font-mono" id="ai-acct">${FIO_ACCT}</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Částka</span><span class="font-bold text-green-600">${LISTING_FEE} Kč</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Variabilní symbol</span><span class="font-bold font-mono text-pink-600" id="ai-vs">—</span></div>
+            <div class="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2.5 text-sm mb-5">
+                <div class="flex justify-between items-center"><span class="text-gray-500">Číslo účtu</span><span class="font-bold font-mono" id="ai-acct">${FIO_ACCT}</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-500">Částka</span><span class="font-bold text-green-600">${LISTING_FEE} Kč</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-500">Platnost</span><span class="text-gray-600 text-xs">20 dní od aktivace</span></div>
+                <div class="flex justify-between items-center"><span class="text-gray-500">Variabilní symbol</span><span class="font-bold font-mono text-pink-600" id="ai-vs">načítám…</span></div>
             </div>
             <div class="flex items-center gap-2 text-sm text-gray-400 justify-center mb-4">
                 <div class="w-4 h-4 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin"></div>
                 Čekáme na platbu…
             </div>
-            <button onclick="navigate('profil')" class="mt-2 w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors">Zaplatím později (inzerát zůstane neaktivní)</button>
+            <button onclick="navigate('profil')" class="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors py-2">Zaplatím později (inzerát zůstane neaktivní)</button>
         </div>`;
     };
 
-    // ── ZAPLATIT PROVIZI + SMLOUVA + ZÁSILKOVNA ──────────────────
+    window._payListingFromWallet = async function(listingId, tableName) {
+        const ok = await deductWallet(LISTING_FEE, 'Aktivace inzerátu #' + listingId);
+        if (!ok) { showToast('Nedostatek kreditu v peněžence.', 'warning'); return; }
+        const token = await _ensureValidToken();
+        await fetch(SUPABASE_URL + '/rest/v1/' + tableName + '?id=eq.' + listingId, {
+            method: 'PATCH',
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ status: 'aktivní' })
+        });
+        clearInterval(window._fioTimer);
+        window._pendingListingId = null;
+        showToast('🎉 Zaplaceno z peněženky! Inzerát je aktivní.', 'success');
+        navigate('profil');
+    };
+
+    // ══════════════════════════════════════════════════════════════
+    // PENĚŽENKA — přehled a dobití kreditu
+    // ══════════════════════════════════════════════════════════════
+    views['penezenka'] = () => {
+        if (!window.currentUser) { navigate('login'); return ''; }
+        setTimeout(async function() {
+            const token = await _ensureValidToken();
+            const r = await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id + '&select=wallet_balance,fio_verified', {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
+            });
+            const rows = await r.json();
+            const bal = rows?.[0]?.wallet_balance || 0;
+            const balEl = document.getElementById('pw-balance');
+            if (balEl) balEl.textContent = bal.toLocaleString('cs-CZ') + ' Kč';
+            // Načíst historii transakcí peněženky
+            const rh = await fetch(SUPABASE_URL + '/rest/v1/wallet_transactions?user_id=eq.' + window.currentUser.id + '&order=created_at.desc&limit=20', {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
+            });
+            const hist = await rh.json();
+            const histEl = document.getElementById('pw-history');
+            if (histEl && Array.isArray(hist)) {
+                histEl.innerHTML = hist.length ? hist.map(function(tx) {
+                    const plus = tx.amount > 0;
+                    return '<div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">'
+                        + '<div><p class="text-sm font-semibold text-gray-700">' + esc(tx.description || '—') + '</p>'
+                        + '<p class="text-xs text-gray-400">' + new Date(tx.created_at).toLocaleDateString('cs-CZ') + '</p></div>'
+                        + '<span class="font-bold ' + (plus ? 'text-green-600' : 'text-red-500') + '">'
+                        + (plus ? '+' : '') + tx.amount + ' Kč</span></div>';
+                }).join('') : '<p class="text-gray-400 text-sm text-center py-6">Žádné transakce.</p>';
+            }
+        }, 100);
+
+        return `<div class="w-full max-w-lg mx-auto bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
+            <button onclick="navigate('profil')" class="mb-5 text-pink-500 font-bold hover:text-pink-600 flex items-center gap-2">← Zpět na profil</button>
+            <div class="text-center mb-6">
+                <div class="text-5xl mb-3">💰</div>
+                <h2 class="text-2xl font-extrabold text-pastel-text">Peněženka</h2>
+                <p class="text-4xl font-black text-emerald-600 mt-2" id="pw-balance">—</p>
+                <p class="text-xs text-gray-400 mt-1">Aktuální zůstatek</p>
+            </div>
+            <div class="bg-gray-50 rounded-2xl p-4 mb-6">
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">K čemu slouží kredit</p>
+                <div class="flex flex-col gap-2 text-sm text-gray-600">
+                    <div class="flex justify-between"><span>Aktivace inzerátu/aukce (bez escrow)</span><span class="font-bold">${LISTING_FEE} Kč</span></div>
+                    <div class="flex justify-between"><span>Topování bez escrow (7 dní)</span><span class="font-bold">${TOP_FEE_DIRECT} Kč</span></div>
+                    <div class="flex justify-between"><span>Topování s escrow (7 dní)</span><span class="font-bold">99 Kč</span></div>
+                </div>
+            </div>
+            <div class="border-t border-gray-100 pt-5 mb-5">
+                <h3 class="font-bold text-gray-800 mb-3">Dobít kredit (QR platba)</h3>
+                <div class="grid grid-cols-4 gap-2 mb-4">
+                    ${[50,100,200,500].map(function(amt) {
+                        return '<button onclick="window._initWalletTopup(' + amt + ')" class="py-3 rounded-xl border-2 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 font-bold text-gray-700 transition-all text-sm">' + amt + ' Kč</button>';
+                    }).join('')}
+                </div>
+                <div id="pw-topup-area" class="hidden flex-col items-center gap-3 mt-4">
+                    <canvas id="pw-qr" class="rounded-xl shadow-md"></canvas>
+                    <div class="bg-gray-50 rounded-xl p-3 w-full flex flex-col gap-1.5 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">Účet</span><span class="font-mono font-bold">${FIO_ACCT}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Částka</span><span class="font-bold text-green-600" id="pw-topup-amount">—</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">VS</span><span class="font-mono font-bold text-pink-600" id="pw-topup-vs">—</span></div>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-400">
+                        <div class="w-4 h-4 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin"></div>
+                        Čekáme na příchozí platbu…
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800 mb-3">Historie transakcí</h3>
+                <div id="pw-history"><div class="text-gray-400 text-sm text-center py-4">Načítám…</div></div>
+            </div>
+        </div>`;
+    };
+
+    window._initWalletTopup = async function(amount) {
+        const area = document.getElementById('pw-topup-area');
+        if (area) area.classList.remove('hidden'); area.classList.add('flex');
+        document.getElementById('pw-topup-amount').textContent = amount + ' Kč';
+        const payment = await createPendingPayment('wallet_topup', amount, null);
+        if (!payment) { showToast('Chyba vytváření platby.', 'warning'); return; }
+        document.getElementById('pw-topup-vs').textContent = payment.vs;
+        renderFioQR('pw-qr', amount, payment.vs, 'Kredit FairTrade');
+        startFioPolling(payment.id, function() {
+            showToast('💰 Kredit ' + amount + ' Kč připsán na peněženku!', 'success');
+            navigate('penezenka');
+        });
+    };
+
+    // ══════════════════════════════════════════════════════════════
+    // ZAPLATIT PROVIZI + SMLOUVA (přímá platba)
+    // ══════════════════════════════════════════════════════════════
     views['zaplatit-provizi'] = () => {
-        if (!window.currentUser) return views['not-found']('zaplatit-provizi');
-        if (!window._pendingOrderId) { navigate('moje-objednavky'); return ''; }
+        if (!window.currentUser || !window._pendingOrderId) { navigate('moje-objednavky'); return ''; }
         const orderId = window._pendingOrderId;
         const fee     = window._pendingOrderFee || 0;
         const item    = window._pendingOrderItem || {};
         const addr    = window._pendingOrderAddress || {};
+        const walletBal = window._privateProfileCache?.data?.wallet_balance || 0;
         setTimeout(async function() {
             const payment = await createPendingPayment('commission', fee, orderId);
-            if (!payment) { showToast('Chyba při vytváření platby.', 'warning'); return; }
+            if (!payment) { showToast('Chyba platby.', 'warning'); return; }
             document.getElementById('zp-vs').textContent   = payment.vs;
             document.getElementById('zp-acct').textContent = FIO_ACCT;
             document.getElementById('zp-fee').textContent  = fee + ' Kč';
             renderFioQR('zp-qr', fee, payment.vs, 'Provize FairTrade ' + orderId.slice(0,8));
-            startFioPolling(payment.id, async function() {
-                showToast('Provize uhrazena! Generuji smlouvu…', 'success');
-                // Generovat PDF smlouvu
+            startFioPolling(payment.id, function() {
+                showToast('✅ Provize uhrazena! Generuji smlouvu…', 'success');
                 const profile = window._privateProfileCache?.data || {};
                 generateContractPDF({
                     orderId, itemTitle: item.title, itemPrice: item.price,
                     buyerName: profile.display_name || window.currentUser.email,
                     buyerAddress: addr.street + ', ' + addr.city + ' ' + addr.zip,
-                    buyerPhone: addr.phone,
-                    sellerName: '— (prodejce)',
-                    carrier: window._pendingOrderCarrier?.id || '—',
+                    sellerName: '— (prodejce)', carrier: window._pendingOrderCarrier?.id || '—',
                     shippingFee: window._pendingOrderCarrier?.fee || 0
                 });
                 window._pendingOrderId = null;
@@ -5211,29 +5354,48 @@
             <div class="text-center mb-5">
                 <div class="text-5xl mb-3">💳</div>
                 <h2 class="text-2xl font-extrabold text-pastel-text">Uhraďte provizi</h2>
-                <p class="text-gray-400 text-sm mt-1">Provize platformě za zprostředkování prodeje (3 % + ${COMMISSION_FIX} Kč)</p>
+                <p class="text-gray-400 text-sm mt-1">Provize platformě: ${COMMISSION_PCT*100} % + ${COMMISSION_FIX} Kč</p>
             </div>
-            <div class="bg-gray-50 rounded-2xl p-4 flex items-center gap-3 mb-5">
+            <div class="bg-gray-50 rounded-2xl p-4 flex items-center gap-3 mb-4">
                 <img src="${esc(item.img||FALLBACK_IMG)}" onerror="this.src='${FALLBACK_IMG}'" class="w-14 h-14 rounded-xl object-cover shrink-0">
-                <div><p class="font-bold text-sm text-pastel-text">${esc(item.title||'')}</p><p class="text-pink-600 font-bold">${(item.price||0).toLocaleString('cs-CZ')} Kč</p></div>
+                <div><p class="font-bold text-sm">${esc(item.title||'')}</p><p class="text-pink-600 font-bold">${(item.price||0).toLocaleString('cs-CZ')} Kč</p></div>
             </div>
-            <div class="bg-pink-50 border border-pink-200 rounded-2xl p-5 mb-5 flex flex-col items-center gap-3">
-                <canvas id="zp-qr" class="rounded-xl shadow"></canvas>
+            ${walletBal >= fee ? `
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-4 flex items-center justify-between">
+                <div><p class="font-bold text-emerald-700 text-sm">💰 Platit z peněženky</p><p class="text-xs text-emerald-600">Zůstatek: ${walletBal} Kč</p></div>
+                <button onclick="window._payCommissionFromWallet('${orderId}',${fee})" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl text-sm">Zaplatit ${fee} Kč</button>
+            </div>
+            <p class="text-center text-xs text-gray-400 mb-3">— nebo bankovním převodem —</p>
+            ` : ''}
+            <div class="bg-pink-50 border border-pink-200 rounded-2xl p-5 mb-4 flex flex-col items-center gap-3">
+                <canvas id="zp-qr" class="rounded-xl shadow-md"></canvas>
                 <p class="text-xs text-pink-700 font-bold">Naskenujte QR kód v mobilní bance</p>
             </div>
-            <div class="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2 text-sm mb-5">
+            <div class="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2 text-sm mb-4">
                 <div class="flex justify-between"><span class="text-gray-500">Číslo účtu</span><span class="font-bold font-mono" id="zp-acct">${FIO_ACCT}</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Provize</span><span class="font-bold text-pink-600" id="zp-fee">— Kč</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">Variabilní symbol</span><span class="font-bold font-mono text-pink-600" id="zp-vs">—</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Provize</span><span class="font-bold text-pink-600" id="zp-fee">—</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">VS</span><span class="font-bold font-mono text-pink-600" id="zp-vs">—</span></div>
             </div>
-            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 mb-4">
-                ℹ️ Po uhrazení provize vám bude automaticky vygenerována <strong>kupní smlouva (PDF)</strong>. Zboží plaťte přímo prodávajícímu dle jeho platebních údajů.
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-800 mb-4">
+                ℹ️ Po uhrazení provize bude vygenerována <strong>kupní smlouva PDF</strong>. Zboží plaťte přímo prodávajícímu.
             </div>
             <div class="flex items-center gap-2 text-sm text-gray-400 justify-center">
                 <div class="w-4 h-4 border-2 border-pink-300 border-t-pink-600 rounded-full animate-spin"></div>
                 Čekáme na platbu…
             </div>
         </div>`;
+    };
+
+    window._payCommissionFromWallet = async function(orderId, fee) {
+        const ok = await deductWallet(fee, 'Provize objednávka #' + orderId.slice(0,8));
+        if (!ok) { showToast('Nedostatek kreditu.', 'warning'); return; }
+        clearInterval(window._fioTimer);
+        const profile = window._privateProfileCache?.data || {};
+        const item = window._pendingOrderItem || {};
+        generateContractPDF({ orderId, itemTitle: item.title, itemPrice: item.price, buyerName: profile.display_name || window.currentUser.email });
+        window._pendingOrderId = null;
+        showToast('✅ Zaplaceno z peněženky! Smlouva stažena.', 'success');
+        setTimeout(() => navigate('moje-objednavky'), 1500);
     };
 
     views['banned'] = () => {
@@ -5618,10 +5780,14 @@
             const roleBadge = isSeller
                 ? `<span class="text-xs bg-purple-100 text-purple-600 font-bold px-2 py-0.5 rounded-lg ml-2">Prodejce</span>`
                 : `<span class="text-xs bg-sky-100 text-sky-600 font-bold px-2 py-0.5 rounded-lg ml-2">Kupující</span>`;
+            // Platební mód badge
+            const payBadge = o.payment_type === 'direct'
+                ? `<span class="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-lg ml-1">⚡ Přímá platba</span>`
+                : `<span class="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-lg ml-1">🔒 Escrow</span>`;
 
             container.innerHTML = `
             <div class="flex items-center justify-between mb-1">
-                <p class="font-mono text-sm font-bold text-gray-700">#${o.id.substring(0,8).toUpperCase()}${isAuc?' 🏆':''}${roleBadge}</p>
+                <p class="font-mono text-sm font-bold text-gray-700">#${o.id.substring(0,8).toUpperCase()}${isAuc?' 🏆':''}${roleBadge}${payBadge}</p>
                 <span class="order-status-badge ${st.cls}">${st.label}</span>
             </div>
             <p class="text-xs text-gray-400 mb-5">${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
