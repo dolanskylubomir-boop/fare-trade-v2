@@ -5021,6 +5021,54 @@
     window.closeDisputeModal = function() {
         document.getElementById('modal-dispute').classList.add('hidden');
         document.body.style.overflow = '';
+        // Reset modal to escrow state (in case it was opened for direct order)
+        const disc = document.getElementById('direct-dispute-notice');
+        if (disc) disc.remove();
+        const h3 = document.querySelector('#modal-dispute h3');
+        if (h3) h3.textContent = '⚖️ Otevřít spor';
+        const desc = document.querySelector('#modal-dispute > div > div > p.text-sm');
+        if (desc) desc.textContent = 'Nahlaste problém s objednávkou. Vaše fotky a popis jsou klíčové pro rozhodnutí.';
+        const btn = document.getElementById('dispute-submit-btn');
+        if (btn) btn.textContent = 'Odeslat spor';
+    };
+
+    window.openDirectDisputeModal = function(orderId) {
+        openDisputeModal(orderId);
+        setTimeout(function() {
+            const h3 = document.querySelector('#modal-dispute h3');
+            if (h3) h3.innerHTML = '⚡ Mediace — bez escrow';
+            const desc = document.querySelector('#modal-dispute > div > div > p.text-sm');
+            if (desc) desc.innerHTML = 'FairTrade <strong>nemůže garantovat vrácení peněz</strong> — platba probíhala mimo escrow. Vaši žádost předáme prodejci jako podnět k mediaci.';
+            let disc = document.getElementById('direct-dispute-notice');
+            if (!disc) {
+                disc = document.createElement('div');
+                disc.id = 'direct-dispute-notice';
+                disc.className = 'bg-orange-50 border border-orange-200 rounded-xl p-3 mb-4 text-xs text-orange-700';
+                const modalInner = document.querySelector('#modal-dispute .relative');
+                const firstLabel = modalInner && modalInner.querySelector('label');
+                if (firstLabel) modalInner.insertBefore(disc, firstLabel);
+            }
+            disc.innerHTML = '<strong>⚡ Přímá platba:</strong> Cena zboží šla přímo prodejci dobírkou. FairTrade může pouze zprostředkovat komunikaci — výsledek mediace není garantován. Doporučujeme nejdříve kontaktovat prodejce přes zprávy.';
+            const submitBtn = document.getElementById('dispute-submit-btn');
+            if (submitBtn) submitBtn.textContent = 'Odeslat žádost o mediaci';
+        }, 30);
+    };
+
+    window.confirmDirectDelivery = async function(orderId, sellerId) {
+        if (!confirm('Potvrzujete převzetí zásilky? Objednávka bude označena jako dokončená.')) return;
+        const token = await _ensureValidToken();
+        const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
+        await fetch(`${SUPABASE_URL}/rest/v1/objednavky?id=eq.${orderId}`, {
+            method: 'PATCH', headers: hdrs,
+            body: JSON.stringify({ status: 'completed', buyer_confirmed_at: new Date().toISOString() })
+        });
+        showToast('Zásilka označena jako převzatá.', 'success');
+        setTimeout(function() {
+            _loadObjednavkyTab();
+            if (document.getElementById('profil-seller-obj-content')) _loadSellerObjednavkyTab();
+            if (document.getElementById('moje-obj-content')) window.loadMojeObjednavky && window.loadMojeObjednavky();
+        }, 600);
+        if (sellerId) setTimeout(function() { window._openRatingModal(orderId, sellerId); }, 1400);
     };
 
     window.previewDisputePhoto = function(input) {
@@ -6107,7 +6155,11 @@
             ${shipPhotos.length ? `<h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📦 Fotky zásilky</h3>
             <div class="flex gap-2 flex-wrap mb-5">${shipPhotos.map(u=>`<a href="${u}" target="_blank"><img src="${u}" class="w-16 h-16 rounded-xl object-cover border border-gray-200 hover:opacity-80 transition-opacity cursor-zoom-in"></a>`).join('')}</div>` : ''}
 
-            ${isBuyer && o.status==='shipped' ? `<div class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3 mb-5">
+            ${isBuyer && o.status==='shipped' ? isDirect ? `<div class="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 flex items-start gap-3 mb-5">
+                <span class="text-2xl shrink-0">⚡</span>
+                <div><p class="text-sm font-extrabold text-orange-800 mb-0.5">Zásilka odeslána — platba dobírkou</p>
+                <p class="text-xs text-orange-700 leading-relaxed">Cenu zboží (<strong>${Number(o.subtotal||0).toLocaleString('cs-CZ')} Kč</strong>) zaplatíte kurýrovi při převzetí. Po převzetí klikněte <strong>✓ Zásilka převzata</strong>. V případě problémů klikněte <strong>⚖️ Mediace</strong> — FairTrade nemá escrow a nemůže garantovat vrácení peněz, může jen zprostředkovat dohodu s prodejcem.</p></div>
+            </div>` : `<div class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3 mb-5">
                 <span class="text-2xl shrink-0">⚠️</span>
                 <div><p class="text-sm font-extrabold text-amber-800 mb-0.5">Zkontrolujte zboží!</p>
                 <p class="text-xs text-amber-700 leading-relaxed">Kliknutím na <strong>✓ Doručeno</strong> okamžitě uvolníte platbu prodejci. Je-li cokoliv v nepořádku, zahajte <strong>⚖️ Spor</strong>.</p></div>
@@ -6135,7 +6187,10 @@
             </div>`:''}
 
             <div class="flex gap-2 flex-wrap pt-4 border-t border-gray-100">
-                ${isBuyer && o.status==='shipped' ? `<button onclick="openDisputeModal('${o.id}')" class="flex-1 bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold px-4 py-3 rounded-2xl text-sm transition-colors">⚖️ Zahájit spor</button><button onclick="confirmDelivery('${o.id}','${o.seller_id}')" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-colors">✓ Potvrdit doručení</button>` : ''}
+                ${isBuyer && o.status==='shipped' ? isDirect
+                    ? `<button onclick="openDirectDisputeModal('${o.id}')" class="flex-1 bg-white border border-orange-200 hover:bg-orange-50 text-orange-600 font-bold px-4 py-3 rounded-2xl text-sm transition-colors">⚖️ Mediace</button><button onclick="confirmDirectDelivery('${o.id}','${o.seller_id}')" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-colors">✓ Zásilka převzata</button>`
+                    : `<button onclick="openDisputeModal('${o.id}')" class="flex-1 bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold px-4 py-3 rounded-2xl text-sm transition-colors">⚖️ Zahájit spor</button><button onclick="confirmDelivery('${o.id}','${o.seller_id}')" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-colors">✓ Potvrdit doručení</button>`
+                : ''}
                 ${isBuyer && (o.status==='pending'||o.status==='created') && !isAuc && !isDirect ? `<button onclick="navigate('platba-objednavky','${o.id}')" class="flex-1 bg-pink-500 hover:bg-pink-600 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-colors">💳 Zaplatit →</button>` : ''}
                 ${isBuyer && isDirect && (o.status==='pending'||o.status==='created') ? `<button onclick="navigate('platba-objednavky','${o.id}')" class="flex-1 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-all">⚡ Zaplatit provizi (QR) →</button>` : ''}
                 ${isBuyer && (o.status==='completed'||o.status==='resolved_buyer'||o.status==='refunded') && !buyerReviewed ? `<button onclick="_openRatingModal('${o.id}','${o.seller_id}')" class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-colors">⭐ Ohodnotit prodejce</button>` : ''}
@@ -6401,7 +6456,7 @@
                         <div class="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center pt-3 border-t border-gray-100">
                             <div class="text-xs text-gray-400 flex flex-col gap-0.5"><span>${carr.icon} ${carr.name} · doprava: ${Number(o.shipping_fee||0).toLocaleString('cs-CZ')} Kč</span>${o.tracking_number ? _trackingHtml(o.carrier, o.tracking_number) : ''}</div>
                             <div class="flex items-center gap-3 shrink-0"><span class="font-extrabold text-lg text-pastel-text whitespace-nowrap">${Number(o.total).toLocaleString('cs-CZ')} Kč</span>
-                                ${o.status==='shipped'?`<div class="flex gap-2 flex-wrap justify-end"><button onclick="event.stopPropagation();openDisputeModal('${o.id}')" class="bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">⚖️ Spor</button><button onclick="event.stopPropagation();confirmDelivery('${o.id}','${o.seller_id}')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap">✓ Doručeno</button></div>`:''}
+                                ${o.status==='shipped'?`<div class="flex gap-2 flex-wrap justify-end">${isDirect?`<button onclick="event.stopPropagation();openDirectDisputeModal('${o.id}')" class="bg-white border border-orange-200 hover:bg-orange-50 text-orange-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">⚖️ Mediace</button><button onclick="event.stopPropagation();confirmDirectDelivery('${o.id}','${o.seller_id}')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap">✓ Převzato</button>`:`<button onclick="event.stopPropagation();openDisputeModal('${o.id}')" class="bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">⚖️ Spor</button><button onclick="event.stopPropagation();confirmDelivery('${o.id}','${o.seller_id}')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap">✓ Doručeno</button>`}</div>`:''}
                                 ${o.status==='dispute'?`<span class="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap">⚖️ Spor — probíhá šetření</span>`:''}
                                 ${(o.status==='pending'||o.status==='created')&&!isAucOrder?`<button onclick="event.stopPropagation();navigate('platba-objednavky','${o.id}')" class="bg-pink-500 hover:bg-pink-600 active:scale-95 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all whitespace-nowrap flex items-center gap-2">💳 Zaplatit →</button>`:''}
                                 ${(o.status==='completed'||o.status==='resolved_buyer'||o.status==='refunded')?`<div class="flex items-center gap-2 flex-wrap justify-end"><span class="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap">${o.status==='resolved_buyer'?'⚖️ Spor vyřešen':o.status==='refunded'?'↩️ Vráceno':'✓ Dokončeno'}</span>${!_reviewedIds.has(o.id)?`<button onclick="event.stopPropagation();_openRatingModal('${o.id}','${o.seller_id}')" class="text-xs bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 text-yellow-700 font-bold px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap">⭐ Hodnotit</button>`:`<span class="text-xs text-gray-400 whitespace-nowrap">✓ Hodnoceno</span>`}</div>`:''}
@@ -6442,7 +6497,7 @@
                     <div class="flex items-center justify-between pt-2 border-t border-gray-100">
                         <span class="text-xs text-gray-400">${carr.icon} ${carr.name} · ${Number(o.shipping_fee||0).toLocaleString('cs-CZ')} Kč</span>
                         <div class="flex items-center gap-2"><span class="font-extrabold text-sm text-pastel-text">${Number(o.total).toLocaleString('cs-CZ')} Kč</span>
-                            ${o.status==='shipped'?`<div class="flex gap-1.5"><button onclick="event.stopPropagation();openDisputeModal('${o.id}')" class="bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold px-2 py-1.5 rounded-xl text-xs transition-colors">⚖️ Spor</button><button onclick="event.stopPropagation();confirmDelivery('${o.id}','${o.seller_id}')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">✓ Doručeno</button></div>`:''}
+                            ${o.status==='shipped'?`<div class="flex gap-1.5">${isDirect?`<button onclick="event.stopPropagation();openDirectDisputeModal('${o.id}')" class="bg-white border border-orange-200 hover:bg-orange-50 text-orange-600 font-bold px-2 py-1.5 rounded-xl text-xs transition-colors">⚖️ Mediace</button><button onclick="event.stopPropagation();confirmDirectDelivery('${o.id}','${o.seller_id}')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">✓ Převzato</button>`:`<button onclick="event.stopPropagation();openDisputeModal('${o.id}')" class="bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold px-2 py-1.5 rounded-xl text-xs transition-colors">⚖️ Spor</button><button onclick="event.stopPropagation();confirmDelivery('${o.id}','${o.seller_id}')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">✓ Doručeno</button>`}</div>`:''}
                             ${!expired&&(o.status==='pending'||o.status==='created')?`<div class="flex gap-1.5"><button onclick="event.stopPropagation();navigate('platba-objednavky','${o.id}')" class="text-xs bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 rounded-xl font-bold transition-colors">💳 Zaplatit →</button><button onclick="event.stopPropagation();_testPay('${o.id}')" class="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-xl font-bold transition-colors">🧪 TEST</button></div>`:''}
                         </div>
                     </div>
