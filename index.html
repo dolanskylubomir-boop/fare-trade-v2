@@ -2965,6 +2965,7 @@
                     <div class="text-white/70 font-normal text-[9px]">Cena pro kupujícího</div>
                     ${prices.total.toLocaleString('cs-CZ')} Kč
                 </div>
+                ${item.payment_type === 'direct' ? '<div class="absolute bottom-2 right-2 bg-orange-500/90 backdrop-blur-sm text-white text-[9px] font-black px-1.5 py-0.5 rounded-md leading-tight">⚡ Bez escrow</div>' : ''}
                 <button onclick="toggleFavorite(event,'${item.id}','${item.type}')" data-id="${item.id}"
                     class="fav-btn absolute top-2 right-2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors ${isFav ? 'text-red-500' : 'text-white'}" aria-label="Oblíbené">
                     <svg class="w-4 h-4" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
@@ -2972,7 +2973,10 @@
             </div>
             <div class="flex items-center justify-between mb-0.5 gap-1">
                 <div class="text-[11px] font-bold ${catCls} uppercase tracking-wide truncate">${item.category}</div>
-                ${item.verified ? `<span class="text-[10px] text-sky-500 font-bold flex items-center gap-0.5 shrink-0"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>Ověřen</span>` : ''}
+                <div class="flex items-center gap-1 shrink-0">
+                    ${item.payment_type === 'direct' ? '<span class="text-[9px] font-black bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md uppercase tracking-wide whitespace-nowrap">⚡ Bez escrow</span>' : ''}
+                    ${item.verified ? `<span class="text-[10px] text-sky-500 font-bold flex items-center gap-0.5"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>Ověřen</span>` : ''}
+                </div>
             </div>
             <h3 class="text-sm sm:text-base font-bold text-gray-800 line-clamp-2 leading-tight">${item.title}</h3>
             ${item.description ? `<p onclick="event.stopPropagation();showDescModal(event,'${item.id}')" class="text-[11px] text-gray-400 mt-0.5 truncate cursor-pointer hover:text-sky-500 transition-colors leading-snug" title="Zobrazit celý popis">${item.description}</p>` : '<div class="mt-0.5 h-4"></div>'}
@@ -3519,7 +3523,7 @@
                         <div onclick="${isPending?'':'navigate(\''+( isAukce?'aukce-detail':'pevna-cena-detail')+'/'+item.id+'\')'}" class="flex items-center gap-3 flex-grow ${isPending?'pointer-events-none':'cursor-pointer'} min-w-0">
                             <div class="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 ${isPending?'grayscale':''}" ><img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" class="w-full h-full object-cover ${isPending?'':'group-hover:scale-110'} transition-transform"></div>
                             <div class="flex-grow min-w-0">
-                                <div class="text-[11px] ${isPending?'text-gray-400':isAukce?'text-sky-500':'text-pink-500'} font-bold mb-0.5 uppercase flex items-center flex-wrap gap-1">${isAukce?'Aukce':'Pevná cena'}${topInfo}${!isPending?`<span class="text-gray-400 font-medium text-[10px] bg-gray-50 px-1.5 py-0.5 rounded">${getDays(item.endTime)}</span>`:''}</div>
+                                <div class="text-[11px] ${isPending?'text-gray-400':isAukce?'text-sky-500':'text-pink-500'} font-bold mb-0.5 uppercase flex items-center flex-wrap gap-1">${isAukce?'Aukce':'Pevná cena'}${item.payment_type === 'direct' ? '<span class="bg-orange-100 text-orange-600 text-[9px] font-black px-1.5 py-0.5 rounded-md normal-case tracking-wide whitespace-nowrap">⚡ Bez escrow</span>' : ''}${topInfo}${!isPending?`<span class="text-gray-400 font-medium text-[10px] bg-gray-50 px-1.5 py-0.5 rounded">${getDays(item.endTime)}</span>`:''}</div>
                                 <h4 class="font-bold ${isPending?'text-gray-400':'text-gray-800'} truncate text-sm">${item.title}</h4>
                                 ${isPending?`<p class="text-[10px] text-yellow-700 font-semibold mt-0.5">Kupující má 2 hod. na zaplacení</p>`:''}
                                 ${!isPending&&isAukce&&item.last_bidder_id?`<div class="text-[10px] text-green-600 font-bold mt-0.5">✓ Zájemce: ${item.last_bidder_name}</div>`:''}
@@ -4503,7 +4507,7 @@
                                 <div class="flex items-end gap-2">
                                     <div class="text-xl font-bold text-sky-600" id="total-${item.id}">${prices.total.toLocaleString('cs-CZ')} Kč</div>
                                     <button type="button" onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-5 h-5 rounded-full bg-sky-200 text-sky-600 font-bold text-[10px] leading-none inline-flex items-center justify-center hover:bg-sky-300 transition-colors mb-0.5">?</button>
-                                    <div class="hidden text-xs text-gray-500 bg-white border border-sky-100 rounded-xl px-3 py-2 mb-0.5">Zahrnuje 5% provizi + ${ESCROW_FEE} Kč escrow ochranu. Peníze uvolněny prodejci až po doručení.</div>
+                                    <div class="hidden text-xs text-gray-500 bg-white border border-sky-100 rounded-xl px-3 py-2 mb-0.5">${item.payment_type === 'direct' ? 'Zahrnuje 5% provizi. Platba jde přímo prodejci bez escrow ochrany.' : `Zahrnuje 5% provizi + ${ESCROW_FEE} Kč escrow ochranu. Peníze uvolněny prodejci až po doručení.`}</div>
                                 </div>
                             </div>
                         </div>
@@ -4517,6 +4521,7 @@
                                     <button onclick="deleteAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-600 hover:text-white text-red-500 font-bold py-2.5 rounded-xl transition-colors border border-red-200 text-sm">🗑️ Smazat</button>
                                 </div>
                             </div>` : `
+                            ${item.payment_type === 'direct' ? `<div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex gap-3 items-start mb-3"><span class="text-2xl shrink-0">⚡</span><div><p class="font-bold text-orange-800 text-sm">Nákup bez escrow ochrany</p><p class="text-xs text-orange-700 mt-1">Platba jde přímo prodejci. FairTrade nezajišťuje escrow — za doručení a stav zboží odpovídá prodejce.</p></div></div>` : ''}
                             <div class="flex flex-col gap-2">
                                 <div class="relative">
                                 <button onclick="toggleBidMenu('${item.id}')" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-4 px-8 rounded-2xl transition-all shadow-lg text-lg">Přihodit</button>
@@ -4624,7 +4629,7 @@
                                 <div class="flex items-end gap-2">
                                     <div class="text-xl font-bold text-pink-600">${prices.total.toLocaleString('cs-CZ')} Kč</div>
                                     <button type="button" onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-5 h-5 rounded-full bg-pink-200 text-pink-600 font-bold text-[10px] leading-none inline-flex items-center justify-center hover:bg-pink-300 transition-colors mb-0.5">?</button>
-                                    <div class="hidden text-xs text-gray-500 bg-white border border-pink-100 rounded-xl px-3 py-2 mb-0.5">Zahrnuje 5% provizi + ${ESCROW_FEE} Kč escrow ochranu. Peníze uvolněny prodejci až po doručení.</div>
+                                    <div class="hidden text-xs text-gray-500 bg-white border border-pink-100 rounded-xl px-3 py-2 mb-0.5">${item.payment_type === 'direct' ? 'Zahrnuje 5% provizi. Platba jde přímo prodejci bez escrow ochrany.' : `Zahrnuje 5% provizi + ${ESCROW_FEE} Kč escrow ochranu. Peníze uvolněny prodejci až po doručení.`}</div>
                                 </div>
                             </div>
                         </div>
@@ -4638,6 +4643,7 @@
                                     <button onclick="deleteAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-600 hover:text-white text-red-500 font-bold py-2.5 rounded-xl transition-colors border border-red-200 text-sm">🗑️ Smazat</button>
                                 </div>
                             </div>` : `
+                            ${item.payment_type === 'direct' ? `<div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex gap-3 items-start mb-3"><span class="text-2xl shrink-0">⚡</span><div><p class="font-bold text-orange-800 text-sm">Nákup bez escrow ochrany</p><p class="text-xs text-orange-700 mt-1">Platba jde přímo prodejci. FairTrade nezajišťuje escrow — za doručení a stav zboží odpovídá prodejce.</p></div></div>` : ''}
                             <div class="flex flex-col gap-2">
                                 ${buyButtons}
                                 <button onclick="showMessageModal('${item.id}','${item.seller_id}',\`${item.title.replace(/`/g,'')}\`,'pevna_cena')" class="w-full bg-white border border-pink-200 hover:border-pink-400 hover:bg-pink-50 text-pink-600 font-bold py-3 px-8 rounded-2xl transition-all text-sm flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3-3-3z"/></svg>Dotaz prodejci</button>
