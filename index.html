@@ -712,7 +712,7 @@
                         </label>
                     </div>
                 </div>
-                <div class="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-xs text-sky-700">
+                <div id="dispute-info-box" class="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-xs text-sky-700">
                     Po odeslání sporu bude objednávka pozastavena a admin FairTrade případ prošetří do 48 hodin. Escrow zůstane blokováno do rozhodnutí.
                 </div>
             </div>
@@ -2180,6 +2180,7 @@
                     navigate('banned'); return;
                 }
                 window._userRole = profile.role || 'user';
+                window._kycStatus = profile.kyc_status || 'unverified';
                 if (profile.kyc_status === 'unverified') { navigate('kyc'); return; }
             }
         } catch(e) {}
@@ -2208,6 +2209,7 @@
                     setTimeout(window._checkAdminBadge, 3000);
                 } else if (event === 'INITIAL_SESSION') {
                     window._jwtReady = true;
+                    await checkUserProfileKYC(session.user, false);
                     loadFavoritesFromDB();
                     _refreshUnreadBadge();
                     setTimeout(_refreshNotifBadge, 2000);
@@ -2226,6 +2228,7 @@
             } else {
                 window.currentUser = null;
                 window._userRole = 'user';
+                window._kycStatus = null;
                 window._jwtReady = false;
                 window._banInfo = null;
                 if (btn) { btn.innerText='Registrovat'; btn.setAttribute('onclick',"navigate('login')"); }
@@ -5080,6 +5083,11 @@
         if (desc) desc.textContent = 'Nahlaste problém s objednávkou. Vaše fotky a popis jsou klíčové pro rozhodnutí.';
         const btn = document.getElementById('dispute-submit-btn');
         if (btn) btn.textContent = 'Odeslat spor';
+        const infoBox = document.getElementById('dispute-info-box');
+        if (infoBox) {
+            infoBox.className = 'bg-sky-50 border border-sky-100 rounded-2xl p-3 text-xs text-sky-700';
+            infoBox.textContent = 'Po odeslání sporu bude objednávka pozastavena a admin FairTrade případ prošetří do 48 hodin. Escrow zůstane blokováno do rozhodnutí.';
+        }
     };
 
     window.openDirectDisputeModal = function(orderId) {
@@ -5101,6 +5109,11 @@
             disc.innerHTML = '<strong>⚡ Přímá platba:</strong> Cena zboží šla přímo prodejci dobírkou. FairTrade může pouze zprostředkovat komunikaci — výsledek mediace není garantován. Doporučujeme nejdříve kontaktovat prodejce přes zprávy.';
             const submitBtn = document.getElementById('dispute-submit-btn');
             if (submitBtn) submitBtn.textContent = 'Odeslat žádost o mediaci';
+            const infoBox = document.getElementById('dispute-info-box');
+            if (infoBox) {
+                infoBox.className = 'bg-orange-50 border border-orange-100 rounded-2xl p-3 text-xs text-orange-700';
+                infoBox.textContent = 'FairTrade nemůže zablokovat platbu ani přikázat vrácení peněz. Admin může v případě prokázaného podvodu udělit ban. Spor si jinak řeší kupující a prodejce napřímo.';
+            }
         }, 30);
     };
 
@@ -7225,6 +7238,8 @@
         if (path.includes('/')) { const parts = path.split('/'); viewName = parts[0]; idOrCategory = parts[1]; }
         if (viewName === 'novy-inzerat' && !window.currentUser) { viewName = 'login'; idOrCategory = null; }
         if (window._banInfo && viewName !== 'banned') { viewName = 'banned'; idOrCategory = null; }
+        const _KYC_FREE = ['login','kyc','fio-verify','banned','home','reset-hesla','pevna-cena','aukce','pevna-cena-detail','aukce-detail','profil-verejny','seller-inzeraty'];
+        if (window.currentUser && window._kycStatus === 'unverified' && !_KYC_FREE.includes(viewName)) { viewName = 'kyc'; idOrCategory = null; }
         if (!views[viewName]) { document.getElementById('app').innerHTML = views['not-found'](viewName); history.pushState({ view:'not-found' }, '', '#'+viewName); return; }
         // Reset podkategorie při přechodu na jinou hlavní kategorii
         if (idOrCategory !== null && vsechnyKategorie.includes(idOrCategory) && idOrCategory !== _currentCategory) {
