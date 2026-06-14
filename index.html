@@ -3383,7 +3383,13 @@
         if (tab === 'objednavky') {
             window._objFilter = window._objFilter || 'vse';
             setTimeout(() => { _loadObjednavkyTab(); _loadSellerObjednavkyTab(); }, 0);
-            return `<div class="flex items-center justify-between mb-4 fade-in"><h3 class="text-xl font-bold text-gray-800">Objednávky</h3><span class="text-xs text-gray-400 font-semibold flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-pink-400 animate-pulse"></span>Živé</span></div>
+            return `<div class="flex items-center justify-between mb-4 fade-in gap-3 flex-wrap">
+                <h3 class="text-xl font-bold text-gray-800">Objednávky</h3>
+                <div class="flex items-center gap-2">
+                    <button onclick="window.exportOrdersCSV()" class="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold px-3 py-2 rounded-xl text-xs transition-all shadow-sm whitespace-nowrap"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Excel</button>
+                    <span class="text-xs text-gray-400 font-semibold flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-pink-400 animate-pulse"></span>Živé</span>
+                </div>
+            </div>
             <div id="obj-filter-bar" class="flex flex-wrap gap-1.5 mb-5"></div>
             <div class="mb-2"><p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">📦 Příchozí — prodejce</p><div id="profil-seller-obj-content" class="text-gray-400 text-center py-4 text-sm">⌛ Načítám…</div></div>
             <div class="border-t border-gray-100 pt-4 mt-2"><p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">🛍️ Moje nákupy — kupující</p><div id="profil-obj-content" class="text-gray-400 text-center py-4 text-sm">⌛ Načítám…</div></div>`;
@@ -6589,6 +6595,7 @@
         try {
             const r = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?buyer_id=eq.${window.currentUser.id}&order=created_at.desc&select=*,objednavka_polozky(*)&limit=20`, { headers: hdrs });
             const orders = await r.json();
+            if (Array.isArray(orders)) window._myOrdersCache = orders;
             _renderFilterBar('obj-filter-bar', OBJ_FILTERS, window._objFilter || 'vse', '_setObjFilter');
             const filtered = Array.isArray(orders) ? orders.filter(o => _txMatchFilter(o.status, window._objFilter || 'vse')) : [];
             if (!filtered.length) { container.innerHTML = renderEmptyState('🛒', 'Žádné objednávky', 'Tady se zobrazí objednávky ke zpracování.', null, null); return; }
@@ -6616,30 +6623,40 @@
     }
 
     window.exportOrdersCSV = async function() {
-        let orders = window._myOrdersCache;
-        if (!orders || !orders.length) {
-            // Zkusit načíst pokud cache chybí
+        const uid = window.currentUser?.id;
+        if (!uid) { showToast('Přihlaste se pro export.', 'warning'); return; }
+        // Pokud cache chybí, načti z DB
+        if (!window._myOrdersCache && !window._mySellerOrdersCache) {
             showToast('Načítám objednávky…', 'info');
             const token = await _ensureValidToken();
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?buyer_id=eq.${window.currentUser.id}&order=created_at.desc&select=*,objednavka_polozky(*)`, {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` }
-            });
-            orders = await r.json().catch(() => []);
-            if (!Array.isArray(orders) || !orders.length) { showToast('Žádné objednávky k exportu.', 'warning'); return; }
+            const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
+            const [rB, rS] = await Promise.all([
+                fetch(`${SUPABASE_URL}/rest/v1/objednavky?buyer_id=eq.${uid}&order=created_at.desc&select=*,objednavka_polozky(*)`, { headers: hdrs }),
+                fetch(`${SUPABASE_URL}/rest/v1/objednavky?seller_id=eq.${uid}&order=created_at.desc&select=*,objednavka_polozky(*)`, { headers: hdrs })
+            ]);
+            window._myOrdersCache = await rB.json().catch(() => []);
+            window._mySellerOrdersCache = await rS.json().catch(() => []);
         }
+        const buyOrders = (window._myOrdersCache || []).map(o => ({ ...o, _role: 'Kupující' }));
+        const sellOrders = (window._mySellerOrdersCache || []).map(o => ({ ...o, _role: 'Prodejce' }));
+        // Deduplikace — objednávka kde jsem obojí (edge case) se nevyskytne dvakrát
+        const seen = new Set();
+        const all = [...buyOrders, ...sellOrders].filter(o => { if (seen.has(o.id)) return false; seen.add(o.id); return true; })
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        if (!all.length) { showToast('Žádné objednávky k exportu.', 'warning'); return; }
         const STATUS_LABELS = { created:'Čeká na platbu', pending:'Čeká na platbu', paid:'Zaplaceno', shipped:'Odesláno', completed:'Dokončeno', dispute:'Spor', refunded:'Vráceno', resolved_buyer:'Vyřešeno', cancelled:'Zrušeno' };
         const PT = { escrow:'Escrow', direct:'Přímá platba (dobírka)' };
-        // BOM pro správné zobrazení češtiny v Excelu
         const BOM = '﻿';
         const SEP = ';';
         const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-        const headers = ['Číslo objednávky','Datum','Status','Typ platby','Zboží','Cena zboží (Kč)','Doprava (Kč)','Poplatek (Kč)','Celkem (Kč)','Dopravce','Tracking'];
-        const rows = orders.map(o => {
+        const headers = ['Číslo objednávky','Datum','Role','Status','Typ platby','Zboží','Cena zboží (Kč)','Doprava (Kč)','Poplatek (Kč)','Celkem (Kč)','Dopravce','Tracking'];
+        const rows = all.map(o => {
             const items = (o.objednavka_polozky || []).map(i => i.title).join(', ');
             const carr = DOPRAVCI.find(d => d.id === o.carrier);
             return [
                 o.id.substring(0,8).toUpperCase(),
                 new Date(o.created_at).toLocaleDateString('cs-CZ'),
+                o._role,
                 STATUS_LABELS[o.status] || o.status,
                 PT[o.payment_type] || o.payment_type || 'Escrow',
                 items,
@@ -6657,11 +6674,9 @@
         const a = document.createElement('a');
         a.href = url;
         a.download = 'objednavky_fairtrade_' + new Date().toISOString().slice(0,10) + '.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast('Export stažen (' + orders.length + ' objednávek)', 'success');
+        showToast('Export stažen (' + all.length + ' objednávek)', 'success');
     };
 
     // ── TEST ONLY — smaž před ostrým provozem ─────────────────
@@ -6699,6 +6714,7 @@
         try {
             const r = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?seller_id=eq.${window.currentUser.id}&order=created_at.desc&select=*,objednavka_polozky(*)&limit=20`, { headers: hdrs });
             const orders = await r.json();
+            if (Array.isArray(orders)) window._mySellerOrdersCache = orders;
             _updateObjednavkyAlertBadge(orders);
             _renderFilterBar('obj-filter-bar', OBJ_FILTERS, window._objFilter || 'vse', '_setObjFilter');
             if (!Array.isArray(orders) || !orders.length) { container.innerHTML = renderEmptyState('🛒', 'Žádné objednávky', 'Tady se zobrazí objednávky ke zpracování.', null, null); return; }
