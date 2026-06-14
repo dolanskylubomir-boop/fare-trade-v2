@@ -6002,6 +6002,7 @@
             const carr     = DOPRAVCI.find(d => d.id === o.carrier) || { name: o.carrier || '—', icon:'📦' };
             const items    = o.objednavka_polozky || [];
             const isAuc    = o.item_type === 'aukce';
+            const isDirect = o.payment_type === 'direct';
             const rev      = Array.isArray(reviews) && reviews.length ? reviews[0] : null;
             const buyerReviewed = rev && rev.reviewer_id === uid;
             const dispute  = disputes[0] || null;
@@ -6031,13 +6032,67 @@
                 ${items.map(i=>`<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl"><img src="${i.img||FI}" onerror="this.onerror=null;this.src='${FI}'" class="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0"><div class="flex-1 min-w-0"><p class="font-semibold text-gray-800 text-sm truncate">${esc(i.title)}</p></div><span class="font-bold text-gray-700 shrink-0 whitespace-nowrap">${Number(i.price).toLocaleString('cs-CZ')} Kč</span></div>`).join('')}
             </div>
 
+            ${isDirect && isBuyer ? `
+            <div class="mb-5">
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-3">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-xs font-bold text-orange-700 uppercase tracking-wide">Zaplaceno platformě nyní</p>
+                        <button onclick="document.getElementById('dpinfo-${o.id}').classList.toggle('hidden')" class="flex items-center gap-1 text-[11px] font-bold text-orange-500 bg-orange-100 hover:bg-orange-200 px-2 py-0.5 rounded-full transition-colors">? Jak to funguje</button>
+                    </div>
+                    <div class="flex justify-between text-sm mb-1.5">
+                        <span class="text-gray-600">Poplatek FairTrade (3 % + 29 Kč)</span>
+                        <span class="font-semibold text-gray-800">${Number(o.platform_fee||0).toLocaleString('cs-CZ')} Kč</span>
+                    </div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-gray-600">${carr.icon} Doprava — ${esc(carr.name)}</span>
+                        <span class="font-semibold text-gray-800">${Number(o.shipping_fee||0).toLocaleString('cs-CZ')} Kč</span>
+                    </div>
+                    <div class="flex justify-between border-t border-orange-200 pt-2.5">
+                        <span class="font-bold text-orange-800 text-sm">Celkem zaplaceno nyní</span>
+                        <span class="font-extrabold text-orange-700 text-base">${Number(o.total||0).toLocaleString('cs-CZ')} Kč</span>
+                    </div>
+                </div>
+                <div class="bg-gray-50 border border-dashed border-gray-300 rounded-2xl p-4">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Zaplatíte kurýrovi při doručení (dobírka)</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Cena zboží</span>
+                        <span class="font-extrabold text-gray-800 text-lg">${Number(o.subtotal||0).toLocaleString('cs-CZ')} Kč</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-1.5">Platíte přímo kurýrovi v hotovosti nebo kartou při převzetí.</p>
+                </div>
+            </div>
+            <div id="dpinfo-${o.id}" class="hidden mb-5 bg-white border border-orange-200 rounded-2xl p-5 shadow-md">
+                <div class="flex items-center gap-2 mb-4"><span class="text-xl">⚡</span><h4 class="font-extrabold text-gray-800">Nákup bez escrow ochrany</h4></div>
+                <div class="space-y-3">
+                    <div class="bg-orange-50 rounded-xl p-3">
+                        <p class="font-bold text-orange-800 text-sm mb-1.5">Jak tento nákup probíhá:</p>
+                        <ol class="text-orange-700 space-y-1 text-xs list-decimal pl-4">
+                            <li>Provizi + dopravu jste zaplatili předem přes FIO QR (${Number(o.total||0).toLocaleString('cs-CZ')} Kč).</li>
+                            <li>Prodejce zásilku zabalí a odešle Zásilkovnou <strong>s dobírkou</strong>.</li>
+                            <li>Při převzetí zaplatíte kurýrovi <strong>${Number(o.subtotal||0).toLocaleString('cs-CZ')} Kč</strong> přímo v hotovosti nebo kartou.</li>
+                            <li>Peníze za zboží jdou přímo prodejci — ne přes FairTrade.</li>
+                        </ol>
+                    </div>
+                    <div class="bg-red-50 rounded-xl p-3">
+                        <p class="font-bold text-red-800 text-sm mb-1">⚠️ Omezená ochrana kupujícího</p>
+                        <p class="text-xs text-red-700 leading-relaxed">Platba za zboží probíhá <strong>mimo FairTrade</strong>. FairTrade nenese odpovědnost za stav zboží, jeho doručení ani průběh transakce dobírkou. Poplatek platformy (${Number(o.total||0).toLocaleString('cs-CZ')} Kč) je nevratný po odeslání zásilky.</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-3">
+                        <p class="font-bold text-gray-700 text-sm mb-1">Spory a reklamace</p>
+                        <p class="text-xs text-gray-600 leading-relaxed">V případě problémů se obraťte nejprve na prodejce přes zprávy. FairTrade může zprostředkovat komunikaci, ale výsledek sporu u přímých plateb není garantován. Doporučujeme fotografovat zásilku při převzetí a odmítnout poškozenou zásilku u kurýra.</p>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('dpinfo-${o.id}').classList.add('hidden')" class="mt-4 text-xs text-gray-400 hover:text-gray-600 font-bold w-full text-center py-1">Zavřít ✕</button>
+            </div>
+            ` : `
             <div class="grid grid-cols-2 gap-3 mb-5 text-xs">
                 <div class="bg-gray-50 rounded-2xl p-3"><p class="text-gray-400 mb-0.5 font-semibold uppercase tracking-wide">Cena zboží</p><p class="font-bold text-gray-800">${Number(o.subtotal||0).toLocaleString('cs-CZ')} Kč</p></div>
                 <div class="bg-gray-50 rounded-2xl p-3"><p class="text-gray-400 mb-0.5 font-semibold uppercase tracking-wide">Doprava</p><p class="font-bold text-gray-800">${Number(o.shipping_fee||0).toLocaleString('cs-CZ')} Kč · ${carr.icon} ${esc(carr.name)}</p></div>
                 <div class="bg-gray-50 rounded-2xl p-3"><p class="text-gray-400 mb-0.5 font-semibold uppercase tracking-wide">Poplatek platformy</p><p class="font-bold text-gray-800">${Number(o.platform_fee||0).toLocaleString('cs-CZ')} Kč</p></div>
-                ${isBuyer ? `<div class="bg-pink-50 rounded-2xl p-3 border border-pink-100"><p class="text-pink-400 mb-0.5 font-semibold uppercase tracking-wide">Celkem zaplaceno</p><p class="font-extrabold text-pink-600 text-base">${Number(o.total||0).toLocaleString('cs-CZ')} Kč</p></div>`
-                          : `<div class="bg-purple-50 rounded-2xl p-3 border border-purple-100"><p class="text-purple-400 mb-0.5 font-semibold uppercase tracking-wide">Přijmete (po doručení)</p><p class="font-extrabold text-purple-600 text-base">${Number(o.subtotal||0).toLocaleString('cs-CZ')} Kč</p></div>`}
+                ${isBuyer ? '<div class="bg-pink-50 rounded-2xl p-3 border border-pink-100"><p class="text-pink-400 mb-0.5 font-semibold uppercase tracking-wide">Celkem zaplaceno</p><p class="font-extrabold text-pink-600 text-base">' + Number(o.total||0).toLocaleString('cs-CZ') + ' Kč</p></div>'
+                          : '<div class="bg-purple-50 rounded-2xl p-3 border border-purple-100"><p class="text-purple-400 mb-0.5 font-semibold uppercase tracking-wide">Přijmete (po doručení)</p><p class="font-extrabold text-purple-600 text-base">' + Number(o.subtotal||0).toLocaleString('cs-CZ') + ' Kč</p></div>'}
             </div>
+            `}
 
             ${addr.name ? `<h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Doručovací adresa</h3>
             <div class="bg-gray-50 rounded-2xl p-3 mb-5 text-sm text-gray-700 leading-relaxed">
@@ -6081,7 +6136,8 @@
 
             <div class="flex gap-2 flex-wrap pt-4 border-t border-gray-100">
                 ${isBuyer && o.status==='shipped' ? `<button onclick="openDisputeModal('${o.id}')" class="flex-1 bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold px-4 py-3 rounded-2xl text-sm transition-colors">⚖️ Zahájit spor</button><button onclick="confirmDelivery('${o.id}','${o.seller_id}')" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-colors">✓ Potvrdit doručení</button>` : ''}
-                ${isBuyer && (o.status==='pending'||o.status==='created') && !isAuc ? `<button onclick="navigate('platba-objednavky','${o.id}')" class="flex-1 bg-pink-500 hover:bg-pink-600 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-colors">💳 Zaplatit →</button>` : ''}
+                ${isBuyer && (o.status==='pending'||o.status==='created') && !isAuc && !isDirect ? `<button onclick="navigate('platba-objednavky','${o.id}')" class="flex-1 bg-pink-500 hover:bg-pink-600 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-colors">💳 Zaplatit →</button>` : ''}
+                ${isBuyer && isDirect && (o.status==='pending'||o.status==='created') ? `<span class="flex-1 text-xs text-orange-700 font-bold bg-orange-50 border border-orange-200 px-4 py-3 rounded-2xl text-center">⚡ Čeká se na potvrzení vaší QR platby (provize + doprava)</span>` : ''}
                 ${isBuyer && (o.status==='completed'||o.status==='resolved_buyer'||o.status==='refunded') && !buyerReviewed ? `<button onclick="_openRatingModal('${o.id}','${o.seller_id}')" class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-colors">⭐ Ohodnotit prodejce</button>` : ''}
                 ${isSeller && o.status==='paid' ? `<button onclick="openShipDocsModal('${o.id}','${o.carrier||''}')" class="flex-1 bg-purple-500 hover:bg-purple-600 text-white font-bold px-4 py-3 rounded-2xl text-sm transition-colors">📦 Zdokumentovat a odeslat</button>` : ''}
                 ${o.status==='dispute' ? `<span class="text-sm bg-red-100 text-red-700 px-4 py-3 rounded-2xl font-semibold">⚖️ Spor probíhá — šetření adminem</span>` : ''}
