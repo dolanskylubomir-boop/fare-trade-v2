@@ -2862,7 +2862,7 @@
                 shipping_methods: Array.from(document.querySelectorAll('input[name="shipping"]:checked')).map(el=>el.value),
                 images: uploadedImages, has_360: (uploadedImages.length >= 4),
                 payment_type: document.querySelector('input[name="payment_type"]:checked')?.value || 'escrow',
-                status: document.querySelector('input[name="payment_type"]:checked')?.value === 'direct' ? 'neaktivni' : 'aktivní',
+                status: document.querySelector('input[name="payment_type"]:checked')?.value === 'direct' ? 'neaktivní' : 'aktivní',
                 is_top: false, views_count: 0
             };
             let tableName = isAuction ? 'aukce' : 'pevna_cena';
@@ -3020,6 +3020,23 @@
         window._dac7SoldCzk    = data.annual_sold_czk || 0;
         window._dac7SoldCount  = data.annual_sold_count || 0;
         _renderDac7Banner();
+        // Peněženka — zůstatek
+        const walletEl = document.getElementById('profile-wallet-balance');
+        if (walletEl && data.wallet_balance != null) {
+            const bal = Number(data.wallet_balance) || 0;
+            walletEl.textContent = bal.toLocaleString('cs-CZ') + ' Kč';
+            walletEl.className = 'text-sm font-black ' + (bal > 0 ? 'text-emerald-700' : 'text-gray-400');
+        }
+        // FIO ověření badge
+        const fioOk  = document.getElementById('profile-fio-badge');
+        const fioNok = document.getElementById('profile-fio-unverified');
+        if (data.fio_verified) {
+            if (fioOk)  { fioOk.classList.remove('hidden');  fioOk.classList.add('flex'); }
+            if (fioNok) fioNok.classList.add('hidden');
+        } else {
+            if (fioOk)  fioOk.classList.add('hidden');
+            if (fioNok) fioNok.classList.remove('hidden');
+        }
     }
 
     function _renderDac7Banner() {
