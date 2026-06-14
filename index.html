@@ -2264,8 +2264,9 @@
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
             if (error) showToast('Chyba registrace: ' + error.message, 'warning');
             else {
-                showToast('Registrace úspěšná! Ověřte e-mail a pak identitu (1 Kč).', 'success');
-                if (data?.user) { await checkUserProfileKYC(data.user, true); navigate('fio-verify'); }
+                showToast('Registrace úspěšná! Vyplňte prosím identifikační formulář.', 'success');
+                if (data?.user) { await checkUserProfileKYC(data.user, true); }
+                // checkUserProfileKYC zajistí navigaci: unverified → kyc, verified → profil
             }
         } else {
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -2429,9 +2430,9 @@
             if (avatarUrl) profileData.avatar_url = avatarUrl;
             const { error } = await supabaseClient.from('profiles').update(profileData).eq('id', user.id);
             if (error) throw new Error(error.message);
-            window._kycStatus = 'submitted'; // guard v navigate() nesmí blokovat přechod na profil
-            showToast('Údaje uloženy ke kontrole!','success');
-            navigate('profil');
+            window._kycStatus = 'submitted'; // guard v navigate() nesmí blokovat další navigaci
+            showToast('Údaje uloženy! Dalším krokem je ověření identity (1 Kč).', 'success');
+            navigate('fio-verify');
         } catch (err) {
             showToast('Chyba ukládání: ' + err.message, 'warning');
         } finally {
@@ -7248,8 +7249,8 @@
         if (path.includes('/')) { const parts = path.split('/'); viewName = parts[0]; idOrCategory = parts[1]; }
         if (viewName === 'novy-inzerat' && !window.currentUser) { viewName = 'login'; idOrCategory = null; }
         if (window._banInfo && viewName !== 'banned') { viewName = 'banned'; idOrCategory = null; }
-        const _KYC_FREE = ['login','kyc','fio-verify','banned','home','reset-hesla','pevna-cena','aukce','pevna-cena-detail','aukce-detail','profil-verejny','seller-inzeraty'];
-        if (window.currentUser && window._kycStatus === 'unverified' && !_KYC_FREE.includes(viewName)) { viewName = 'kyc'; idOrCategory = null; }
+        // Unverified users are locked to KYC form until they fill it
+        if (window.currentUser && window._kycStatus === 'unverified' && !['kyc','login','banned','reset-hesla'].includes(viewName)) { viewName = 'kyc'; idOrCategory = null; }
         if (!views[viewName]) { document.getElementById('app').innerHTML = views['not-found'](viewName); history.pushState({ view:'not-found' }, '', '#'+viewName); return; }
         // Reset podkategorie při přechodu na jinou hlavní kategorii
         if (idOrCategory !== null && vsechnyKategorie.includes(idOrCategory) && idOrCategory !== _currentCategory) {
