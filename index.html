@@ -1400,6 +1400,7 @@
                 <option value="newest" ${_listState.sort==='newest'?'selected':''}>Nejnovější</option>
                 <option value="price_asc" ${_listState.sort==='price_asc'?'selected':''}>Cena ↑</option>
                 <option value="price_desc" ${_listState.sort==='price_desc'?'selected':''}>Cena ↓</option>
+                <option value="rating_desc" ${_listState.sort==='rating_desc'?'selected':''}>Hodnocení ↓</option>
             </select>
         </div>
         <div class="flex items-center gap-2 mb-4">
@@ -1426,9 +1427,10 @@
         // Seřazení dle data — novější = větší číslo
         const byDate = (a, b) => (b.created_at || 0) - (a.created_at || 0);
         result.sort((a, b) => {
-            if (_listState.sort === 'price_asc')  return a.price - b.price;
-            if (_listState.sort === 'price_desc') return b.price - a.price;
-            if (_listState.sort === 'newest')     return byDate(a, b);
+            if (_listState.sort === 'price_asc')    return a.price - b.price;
+            if (_listState.sort === 'price_desc')   return b.price - a.price;
+            if (_listState.sort === 'newest')        return byDate(a, b);
+            if (_listState.sort === 'rating_desc')   return (b.rating || 0) - (a.rating || 0);
             // Výchozí i 'top': TOP první, pak dle data vložení (nejnovější nahoře)
             if (a.is_top !== b.is_top) return a.is_top ? -1 : 1;
             return byDate(a, b);
@@ -6685,6 +6687,7 @@
                 const isDirect = o.payment_type === 'direct';
                 return `<div onclick="navigate('objednavka-detail','${o.id}')" class="border ${expired?'border-orange-200 bg-orange-50/30':isDirect?'border-orange-200 bg-orange-50/20':'border-gray-100'} rounded-2xl p-4 mb-3 hover:shadow-md transition-shadow cursor-pointer group">
                     ${expired?`<div class="bg-orange-100 border border-orange-200 rounded-xl px-3 py-2 mb-3 text-xs text-orange-800"><strong>⏰ Rezervace vypršela</strong> — zboží bylo uvolněno.</div>`:''}
+                    ${(()=>{if(o.status!=='shipped'||!o.shipped_at)return '';const dLeft=Math.max(0,14-Math.floor((Date.now()-new Date(o.shipped_at).getTime())/86400000));const cls=dLeft<=3?'bg-red-50 border-red-200 text-red-800':dLeft<=7?'bg-orange-50 border-orange-200 text-orange-800':'bg-amber-50 border-amber-200 text-amber-800';const label=dLeft===0?'Dnes vyprší!':dLeft===1?'Zbývá 1 den':'Zbývá '+dLeft+' dní';return '<div class="border '+cls+' rounded-xl px-3 py-2 mb-3 text-xs"><strong>⏰ '+label+'</strong> — potvrďte doručení, jinak platba automaticky uvolněna prodejci.</div>';})()}
                     <div class="flex items-start justify-between gap-2 mb-3"><div><p class="font-mono text-xs text-gray-400 mb-0.5 group-hover:text-sky-500 transition-colors">#${o.id.substring(0,8).toUpperCase()} <span class="text-[10px] text-sky-400">→ detail</span></p><p class="text-xs text-gray-400">${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'short',year:'numeric'})}</p>${isDirect?'<span class="inline-block text-[10px] font-bold text-orange-600 mt-0.5">⚡ Platba po odeslání dobírkou</span>':''}</div><span class="order-status-badge ${st.cls} shrink-0">${st.label}</span></div>
                     <div class="flex flex-col gap-1.5 mb-3">${items.map(i=>`<div class="flex items-center gap-2"><img src="${i.img||FI}" onerror="this.onerror=null;this.src='${FI}'" class="w-9 h-9 rounded-lg object-cover bg-gray-100 shrink-0"><span class="text-sm flex-1 min-w-0 truncate">${esc(i.title)}</span><span class="text-sm font-bold shrink-0 whitespace-nowrap text-pink-600">${Number(i.price).toLocaleString('cs-CZ')} Kč</span></div>`).join('')}</div>
                     <div class="flex items-center justify-between pt-2 border-t border-gray-100">
@@ -7902,9 +7905,10 @@
                 const searchQ  = window._adminListingSearch || '';
                 const filterSt = window._adminListingStatus || '';
                 const filterTy = window._adminListingType   || '';
+                const _alOffset = window._adminListingOffset || 0;
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_admin_listings`, {
                     method: 'POST', headers: hdrs,
-                    body: JSON.stringify({ p_search: searchQ || null, p_status: filterSt || null, p_type: filterTy || null, p_limit: 60 })
+                    body: JSON.stringify({ p_search: searchQ || null, p_status: filterSt || null, p_type: filterTy || null, p_limit: 20, p_offset: _alOffset })
                 });
                 const rows = await r.json();
                 const typeBadge = t => t === 'aukce'
@@ -7935,10 +7939,10 @@
                             <option value="aukce" ${filterTy==='aukce'?'selected':''}>Aukce</option>
                             <option value="pevna_cena" ${filterTy==='pevna_cena'?'selected':''}>Kup teď</option>
                         </select>
-                        <button onclick="window._adminListingSearch=document.getElementById('admin-listing-search').value;window._adminListingStatus=document.getElementById('admin-listing-status').value;window._adminListingType=document.getElementById('admin-listing-type').value;window._loadAdminTab('inzeraty')"
+                        <button onclick="window._adminListingOffset=0;window._adminListingSearch=document.getElementById('admin-listing-search').value;window._adminListingStatus=document.getElementById('admin-listing-status').value;window._adminListingType=document.getElementById('admin-listing-type').value;window._loadAdminTab('inzeraty')"
                             class="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm transition-colors">Hledat</button>
                     </div>
-                    <p class="text-xs text-gray-400 mb-3">${Array.isArray(rows) ? rows.length : 0} inzerátů</p>
+                    <p class="text-xs text-gray-400 mb-3">${Array.isArray(rows) ? rows.length : 0} inzerátů${_alOffset > 0 ? ` (od ${_alOffset + 1}.)` : ''}</p>
                     ${!Array.isArray(rows) || !rows.length ? '<p class="text-gray-400 text-center py-8">Žádné inzeráty nenalezeny.</p>' :
                     (() => {
                         window._adminListingData = {};
@@ -7962,6 +7966,11 @@
                             '</div>';
                         }).join('');
                     })()}
+                    <div class="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                        ${_alOffset === 0 ? '<button disabled class="text-gray-300 text-sm font-bold px-4 py-2 rounded-xl bg-gray-50 border border-gray-100 cursor-not-allowed">← Předchozí</button>' : '<button onclick="window._adminListingOffset=Math.max(0,(window._adminListingOffset||0)-20);window._loadAdminTab(\'inzeraty\')" class="text-gray-600 hover:text-gray-800 text-sm font-bold px-4 py-2 rounded-xl bg-gray-100 border border-gray-200 transition-colors">← Předchozí</button>'}
+                        <span class="text-xs text-gray-400">Strana ${Math.floor(_alOffset / 20) + 1}</span>
+                        ${!Array.isArray(rows) || rows.length < 20 ? '<button disabled class="text-gray-300 text-sm font-bold px-4 py-2 rounded-xl bg-gray-50 border border-gray-100 cursor-not-allowed">Další →</button>' : '<button onclick="window._adminListingOffset=(window._adminListingOffset||0)+20;window._loadAdminTab(\'inzeraty\')" class="text-gray-600 hover:text-gray-800 text-sm font-bold px-4 py-2 rounded-xl bg-gray-100 border border-gray-200 transition-colors">Další →</button>'}
+                    </div>
                 </div>`;
             }
         } catch(e) { container.innerHTML = '<p class="text-red-500 text-center py-8">Chyba načítání: ' + esc(e.message) + '</p>'; }
