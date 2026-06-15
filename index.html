@@ -240,6 +240,21 @@
         </div>
     </header>
 
+    <!-- ===== PWA INSTALL BANNER ===== -->
+    <div id="pwa-banner" class="hidden w-full bg-gradient-to-r from-sky-500 to-sky-600 text-white z-30">
+        <div class="max-w-6xl mx-auto px-4 py-2.5 flex items-center gap-3">
+            <span class="text-xl shrink-0">📲</span>
+            <div class="flex-1 min-w-0 cursor-pointer" onclick="window._triggerPwaInstall()">
+                <span class="font-bold text-sm">Nainstalovat FairTrade</span>
+                <span class="text-sky-100 text-xs ml-2 hidden sm:inline">Přidat na plochu — funguje bez prohlížeče, rychlejší spuštění</span>
+            </div>
+            <button onclick="window._triggerPwaInstall()" class="shrink-0 bg-white text-sky-600 font-bold py-1.5 px-4 rounded-xl text-sm hover:bg-sky-50 active:scale-95 transition-all">Přidat</button>
+            <button onclick="document.getElementById('pwa-banner').classList.add('hidden')" class="shrink-0 p-1 text-sky-200 hover:text-white transition-colors" aria-label="Zavřít">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+    </div>
+
     <main id="app" class="flex-grow w-full max-w-6xl mx-auto px-3 py-5 sm:px-5 md:p-8 pb-28 md:pb-8 flex flex-col justify-center relative"></main>
 
     <!-- ===== MOBILNÍ NAVIGACE ===== -->
@@ -8793,6 +8808,8 @@
     function _showPwaInstallBtn(show) {
         const el = document.getElementById('pwa-install-section');
         if (el) el.classList.toggle('hidden', !show);
+        const banner = document.getElementById('pwa-banner');
+        if (banner) banner.classList.toggle('hidden', !show);
     }
 
     window._triggerPwaInstall = async function() {
