@@ -6670,7 +6670,7 @@
         const token = await _ensureValidToken();
         const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
         try {
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?buyer_id=eq.${window.currentUser.id}&order=created_at.desc&select=*,objednavka_polozky(*)&limit=20`, { headers: hdrs });
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?buyer_id=eq.${window.currentUser.id}&order=created_at.desc&select=*,objednavka_polozky(*)&limit=50`, { headers: hdrs });
             const orders = await r.json();
             if (Array.isArray(orders)) window._myOrdersCache = orders;
             _renderFilterBar('obj-filter-bar', OBJ_FILTERS, window._objFilter || 'vse', '_setObjFilter');
@@ -6789,7 +6789,7 @@
         const token = await _ensureValidToken();
         const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
         try {
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?seller_id=eq.${window.currentUser.id}&order=created_at.desc&select=*,objednavka_polozky(*)&limit=20`, { headers: hdrs });
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?seller_id=eq.${window.currentUser.id}&order=created_at.desc&select=*,objednavka_polozky(*)&limit=50`, { headers: hdrs });
             const orders = await r.json();
             if (Array.isArray(orders)) window._mySellerOrdersCache = orders;
             _updateObjednavkyAlertBadge(orders);
@@ -7826,6 +7826,7 @@
                         <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','release_seller',false,false)" class="bg-purple-500 hover:bg-purple-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">✓ Vyplatit prodejci</button>
                         <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','refund_buyer',true,false)" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">↩️ Vrátit + BAN prodejce</button>
                         <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','release_seller',false,true)" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">✓ Vyplatit + BAN kupujícího</button>
+                        <button onclick="adminForceOrderStatus('${o.order_id}')" class="ml-auto bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap" title="Manuální změna stavu (pro uvázlé objednávky)">⚙️ Změnit stav</button>
                     </div>
                 </div>`;
                 }).join('');
@@ -7963,7 +7964,7 @@
                     })()}
                 </div>`;
             }
-        } catch(e) { container.innerHTML = '<p class="text-red-500 text-center py-8">Chyba načítání: ' + e.message + '</p>'; }
+        } catch(e) { container.innerHTML = '<p class="text-red-500 text-center py-8">Chyba načítání: ' + esc(e.message) + '</p>'; }
     };
 
     window.adminUpdateTicket = async function(ticketId, status) {
@@ -8139,6 +8140,29 @@
             window._checkAdminBadge();
             setTimeout(() => window._loadAdminTab('spory'), 500);
         } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window.adminForceOrderStatus = async function(orderId) {
+        const STATUSES = ['created','pending','paid','shipped','completed','cancelled','dispute','refunded'];
+        const newStatus = prompt(
+            'Manuální změna stavu objednávky ' + orderId.substring(0, 8).toUpperCase() + '\n\nPovolené stavy:\n' + STATUSES.join(' / ') + '\n\nZadejte nový stav:',
+            'cancelled'
+        );
+        if (!newStatus) return;
+        if (!STATUSES.includes(newStatus.trim())) { showToast('Neplatný stav: ' + newStatus, 'error'); return; }
+        const note = prompt('Důvod změny (volitelné, zapíše se do audit logu):') || null;
+        if (!confirm('Opravdu změnit stav na "' + newStatus + '"?\n\nTato akce obchází standardní workflow a zapíše se do audit logu.')) return;
+        const token = await _ensureValidToken();
+        const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_force_order_status`, {
+                method: 'POST', headers: hdrs,
+                body: JSON.stringify({ p_order_id: orderId, p_status: newStatus.trim(), p_note: note })
+            });
+            if (!r.ok) throw new Error(await r.text());
+            showToast('Stav objednávky změněn na "' + newStatus + '".', 'success');
+            setTimeout(() => window._loadAdminTab('spory'), 600);
+        } catch(e) { showToast('Chyba: ' + esc(e.message), 'error'); }
     };
 
     window.adminBanUser = async function() {
