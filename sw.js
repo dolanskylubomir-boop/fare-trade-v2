@@ -1,8 +1,7 @@
-// FairTrade Service Worker v1.1
-const CACHE = 'fairtrade-v2';
+// FairTrade Service Worker v1.2
+const CACHE = 'fairtrade-v3';
 const OFFLINE_PAGE = './index.html';
 
-// Soubory ke cachování při instalaci
 const PRECACHE = [
   './index.html',
   './manifest.json',
@@ -10,7 +9,6 @@ const PRECACHE = [
   './icon-512.png'
 ];
 
-// Domény, které NIKDY necachujeme (API, autentizace)
 const BYPASS_DOMAINS = [
   'supabase.co',
   'fonts.googleapis.com',
@@ -32,12 +30,12 @@ function shouldBypass(url) {
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE)
-      .then(cache => cache.addAll(PRECACHE.filter(Boolean)))
+      .then(cache => cache.addAll(PRECACHE))
       .then(() => self.skipWaiting())
   );
 });
 
-// === ACTIVATE — smaž staré cache ===
+// === ACTIVATE ===
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
@@ -52,10 +50,9 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
 
-  // Ignoruj ne-GET requesty a API volání
   if (req.method !== 'GET' || shouldBypass(req.url)) return;
 
-  // Navigace (otevření stránky) — Network first, fallback na cache
+  // Navigace — Network first, fallback na cached index.html
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
@@ -66,12 +63,18 @@ self.addEventListener('fetch', event => {
           }
           return res;
         })
-        .catch(() => caches.match(OFFLINE_PAGE))
+        .catch(async () => {
+          const cached = await caches.match(OFFLINE_PAGE);
+          return cached || new Response(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>FairTrade</title></head><body style="font-family:sans-serif;text-align:center;padding:3rem"><h2>Jste offline</h2><p>Připojte se k internetu a zkuste to znovu.</p></body></html>',
+            { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          );
+        })
     );
     return;
   }
 
-  // Statické soubory (ikony, manifest) — Cache first
+  // Statické soubory (ikony, manifest) — Cache first, fallback network
   if (req.url.includes('icon') || req.url.includes('manifest')) {
     event.respondWith(
       caches.match(req).then(cached => cached || fetch(req))
@@ -79,13 +82,16 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Vše ostatní — Network first
+  // Vše ostatní — Network first, fallback cache nebo chyba
   event.respondWith(
-    fetch(req).catch(() => caches.match(req))
+    fetch(req).catch(async () => {
+      const cached = await caches.match(req);
+      return cached || Response.error();
+    })
   );
 });
 
-// === PUSH NOTIFIKACE (připraveno pro budoucí použití) ===
+// === PUSH NOTIFIKACE ===
 self.addEventListener('push', event => {
   if (!event.data) return;
   const data = event.data.json();
