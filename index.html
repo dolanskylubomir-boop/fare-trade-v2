@@ -540,12 +540,7 @@
                     <div class="flex flex-col gap-1">
                         <label class="text-xs font-bold text-gray-500 pl-1">Kategorie</label>
                         <select id="edit-category" required class="edit-input bg-white">
-                            <option value="" disabled>Vyberte…</option>
-                            <option value="Elektronika">Elektronika</option>
-                            <option value="Šperky">Šperky</option>
-                            <option value="Sběratelství">Sběratelství</option>
-                            <option value="Móda">Móda</option>
-                            <option value="Domácnost">Domácnost</option>
+                            <option value="" disabled selected>Vyberte…</option>
                         </select>
                     </div>
                     <div class="flex flex-col gap-1">
@@ -1663,7 +1658,10 @@
         document.getElementById('edit-price-label').textContent = type === 'aukce' ? 'Vyvolávací cena (Kč)' : 'Cena (Kč)';
 
         const catSel = document.getElementById('edit-category');
-        if (catSel) catSel.value = item.category;
+        if (catSel) {
+            catSel.innerHTML = '<option value="" disabled>Vyberte…</option>' +
+                KATEGORIE.map(k => `<option value="${k.name}"${k.name === item.category ? ' selected' : ''}>${k.name}</option>`).join('');
+        }
         const condSel = document.getElementById('edit-condition');
         if (condSel) condSel.value = item.condition;
 
