@@ -1789,7 +1789,8 @@
             views_count: raw.views_count || 0,
             reserved_until: raw.reserved_until ? new Date(raw.reserved_until).getTime() : null,
             created_at: raw.created_at ? new Date(raw.created_at).getTime() : 0,
-            db_status: raw.status || 'aktivní', condition_notes: raw.condition_notes || null
+            db_status: raw.status || 'aktivní', condition_notes: raw.condition_notes || null,
+            payment_type: raw.payment_type || 'escrow'
         };
     }
 
@@ -1848,6 +1849,100 @@
                 </div>`;
             }).join('') +
             `</div></div>`;
+    }
+
+    async function _loadSellerAwaitingActivation() {
+        const container = document.getElementById('seller-awaiting-activation-section');
+        if (!container || !window.currentUser) return;
+        const token = await _ensureValidToken();
+        const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
+        try {
+            const uid = window.currentUser.id;
+            const [rPc, rAu] = await Promise.all([
+                fetch(`${SUPABASE_URL}/rest/v1/pevna_cena?seller_id=eq.${uid}&status=eq.neaktivní&select=id,title,price,images,created_at,payment_type`, { headers: hdrs }),
+                fetch(`${SUPABASE_URL}/rest/v1/aukce?seller_id=eq.${uid}&status=eq.neaktivní&select=id,title,current_price,starting_price,images,created_at,payment_type`, { headers: hdrs })
+            ]);
+            const pc = await rPc.json();
+            const au = await rAu.json();
+            const items = [
+                ...(Array.isArray(pc) ? pc.map(i => ({ ...i, _table: 'pevna_cena', price: i.price })) : []),
+                ...(Array.isArray(au) ? au.map(i => ({ ...i, _table: 'aukce',      price: i.current_price || i.starting_price })) : [])
+            ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            if (!items.length) { container.innerHTML = ''; return; }
+            const FI  = FALLBACK_IMG;
+            const now = Date.now();
+            container.innerHTML = `<div class="border-t border-orange-100 pt-4 mt-4 fade-in">
+                <p class="text-xs font-bold text-orange-600 uppercase tracking-wide mb-3">⏸️ Čeká na aktivaci (${items.length})</p>
+                <div class="flex flex-col gap-2">` +
+                items.map(item => {
+                    const img        = item.images?.[0] ? safeUrl(item.images[0]) : FI;
+                    const expiresMs  = new Date(item.created_at).getTime() + 24 * 3600 * 1000;
+                    const remaining  = expiresMs - now;
+                    const hoursLeft  = Math.max(0, Math.floor(remaining / 3600000));
+                    const minsLeft   = Math.max(0, Math.floor((remaining % 3600000) / 60000));
+                    const expText    = remaining > 0
+                        ? `Smaže se za ${hoursLeft > 0 ? hoursLeft + ' hod. ' : ''}${minsLeft} min.`
+                        : 'Brzy bude smazáno';
+                    return `<div class="flex items-center gap-3 p-3 border border-orange-200 rounded-2xl bg-orange-50/60">
+                        <img src="${img}" onerror="this.onerror=null;this.src='${FI}'" class="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0 grayscale">
+                        <div class="flex-grow min-w-0">
+                            <h4 class="font-bold text-gray-700 truncate text-sm">${esc(item.title)}</h4>
+                            <p class="text-[11px] text-orange-700 font-semibold mt-0.5">Neaktivní — čeká na zaplacení aktivačního poplatku</p>
+                            <p class="text-[10px] text-red-500 font-bold mt-0.5">⏱ ${expText}</p>
+                        </div>
+                        <div class="text-right shrink-0 flex flex-col items-end gap-1.5">
+                            <div class="font-bold text-sm text-gray-400">${Number(item.price).toLocaleString('cs-CZ')} Kč</div>
+                            <button onclick="window._activateListingFromProfile('${item.id}','${item._table}')" class="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap">Zaplatit ${LISTING_FEE} Kč</button>
+                        </div>
+                    </div>`;
+                }).join('') +
+                `</div></div>`;
+        } catch(e) {}
+    }
+
+    window._activateListingFromProfile = function(listingId, tableName) {
+        window._pendingListingId   = listingId;
+        window._pendingListingType = tableName;
+        window._pendingLocalItem   = null;
+        navigate('aktivovat-inzerat');
+    };
+
+    async function _fetchAndAddListing(tableName, listingId) {
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}?id=eq.${listingId}&select=*`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` }
+            });
+            if (!r.ok) return;
+            const rows = await r.json();
+            if (!rows || !rows[0]) return;
+            if (tableName === 'pevna_cena') {
+                const fresh = _mapRawPevnaCena(rows[0]);
+                if (!dataPevnaCena.find(i => i.id === fresh.id)) dataPevnaCena.unshift(fresh);
+            } else {
+                const raw = rows[0];
+                const pm  = window._profilesMap || {};
+                const sp  = pm[raw.seller_id] || {};
+                const sn  = esc((sp.display_name || '').trim() || ((sp.first_name || '') + ' ' + (sp.last_name || '')).trim()) || 'Uživatel tržiště';
+                const item = {
+                    id: esc(raw.id), seller_id: raw.seller_id, type: 'aukce',
+                    title: esc(raw.title), price: Number(raw.current_price || raw.starting_price) || 0,
+                    category: esc(raw.category || ''), subcategory: esc(raw.subcategory || ''),
+                    img: (raw.images && raw.images[0]) ? safeUrl(raw.images[0]) : FALLBACK_IMG,
+                    images: (Array.isArray(raw.images) ? raw.images : []).map(u => safeUrl(u)),
+                    condition: esc(raw.condition || ''), brand: esc(raw.brand || ''),
+                    seller: sn, verified: sp.is_verified === true,
+                    rating: Number(sp.rating) || 0, rating_count: Number(sp.rating_count) || 0,
+                    description: esc(raw.description || ''), endTime: raw.end_time,
+                    last_bidder_id: raw.last_bidder_id || null, last_bidder_name: null,
+                    is_top: !!(raw.is_top && raw.top_expires_at && new Date(raw.top_expires_at) > new Date()),
+                    top_expires_at: raw.top_expires_at || null, top_paid_kc: raw.top_paid_kc || 0,
+                    views_count: raw.views_count || 0, created_at: raw.created_at ? new Date(raw.created_at).getTime() : 0,
+                    payment_type: raw.payment_type || 'escrow', status: raw.status
+                };
+                if (!dataAukce.find(i => i.id === item.id)) dataAukce.unshift(item);
+            }
+        } catch(_) {}
     }
 
     async function _loadSellerArchive() {
@@ -3663,7 +3758,7 @@
             const myPevna = dataPevnaCena.filter(i=>i.seller_id===window.currentUser.id);
             const myAds   = [...myAukce, ...myPevna];
             const mySold  = [];
-            setTimeout(() => { _loadSellerArchive(); _loadSellerPendingItems(); }, 0);
+            setTimeout(() => { _loadSellerAwaitingActivation(); _loadSellerArchive(); _loadSellerPendingItems(); }, 0);
             const localBids = safeParse(localStorage.getItem('ft_local_bids'),{});
             const myBids = dataAukce.filter(i => {
                 const inDb    = window.auctionParticipants?.[i.id]?.has(window.currentUser.id);
@@ -3718,6 +3813,7 @@
                 html += '</div>';
             }
 
+            html += `<div id="seller-awaiting-activation-section" class="mt-2"></div>`;
             html += `<div id="seller-pending-section" class="mt-2"></div>`;
             html += `<div id="seller-archive-section" class="mt-2"></div>`;
 
@@ -5631,6 +5727,8 @@
                         window._pendingLocalItem = null;
                         if (it.type === 'aukce') dataAukce.unshift(it);
                         else dataPevnaCena.unshift(it);
+                    } else {
+                        await _fetchAndAddListing(tableName, listingId);
                     }
                     window._pendingListingId = null;
                     showToast('🎉 Platba přijata! Inzerát je aktivní.', 'success');
@@ -5684,6 +5782,8 @@
             window._pendingLocalItem = null;
             if (it.type === 'aukce') dataAukce.unshift(it);
             else dataPevnaCena.unshift(it);
+        } else {
+            await _fetchAndAddListing(tableName, listingId);
         }
         clearInterval(window._fioTimer);
         window._pendingListingId = null;
@@ -7925,7 +8025,9 @@
                 container.innerHTML = rows.map(o => {
                     const shipPhotos = Array.isArray(o.shipping_photos) ? o.shipping_photos : (o.shipping_photos ? JSON.parse(o.shipping_photos) : []);
                     const evPhotos   = Array.isArray(o.evidence_photos)  ? o.evidence_photos  : (o.evidence_photos  ? JSON.parse(o.evidence_photos)  : []);
+                    const isDirect   = o.payment_type === 'direct';
                     return `<div class="border border-red-100 bg-red-50/30 rounded-2xl p-4 mb-4 fade-in">
+                    ${isDirect ? `<div class="bg-orange-100 border border-orange-300 rounded-xl px-3 py-2 mb-3 flex items-start gap-2"><span class="text-base shrink-0">⚡</span><p class="text-xs text-orange-800 font-semibold">Platba bez escrow — FairTrade nedrží žádné peníze. Rozhodnutí je pouze mediace, <strong>nikomu se nic nevrací</strong>; případné vrácení si strany řeší přímo mezi sebou.</p></div>` : ''}
                     <div class="flex items-start justify-between gap-3 mb-3">
                         <div>
                             <p class="font-mono text-xs text-gray-400 mb-0.5">#${o.order_id.substring(0,8).toUpperCase()} · ${new Date(o.dispute_created_at||o.created_at).toLocaleDateString('cs-CZ')}</p>
@@ -7941,10 +8043,10 @@
                     ${photoGrid(shipPhotos, '📦 Fotky zásilky od prodejce')}
                     ${photoGrid(evPhotos, '📷 Důkazy kupujícího')}
                     <div class="flex gap-2 flex-wrap pt-2 border-t border-red-100 mt-2">
-                        <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','refund_buyer',false,false)" class="bg-sky-500 hover:bg-sky-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">↩️ Vrátit kupujícímu</button>
-                        <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','release_seller',false,false)" class="bg-purple-500 hover:bg-purple-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">✓ Vyplatit prodejci</button>
-                        <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','refund_buyer',true,false)" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">↩️ Vrátit + BAN prodejce</button>
-                        <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','release_seller',false,true)" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">✓ Vyplatit + BAN kupujícího</button>
+                        <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','refund_buyer',false,false,${isDirect})" class="bg-sky-500 hover:bg-sky-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">${isDirect ? '⚖️ Ve prospěch kupujícího' : '↩️ Vrátit kupujícímu'}</button>
+                        <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','release_seller',false,false,${isDirect})" class="bg-purple-500 hover:bg-purple-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">${isDirect ? '⚖️ Ve prospěch prodejce' : '✓ Vyplatit prodejci'}</button>
+                        <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','refund_buyer',true,false,${isDirect})" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">${isDirect ? '⚖️ Kupující + BAN prodejce' : '↩️ Vrátit + BAN prodejce'}</button>
+                        <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','release_seller',false,true,${isDirect})" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">${isDirect ? '⚖️ Prodejce + BAN kupujícího' : '✓ Vyplatit + BAN kupujícího'}</button>
                         <button onclick="adminForceOrderStatus('${o.order_id}')" class="ml-auto bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap" title="Manuální změna stavu (pro uvázlé objednávky)">⚙️ Změnit stav</button>
                     </div>
                 </div>`;
@@ -8256,8 +8358,10 @@
         }
     };
 
-    window.adminResolveDispute = async function(orderId, buyerId, sellerId, disputeId, outcome, banSeller, banBuyer) {
-        const labels = { refund_buyer: 'Vrátit peníze kupujícímu', release_seller: 'Vyplatit prodejci' };
+    window.adminResolveDispute = async function(orderId, buyerId, sellerId, disputeId, outcome, banSeller, banBuyer, isDirect) {
+        const labels = isDirect
+            ? { refund_buyer: 'Rozhodnout ve prospěch kupujícího (BEZ vrácení peněz — platba bez escrow)', release_seller: 'Rozhodnout ve prospěch prodejce (bez převodu — platba bez escrow)' }
+            : { refund_buyer: 'Vrátit peníze kupujícímu', release_seller: 'Vyplatit prodejci' };
         const banNote = banSeller ? ' + BAN prodejce' : (banBuyer ? ' + BAN kupujícího' : '');
         if (!confirm(`Opravdu: ${labels[outcome]}${banNote}?`)) return;
         const token = await _ensureValidToken();
