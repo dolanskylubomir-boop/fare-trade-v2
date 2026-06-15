@@ -2209,7 +2209,7 @@
                 db.from('aukce').select('*').eq('status','aktivní').order('is_top', { ascending:false }),
                 db.from('pevna_cena').select('*').eq('status','aktivní').order('is_top', { ascending:false }),
                 db.from('profiles').select('id,first_name,last_name,display_name,is_verified,rating,rating_count,total_sold_count,avatar_url'),
-                db.from('bids').select('auction_id,bidder_id,amount')
+                db.from('bids').select('auction_id,amount')
             ]);
 
             const profilesMap = {};
@@ -2220,14 +2220,17 @@
             window.auctionParticipants = {};
             const auctionBids = {};
 
+            // Soukromí: globálně načítáme jen částky (bez bidder_id), abychom komukoli
+            // neodhalovali, KDO na co přihazoval. Nejvyšší částka jen koriguje cenu při
+            // replikačním zpoždění; identita vítěze se bere z autoritativního aukce.last_bidder_id.
             if (r4.data) {
                 r4.data.forEach(bid => {
-                    if (!window.auctionParticipants[bid.auction_id]) window.auctionParticipants[bid.auction_id] = new Set();
-                    window.auctionParticipants[bid.auction_id].add(bid.bidder_id);
                     if (!auctionBids[bid.auction_id] || bid.amount > auctionBids[bid.auction_id].amount)
-                        auctionBids[bid.auction_id] = { amount: bid.amount, bidder_id: bid.bidder_id };
+                        auctionBids[bid.auction_id] = { amount: bid.amount };
                 });
             }
+            // „Aukce kde přihazuji" — naplň jen z VLASTNÍCH příhozů přihlášeného uživatele.
+            window._loadMyBidParticipation && window._loadMyBidParticipation();
 
             const safeImage = item => {
                 if (item.images && item.images.length > 0 && item.images[0]) return safeUrl(item.images[0]);
@@ -2260,7 +2263,7 @@
                     let lastBidderId = item.last_bidder_id || null;
                     if (auctionBids[item.id] && auctionBids[item.id].amount > currentPrice) {
                         currentPrice  = auctionBids[item.id].amount;
-                        lastBidderId  = auctionBids[item.id].bidder_id;
+                        // lastBidderId ponecháváme z autoritativního aukce.last_bidder_id
                     }
                     if (localBids[item.id] && localBids[item.id].price > currentPrice) {
                         currentPrice = localBids[item.id].price;
@@ -2318,6 +2321,26 @@
         } // end _doFetch
     };
 
+    // Naplní auctionParticipants jen z VLASTNÍCH příhozů přihlášeného uživatele
+    // (pro „aukce kde přihazuji"). Cizí bidder_id se nikdy globálně nenačítají.
+    window._loadMyBidParticipation = async function() {
+        try {
+            if (!window.currentUser) return;
+            const token = await _ensureValidToken();
+            if (!token) return;
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/bids?bidder_id=eq.${window.currentUser.id}&select=auction_id`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` }
+            });
+            if (!r.ok) return;
+            const rows = await r.json();
+            if (!Array.isArray(rows)) return;
+            rows.forEach(b => {
+                if (!window.auctionParticipants[b.auction_id]) window.auctionParticipants[b.auction_id] = new Set();
+                window.auctionParticipants[b.auction_id].add(window.currentUser.id);
+            });
+        } catch(e) {}
+    };
+
     // Navýšení počtu zobrazení (deduplikace per session)
     window.incrementViewCount = async function(id, type) {
         if (!id) return;
@@ -2339,27 +2362,50 @@
     // AUTH
     // ──────────────────────────────────────────────────────────────
     async function checkUserProfileKYC(user, redirectIfVerified = false) {
+        let profile = null;
         try {
             const token = await _ensureValidToken();
             if (token) {
-                const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_own_profile`, {
-                    method: 'POST',
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: '{}'
+                const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
+                // Primárně přes get_own_profile (po nasazení RLS hardeningu)
+                let r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_own_profile`, {
+                    method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' }, body: '{}'
                 });
-                const rows = await r.json();
-                const profile = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-                if (!profile) { if (redirectIfVerified) navigate('profil'); return; }
-                if (profile.is_banned || profile.is_archived) {
-                    window._banInfo = { reason: profile.ban_reason || 'Porušení pravidel tržiště.', is_archived: !!profile.is_archived };
-                    navigate('banned'); return;
+                if (r.ok) {
+                    const rows = await r.json();
+                    profile = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
                 }
-                window._userRole = profile.role || 'user';
-                window._kycStatus = profile.kyc_status || 'unverified';
-                if (profile.kyc_status === 'unverified') { navigate('kyc'); return; }
+                // Fallback (např. RPC ještě nenasazené) — přímé čtení nutných polí.
+                // Po nasazení hardeningu jsou tyto sloupce pro authenticated odepřené (403),
+                // takže fallback vrátí null → fail-closed níže. Pokrývá obě fáze nasazení.
+                if (!profile) {
+                    r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=kyc_status,is_banned,ban_reason,is_archived,role,kyc_rejection_reason`, { headers: hdrs });
+                    if (r.ok) {
+                        const rows = await r.json();
+                        profile = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+                    }
+                }
             }
-        } catch(e) {}
-        if (redirectIfVerified) navigate('profil');
+        } catch(e) { console.warn('checkUserProfileKYC selhalo:', e); profile = null; }
+
+        if (profile) {
+            if (profile.is_banned || profile.is_archived) {
+                window._banInfo = { reason: profile.ban_reason || 'Porušení pravidel tržiště.', is_archived: !!profile.is_archived };
+                navigate('banned'); return;
+            }
+            window._userRole = profile.role || 'user';
+            window._kycStatus = profile.kyc_status || 'unverified';
+            if (profile.kyc_status === 'unverified') { navigate('kyc'); return; }
+            if (redirectIfVerified) navigate('profil');
+            return;
+        }
+
+        // Profil se nepodařilo načíst (chybí/expirovaný token, síť, výpadek RPC) →
+        // FAIL-CLOSED: nepouštět dál jako ověřeného. Tvrdou ochranu dat drží RLS.
+        if (redirectIfVerified) {
+            showToast('Nepodařilo se ověřit účet, přihlaste se prosím znovu.', 'warning');
+            navigate('login');
+        }
     }
 
     if (supabaseClient) {
@@ -3446,6 +3492,31 @@
         _showKycThumb(data.kyc_id_back,  'dac7-back-preview');
     }
 
+    // Vyčistí lokální session když je refresh token definitivně neplatný.
+    // Idempotentní: toast+navigaci provede jen jednou (když byl uživatel přihlášen).
+    function _forceLocalLogout() {
+        const wasLoggedIn = !!window.currentUser;
+        try {
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const k = localStorage.key(i);
+                if (k && k.includes('auth-token')) localStorage.removeItem(k);
+            }
+        } catch(e) {}
+        window.currentUser = null;
+        window._jwtReady = false;
+        window._kycStatus = null;
+        window._banInfo = null;
+        window._privateProfileCache = null;
+        if (wasLoggedIn) {
+            try { window._teardownUserRTChannels && window._teardownUserRTChannels(); } catch(e) {}
+            try { showToast('Vaše přihlášení vypršelo. Přihlaste se prosím znovu.', 'warning'); } catch(e) {}
+            try { navigate('login'); } catch(e) {}
+        }
+    }
+
+    // Dedup souběžných obnov tokenu (víc volajících po expiraci → jediný refresh POST)
+    let _tokenRefreshInFlight = null;
+
     // Získá platný access_token přímo z localStorage, v případě expirace obnoví přes refresh_token
     async function _ensureValidToken() {
         let stored = null;
@@ -3466,19 +3537,33 @@
 
         // Token expiroval — obnov přes refresh_token
         if (!stored.refresh_token) return null;
-        try {
-            const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-                method: 'POST',
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refresh_token: stored.refresh_token })
-            });
-            if (!r.ok) return null;
-            const newData = await r.json();
-            if (!newData.access_token) return null;
-            // Ulož obnovený token zpět do localStorage
-            try { localStorage.setItem(storedKey, JSON.stringify({ ...stored, ...newData })); } catch(e) {}
-            return newData.access_token;
-        } catch(e) { return null; }
+        // Souběžné obnovy sjednoť do jediného POSTu (zabrání rotation race a duplicitám)
+        if (_tokenRefreshInFlight) return _tokenRefreshInFlight;
+        _tokenRefreshInFlight = (async () => {
+            try {
+                const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+                    method: 'POST',
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh_token: stored.refresh_token })
+                });
+                if (!r.ok) {
+                    // 400/401 = refresh token definitivně neplatný (odvolán/rotován) → ukliď session.
+                    // 5xx/ostatní = přechodná chyba serveru → session NEmažeme.
+                    if (r.status === 400 || r.status === 401) _forceLocalLogout();
+                    return null;
+                }
+                const newData = await r.json();
+                if (!newData.access_token) return null;
+                // Ulož obnovený token zpět do localStorage
+                try { localStorage.setItem(storedKey, JSON.stringify({ ...stored, ...newData })); } catch(e) {}
+                return newData.access_token;
+            } catch(e) {
+                return null;  // síťová/přechodná chyba — session nemažeme
+            } finally {
+                _tokenRefreshInFlight = null;
+            }
+        })();
+        return _tokenRefreshInFlight;
     }
 
     window._loadPrivateProfileData = async function(user) {
