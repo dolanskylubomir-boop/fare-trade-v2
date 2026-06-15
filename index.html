@@ -1226,13 +1226,18 @@
     };
     window.safeParse = function(raw, fallback) { try { return JSON.parse(raw) ?? fallback; } catch(e) { return fallback; } };
 
-    const ALLOWED_IMG_TYPES = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp', 'image/gif':'gif' };
-    const MAX_IMG_SIZE = 5 * 1024 * 1024;
+    const ALLOWED_IMG_TYPES = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp', 'image/gif':'gif', 'image/heic':'jpg', 'image/heif':'jpg' };
+    const MAX_IMG_SIZE = 12 * 1024 * 1024;  // originál; klient ho stejně zmenší pod limit bucketu
+    // iPhone HEIC/HEIF: type bývá 'image/heic' nebo PRÁZDNÝ → fallback dle přípony
+    function _isHeic(file) {
+        return /image\/hei[cf]/i.test((file && file.type) || '') || /\.(heic|heif)$/i.test((file && file.name) || '');
+    }
     window.validateImageFile = function(file) {
         if (!file) return { ok:false, error:'Soubor nebyl vybrán.' };
-        const ext = ALLOWED_IMG_TYPES[file.type];
-        if (!ext) return { ok:false, error:'Povolené formáty: JPG, PNG, WEBP, GIF.' };
-        if (file.size > MAX_IMG_SIZE) return { ok:false, error:'Maximální velikost fotografie je 5 MB.' };
+        let ext = ALLOWED_IMG_TYPES[file.type];
+        if (!ext && _isHeic(file)) ext = 'jpg';   // HEIC s prázdným MIME typem
+        if (!ext) return { ok:false, error:'Povolené formáty: JPG, PNG, WEBP, GIF, HEIC.' };
+        if (file.size > MAX_IMG_SIZE) return { ok:false, error:'Maximální velikost fotografie je 12 MB.' };
         return { ok:true, ext };
     };
 
@@ -2847,19 +2852,43 @@
     };
 
     // Resize image to max 1920px JPEG — always compress, Supabase bucket enforces the actual size limit
-    window._resizeImageForUpload = function(file) {
+    // dataURL → Blob (fallback pro starší iOS Safari bez canvas.toBlob)
+    function _dataURLToBlob(dataURL) {
+        try {
+            const parts = dataURL.split(',');
+            const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+            const bin = atob(parts[1]);
+            const arr = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            return new Blob([arr], { type: mime });
+        } catch (e) { return null; }
+    }
+
+    // Lazy-load heic2any (jen když narazíme na HEIC, který canvas nezvládne)
+    let _heic2anyPromise = null;
+    function _loadHeic2any() {
+        if (window.heic2any) return Promise.resolve(window.heic2any);
+        if (_heic2anyPromise) return _heic2anyPromise;
+        _heic2anyPromise = new Promise(function(resolve, reject) {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+            s.onload = function() { resolve(window.heic2any); };
+            s.onerror = function() { _heic2anyPromise = null; reject(new Error('heic2any load failed')); };
+            document.head.appendChild(s);
+        });
+        return _heic2anyPromise;
+    }
+
+    // Zmenší + zkomprimuje přes canvas. Vrací {ok:true, blob} nebo {ok:false} při selhání dekódu.
+    function _canvasResize(file) {
         return new Promise(function(resolve) {
-            // GIF: skip canvas (would lose animation)
-            if (file.type === 'image/gif') {
-                resolve({ blob: file, ext: 'gif' });
-                return;
-            }
             const img = new Image();
             const url = URL.createObjectURL(file);
             img.onload = function() {
                 URL.revokeObjectURL(url);
                 const MAX_DIM = 1920;
-                let w = img.width, h = img.height;
+                let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+                if (!w || !h) { resolve({ ok: false }); return; }  // prázdný dekód (limit canvasu na iOS)
                 if (w > MAX_DIM || h > MAX_DIM) {
                     if (w >= h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
                     else        { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
@@ -2867,13 +2896,37 @@
                 const canvas = document.createElement('canvas');
                 canvas.width = w; canvas.height = h;
                 canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                canvas.toBlob(function(blob) {
-                    resolve({ blob: blob || file, ext: 'jpg' });
-                }, 'image/jpeg', 0.85);
+                const finish = function(blob) {
+                    if (blob && blob.size > 0) { resolve({ ok: true, blob: blob }); return; }
+                    const b = _dataURLToBlob(canvas.toDataURL('image/jpeg', 0.82));
+                    resolve(b ? { ok: true, blob: b } : { ok: false });
+                };
+                if (canvas.toBlob) canvas.toBlob(finish, 'image/jpeg', 0.82);
+                else finish(null);
             };
-            img.onerror = function() { URL.revokeObjectURL(url); resolve({ blob: file, ext: ALLOWED_IMG_TYPES[file.type] || 'jpg' }); };
+            img.onerror = function() { URL.revokeObjectURL(url); resolve({ ok: false }); };
             img.src = url;
         });
+    }
+
+    window._resizeImageForUpload = async function(file) {
+        if (file.type === 'image/gif') return { blob: file, ext: 'gif' };  // GIF: zachovat animaci
+        // 1) Zkus přímo canvas (JPEG/PNG/WEBP + HEIC na iOS Safari, který ho umí)
+        const r = await _canvasResize(file);
+        if (r.ok) return { blob: r.blob, ext: 'jpg' };
+        // 2) Canvas selhal (typicky HEIC mimo Safari) → převeď přes heic2any a zkus znovu
+        if (_isHeic(file)) {
+            try {
+                const heic2any = await _loadHeic2any();
+                const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
+                const jpegBlob = Array.isArray(out) ? out[0] : out;
+                const r2 = await _canvasResize(jpegBlob);
+                if (r2.ok) return { blob: r2.blob, ext: 'jpg' };
+                return { blob: jpegBlob, ext: 'jpg' };  // aspoň JPEG, i kdyby resize neprošel
+            } catch (e) { /* spadne na fallback níže */ }
+        }
+        // 3) Úplný fallback — originál (nemělo by nastat)
+        return { blob: file, ext: ALLOWED_IMG_TYPES[file.type] || 'jpg' };
     };
 
     window.previewImage = function(input) {
@@ -8460,7 +8513,7 @@
                 if (!file) return null;
                 let uploadFile = file;
                 let ext = file.name.split('.').pop().toLowerCase();
-                if (file.type.startsWith('image/')) {
+                if (file.type.startsWith('image/') || _isHeic(file)) {
                     const resizedKyc = await window._resizeImageForUpload(file);
                     uploadFile = resizedKyc.blob;
                     ext = resizedKyc.ext;
