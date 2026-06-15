@@ -1,12 +1,11 @@
-// FairTrade Service Worker v1.0
-const CACHE = 'fairtrade-v1';
+// FairTrade Service Worker v1.1
+const CACHE = 'fairtrade-v2';
 const OFFLINE_PAGE = './index.html';
 
 // Soubory ke cachování při instalaci
 const PRECACHE = [
   './index.html',
   './manifest.json',
-  './icon.svg',
   './icon-192.png',
   './icon-512.png'
 ];
