@@ -3033,16 +3033,17 @@
                 is_top: false, top_expires_at: null, top_paid_kc: 0, views_count: 0, status: adData.status,
                 created_at: inserted?.created_at ? new Date(inserted.created_at).getTime() : Date.now()
             };
-            if (isAuction) dataAukce.unshift(localItem);
-            else dataPevnaCena.unshift(localItem);
-
             window._formDirty = false;
             if (adData.payment_type === 'direct') {
+                // Nepřidávat do lokálního pole — inzerát je neaktivní, přidá se až po zaplacení
                 window._pendingListingId   = String(inserted?.id || '');
                 window._pendingListingType = tableName;
+                window._pendingLocalItem   = localItem;
                 showToast('Inzerát vytvořen! Zaplaťte ' + LISTING_FEE + ' Kč pro aktivaci.', 'info');
                 navigate('aktivovat-inzerat');
             } else {
+                if (isAuction) dataAukce.unshift(localItem);
+                else dataPevnaCena.unshift(localItem);
                 showToast('Inzerát byl úspěšně zveřejněn!', 'success');
                 navigate('profil');
             }
@@ -5624,6 +5625,13 @@
                         headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
                         body: JSON.stringify({ status: 'aktivní' })
                     });
+                    if (window._pendingLocalItem) {
+                        window._pendingLocalItem.status = 'aktivní';
+                        const it = window._pendingLocalItem;
+                        window._pendingLocalItem = null;
+                        if (it.type === 'aukce') dataAukce.unshift(it);
+                        else dataPevnaCena.unshift(it);
+                    }
                     window._pendingListingId = null;
                     showToast('🎉 Platba přijata! Inzerát je aktivní.', 'success');
                     navigate('profil');
@@ -5670,6 +5678,13 @@
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
             body: JSON.stringify({ status: 'aktivní' })
         });
+        if (window._pendingLocalItem) {
+            window._pendingLocalItem.status = 'aktivní';
+            const it = window._pendingLocalItem;
+            window._pendingLocalItem = null;
+            if (it.type === 'aukce') dataAukce.unshift(it);
+            else dataPevnaCena.unshift(it);
+        }
         clearInterval(window._fioTimer);
         window._pendingListingId = null;
         showToast('🎉 Zaplaceno z peněženky! Inzerát je aktivní.', 'success');
