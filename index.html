@@ -1791,7 +1791,14 @@
             closeEditModal();
             showToast('Inzerát byl úspěšně upraven!', 'success');
             const hash = window.location.hash.replace('#','');
-            if (hash.includes('detail')) navigate(hash); else navigate('profil');
+            if (hash.includes('detail')) {
+                navigate(hash);
+            } else {
+                // Na profilu překresli záložku přímo (navigate na stejný pohled je no-op → jinak by změny „naskočily" až po refreshi)
+                const tabC = document.getElementById('profile-tab-content');
+                if (tabC && typeof window.renderProfileTabContent === 'function') tabC.innerHTML = window.renderProfileTabContent('inzeraty');
+                else navigate('profil');
+            }
         } catch (err) {
             showToast('Chyba při ukládání: ' + err.message, 'warning');
         } finally {
@@ -2164,10 +2171,20 @@
         if (!confirm('Opravdu chcete tento inzerát smazat? Bude trvale stažen z nabídky.')) return;
         const tableName = type === 'aukce' ? 'aukce' : 'pevna_cena';
         const { error } = await supabaseClient.from(tableName).update({ status:'zruseno' }).eq('id', id);
-        if (error) { alert('Chyba při mazání: ' + error.message); return; }
+        if (error) { showToast('Chyba při mazání: ' + error.message, 'error'); return; }
+        // Odeber z paměti HNED → zmizí v UI bez čekání na refetch / bez ručního refreshe
+        const arr = type === 'aukce' ? dataAukce : dataPevnaCena;
+        const idx = arr.findIndex(i => i.id === id);
+        if (idx !== -1) arr.splice(idx, 1);
         showToast('Inzerát byl úspěšně smazán.', 'success');
-        await fetchDatabaseItems();
-        navigate('profil');
+        // Jsme-li na profilu, překresli záložku inzerátů přímo (navigate na stejný pohled je no-op)
+        const tabContainer = document.getElementById('profile-tab-content');
+        if (tabContainer && typeof window.renderProfileTabContent === 'function') {
+            tabContainer.innerHTML = window.renderProfileTabContent('inzeraty');
+        } else {
+            navigate('profil');
+        }
+        fetchDatabaseItems();  // dosync zbytku na pozadí (bez await)
     };
 
     window.extendAd = async function(type, id) {
