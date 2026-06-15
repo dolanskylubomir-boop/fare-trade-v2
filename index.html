@@ -2671,6 +2671,36 @@
         }, 1400);
     };
 
+    // Resize image to max 1920px JPEG — always compress, Supabase bucket enforces the actual size limit
+    window._resizeImageForUpload = function(file) {
+        return new Promise(function(resolve) {
+            // GIF: skip canvas (would lose animation)
+            if (file.type === 'image/gif') {
+                resolve({ blob: file, ext: 'gif' });
+                return;
+            }
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = function() {
+                URL.revokeObjectURL(url);
+                const MAX_DIM = 1920;
+                let w = img.width, h = img.height;
+                if (w > MAX_DIM || h > MAX_DIM) {
+                    if (w >= h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
+                    else        { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                canvas.toBlob(function(blob) {
+                    resolve({ blob: blob || file, ext: 'jpg' });
+                }, 'image/jpeg', 0.85);
+            };
+            img.onerror = function() { URL.revokeObjectURL(url); resolve({ blob: file, ext: ALLOWED_IMG_TYPES[file.type] || 'jpg' }); };
+            img.src = url;
+        });
+    };
+
     window.previewImage = function(input) {
         if (input.files?.[0]) {
             const reader = new FileReader();
@@ -2682,6 +2712,10 @@
                 container.classList.remove('border-dashed','bg-sky-50','border-sky-200');
             };
             reader.readAsDataURL(input.files[0]);
+            // Resize on background — result stored on input element for upload
+            window._resizeImageForUpload(input.files[0]).then(function(result) {
+                input._resizedBlob = result;
+            });
         }
     };
 
@@ -2930,9 +2964,12 @@
             for (let input of document.querySelectorAll('input[type="file"]')) {
                 if (input.files?.[0]) {
                     const check = validateImageFile(input.files[0]);
-                    if (!check.ok) throw new Error(check.error);
-                    const fileName = `${Date.now()}-${(crypto.randomUUID?.() || Math.random().toString(36).substring(7)).slice(0,8)}.${check.ext}`;
-                    const { data, error } = await supabaseClient.storage.from('inzeraty').upload(fileName, input.files[0], { cacheControl:'3600', upsert:false });
+                    if (!check.ok && !check.error.includes('velikost')) throw new Error(check.error);
+                    // Use pre-resized blob if available (prepared in previewImage), otherwise resize now
+                    const resized = input._resizedBlob || await window._resizeImageForUpload(input.files[0]);
+                    const ext = resized.ext || check.ext || 'jpg';
+                    const fileName = `${Date.now()}-${(crypto.randomUUID?.() || Math.random().toString(36).substring(7)).slice(0,8)}.${ext}`;
+                    const { data, error } = await supabaseClient.storage.from('inzeraty').upload(fileName, resized.blob, { cacheControl:'3600', upsert:false });
                     if (!error && data) {
                         const { data:pu } = supabaseClient.storage.from('inzeraty').getPublicUrl(fileName);
                         if (pu?.publicUrl) uploadedImages.push(pu.publicUrl);
