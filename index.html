@@ -1254,10 +1254,24 @@
     // ── FIO QR Platba (ČSN SPD formát) ──────────────────────────
     window.renderFioQR = function(canvasId, amount, vs, message) {
         const canvas = document.getElementById(canvasId);
-        if (!canvas || typeof QRCode === 'undefined') return;
+        if (!canvas) return;
         const spd = ['SPD*1.0','ACC:'+FIO_IBAN,'AM:'+amount.toFixed(2),'CC:CZK',
                      'MSG:'+message.slice(0,60).replace(/[*]/g,''),'X-VS:'+vs].join('*');
-        QRCode.toCanvas(canvas, spd, { width:220, margin:2, color:{dark:'#1e293b',light:'#ffffff'} });
+
+        const useFallbackImg = () => {
+            const img = document.createElement('img');
+            img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&ecc=M&data=' + encodeURIComponent(spd);
+            img.alt = 'QR platba'; img.width = 220; img.height = 220;
+            img.className = 'rounded-lg';
+            canvas.replaceWith(img);
+        };
+
+        if (typeof QRCode === 'undefined') { useFallbackImg(); return; }
+
+        try {
+            QRCode.toCanvas(canvas, spd, { width:220, margin:2, color:{dark:'#1e293b',light:'#ffffff'} },
+                (err) => { if (err) { console.error('QR canvas error:', err); useFallbackImg(); } });
+        } catch(e) { useFallbackImg(); }
     };
 
     // ── Polling: čeká na potvrzení platby v DB (každých 30 s) ───
@@ -5446,7 +5460,7 @@
                     <button onclick="navigate('moje-objednavky')" class="w-full bg-white border border-gray-200 hover:border-gray-300 text-gray-600 font-bold py-3 rounded-2xl text-sm transition-colors">Moje objednávky</button>
                 </div>
             </div>`;
-        window.renderFioQR('direct-pay-qr', nowPayable, vs, msg);
+        setTimeout(() => window.renderFioQR('direct-pay-qr', nowPayable, vs, msg), 50);
         window.startFioPolling(paymentId, function() {
             const statusEl = document.getElementById('direct-pay-status');
             if (statusEl) {
@@ -6534,7 +6548,7 @@
             ${addr.name?`<div class="bg-gray-50 rounded-2xl p-4 mb-4 text-sm"><p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Doručovací adresa</p><p class="font-semibold text-gray-800">${esc(addr.name)}</p><p class="text-gray-500">${esc(addr.street||'')}, ${esc(addr.city||'')} ${esc(addr.zip||'')}</p>${addr.phone?`<p class="text-gray-500">${esc(addr.phone)}</p>`:''}</div>`:''}
             <button onclick="_testDirectPay('${o.id}',${paymentId})" class="w-full bg-red-500 hover:bg-red-600 active:scale-95 text-white font-extrabold py-3 rounded-2xl text-sm transition-all mb-3">🧪 TEST — Simulovat potvrzení platby</button>
             <p class="text-center text-xs text-gray-400">⚡ Přímá platba — FairTrade přijímá pouze provizi + dopravu. Cena zboží jde přímo prodejci dobírkou.</p>`;
-        window.renderFioQR('po-direct-qr', nowPayable, vs, msg);
+        setTimeout(() => window.renderFioQR('po-direct-qr', nowPayable, vs, msg), 50);
         window.startFioPolling(paymentId, function() {
             const el = document.getElementById('po-direct-status');
             if (el) { el.className=''; el.innerHTML='<div class="bg-green-50 border border-green-200 rounded-2xl p-3 text-green-700 font-bold text-sm w-full text-center">✅ Platba potvrzena! Prodejce byl upozorněn.</div>'; }
