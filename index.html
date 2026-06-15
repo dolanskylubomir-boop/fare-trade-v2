@@ -1259,10 +1259,14 @@
     function _getLocalUser() {
         if (window.currentUser) return window.currentUser;
         try {
+            const now = Math.floor(Date.now() / 1000);
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (!key || !key.includes('auth-token')) continue;
                 const data = JSON.parse(localStorage.getItem(key) || 'null');
+                // Nepovažuj prošlou session za přihlášenou (UI by jinak tvrdilo „přihlášen"
+                // a požadavky by tiše vracely 401). Refresh řeší _ensureValidToken.
+                if (data?.expires_at && data.expires_at <= now) continue;
                 if (data?.user?.id) return data.user;
             }
         } catch(e) {}
@@ -2312,8 +2316,10 @@
         try {
             const token = await _ensureValidToken();
             if (token) {
-                const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=kyc_status,is_banned,ban_reason,is_archived,role,kyc_rejection_reason`, {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` }
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_own_profile`, {
+                    method: 'POST',
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: '{}'
                 });
                 const rows = await r.json();
                 const profile = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
@@ -2490,6 +2496,7 @@
         window.currentUser = null;
         window._userRole = 'user';
         window._banInfo = null;
+        window._kycStatus = null;
         window._privateProfileCache = null;
         window._txStatsCache = null;
         window._loadingPrivateProfile = null;
@@ -3466,7 +3473,7 @@
             };
 
             const [profileArr, txArr] = await Promise.all([
-                fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${uid}&select=*`, { headers: h }).then(r => r.json()),
+                fetch(`${SUPABASE_URL}/rest/v1/rpc/get_own_profile`, { method: 'POST', headers: { ...h, 'Content-Type': 'application/json' }, body: '{}' }).then(r => r.json()),
                 fetch(`${SUPABASE_URL}/rest/v1/transactions?status=eq.completed&or=(buyer_id.eq.${uid},seller_id.eq.${uid})&select=price,item_price,seller_id,buyer_id,status`, { headers: h }).then(r => r.json())
             ]);
 
@@ -4991,7 +4998,7 @@
     }
     function _trackingHtml(carrier, num) {
         const url = _trackingUrl(carrier, num);
-        if (!url) return num ? `<span class="font-mono text-sky-600 font-semibold">📦 ${num}</span><button onclick="navigator.clipboard.writeText('${num.replace(/'/g,'').replace(/\`/g,'').replace(/"/g,'')}').then(function(){showToast('Tracking číslo zkopírováno','success')})" class="ml-2 text-sky-500 hover:text-sky-700 text-xs font-bold px-2 py-0.5 rounded-lg border border-sky-200 hover:bg-sky-50 transition-colors">📋 Kopírovat</button>` : '';
+        if (!url) return num ? `<span class="font-mono text-sky-600 font-semibold">📦 ${esc(num)}</span><button onclick="navigator.clipboard.writeText('${num.replace(/'/g,'').replace(/\`/g,'').replace(/"/g,'')}').then(function(){showToast('Tracking číslo zkopírováno','success')})" class="ml-2 text-sky-500 hover:text-sky-700 text-xs font-bold px-2 py-0.5 rounded-lg border border-sky-200 hover:bg-sky-50 transition-colors">📋 Kopírovat</button>` : '';
         return `<a href="${url}" target="_blank" rel="noopener" class="font-mono text-sky-600 font-semibold hover:underline flex items-center gap-1">📦 Sledovat zásilku →</a>`;
     }
     const ORDER_STATUS_MAP = {
@@ -5798,8 +5805,9 @@
         if (!window.currentUser) { navigate('login'); return ''; }
         setTimeout(async function() {
             const token = await _ensureValidToken();
-            const r = await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id + '&select=wallet_balance,fio_verified', {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
+            const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_own_profile', {
+                method: 'POST',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: '{}'
             });
             const rows = await r.json();
             const bal = rows?.[0]?.wallet_balance || 0;
@@ -7346,8 +7354,8 @@
         if (!data) {
             const token = await _ensureValidToken();
             if (!token || !window.currentUser) return;
-            const r = await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id + '&select=first_name,last_name,street,building_number,orientation_number,city,zip_code',
-                { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token } });
+            const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_own_profile',
+                { method: 'POST', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: '{}' });
             const arr = await r.json().catch(function() { return []; });
             data = Array.isArray(arr) && arr.length ? arr[0] : null;
         }
@@ -7375,8 +7383,8 @@
         if (!window.currentUser) return;
         const token = await _ensureValidToken();
         if (!token) return;
-        const r = await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id + '&select=vacation_mode,vacation_message',
-            { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token } });
+        const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_own_profile',
+            { method: 'POST', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: '{}' });
         const arr = await r.json().catch(function() { return []; });
         const data = Array.isArray(arr) && arr[0] ? arr[0] : {};
         window._vacationMode = !!data.vacation_mode;
@@ -8599,12 +8607,16 @@
     window._teardownUserRTChannels = function() {
         if (!supabaseClient) return;
         const USER_CHANNELS = ['rt_tx_b','rt_tx_s','rt_notif','rt_profile','rt_objednavky_b','rt_objednavky_s','rt_auction_offers_b','rt_auction_offers_s','rt_admin_kyc','rt_admin_disputes','rt_admin_support'];
-        USER_CHANNELS.forEach(name => {
-            try {
-                const ch = supabaseClient.channel(name);
-                supabaseClient.removeChannel(ch);
-            } catch(e) {}
-        });
+        // supabase-js v2: channel(name) vytvoří NOVOU instanci, ne lookup.
+        // Musíme odhlásit REÁLNĚ subscribnuté kanály z registru klienta podle topicu.
+        try {
+            const topics = USER_CHANNELS.map(n => 'realtime:' + n);
+            (supabaseClient.getChannels() || []).forEach(ch => {
+                if (topics.includes(ch.topic)) {
+                    try { supabaseClient.removeChannel(ch); } catch(e) {}
+                }
+            });
+        } catch(e) {}
     };
 
     window.setupRealtime = function() {
@@ -8894,14 +8906,15 @@
     // PŘÍHOZ
     // ──────────────────────────────────────────────────────────────
     window.placeBid = async function(id, increment) {
-        // Rate limit: max 1 příhoz / 1.5s
+        // Rate limit: max 1 příhoz / 1.5s — okno spotřebuj AŽ po validaci,
+        // ať neúspěšný pokus (nepřihlášen / neplatná částka) neblokuje legitimní opakování.
         const now = Date.now();
         if (now - _lastBidTime < 1500) { showToast('Příliš rychle. Počkejte chvíli.', 'warning'); return; }
-        _lastBidTime = now;
 
         if (!window.currentUser) { showToast('Pro příhoz se musíte přihlásit.', 'warning'); navigate('login'); return; }
         increment = parseInt(increment, 10);
         if (!Number.isFinite(increment) || increment <= 0) return showToast('Neplatná částka příhozu.', 'warning');
+        _lastBidTime = now;
 
         try {
             const token = await _ensureValidToken();
@@ -8997,6 +9010,14 @@
 
     // === PWA Service Worker ===
     if ('serviceWorker' in navigator) {
+        // Když nový Service Worker převezme kontrolu (po deployi), přenačti stránku,
+        // aby v paměti neběžela stará verze appky proti nové cache/API (version-skew).
+        let _swReloaded = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (_swReloaded) return;
+            _swReloaded = true;
+            window.location.reload();
+        });
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js', { scope: './' })
                 .then(reg => {
