@@ -1702,7 +1702,7 @@
         document.getElementById('edit-title').value          = item.title;
         document.getElementById('edit-description').value    = item.description;
         document.getElementById('edit-brand').value          = item.brand || '';
-        document.getElementById('edit-price').value          = item.price;
+        document.getElementById('edit-price').value          = (type === 'aukce' ? (item.starting_price || item.price) : item.price);
         document.getElementById('edit-price-label').textContent = type === 'aukce' ? 'Vyvolávací cena (Kč)' : 'Cena (Kč)';
 
         const catSel = document.getElementById('edit-category');
@@ -1747,16 +1747,41 @@
         try {
             const tableName = type === 'aukce' ? 'aukce' : 'pevna_cena';
             const updateObj = { title, description, brand: brand || null, category, condition };
-            if (type === 'aukce') updateObj.starting_price = price;
-            else updateObj.price = price;
+            const arr  = type === 'aukce' ? dataAukce : dataPevnaCena;
+            const item = arr.find(i => i.id === id);
+            let auctionPriceChanged = false;
+            if (type === 'aukce') {
+                // POZOR: item.price u aukce = AKTUÁLNÍ cena (roste s příhozy), ne vyvolávací.
+                // Po prvním příhozu vyvolávací cenu nepřepisovat — jinak by se zkorumpovala.
+                const hasBids = !!(item && (item.last_bidder_id || (item.current_price || 0) > (item.starting_price || 0)));
+                if (hasBids) {
+                    if (price !== (item.starting_price || 0)) {
+                        showToast('Vyvolávací cenu nelze měnit po prvním příhozu — ostatní údaje uloženy.', 'info');
+                    }
+                } else {
+                    // Bez příhozů: drž vyvolávací i aktuální cenu v synchronu
+                    updateObj.starting_price = price;
+                    updateObj.current_price  = price;
+                    auctionPriceChanged = true;
+                }
+            } else {
+                updateObj.price = price;
+            }
 
             const { error } = await supabaseClient.from(tableName).update(updateObj).eq('id', id);
             if (error) throw new Error(error.message);
 
             // Lokálně aktualizuj
-            const arr  = type === 'aukce' ? dataAukce : dataPevnaCena;
-            const item = arr.find(i => i.id === id);
-            if (item) { Object.assign(item, { title: esc(title), description: esc(description), brand: esc(brand), category: esc(category), condition: esc(condition), price }); }
+            if (item) {
+                const patch = { title: esc(title), description: esc(description), brand: esc(brand), category: esc(category), condition: esc(condition) };
+                if (type === 'aukce') {
+                    if (auctionPriceChanged) { patch.starting_price = price; patch.current_price = price; patch.price = price; }
+                    // s příhozy: cenu lokálně needitujeme
+                } else {
+                    patch.price = price;
+                }
+                Object.assign(item, patch);
+            }
 
             closeEditModal();
             showToast('Inzerát byl úspěšně upraven!', 'success');
@@ -2244,6 +2269,7 @@
                     return {
                         id: esc(item.id), seller_id: item.seller_id, type:'aukce',
                         title: esc(item.title), price: Number(currentPrice)||0,
+                        starting_price: Number(item.starting_price)||0, current_price: Number(currentPrice)||0,
                         category: esc(item.category), subcategory: esc(item.subcategory || ''), img: safeImage(item),
                         images: (item.images || [safeImage(item)]).map(u => safeUrl(u)),
                         condition: esc(item.condition), brand: esc(item.brand),
@@ -5956,12 +5982,25 @@
     };
 
     window._payCommissionFromWallet = async function(orderId, fee) {
-        const ok = await deductWallet(fee, 'Provize objednávka #' + orderId.slice(0,8));
-        if (!ok) { showToast('Nedostatek kreditu.', 'warning'); return; }
+        // Atomicky: odečti kredit A posuň objednávku na 'paid' (jinak by uvázla v 'created'
+        // a prodejce by nebyl vyzván k odeslání — viz pay_commission_from_wallet ve fio-payments.sql).
+        const token = await _ensureValidToken();
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/pay_commission_from_wallet`, {
+            method: 'POST',
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_order_id: orderId, p_amount: fee })
+        });
+        const ok = res.ok && (await res.json().catch(() => false)) === true;
+        if (!ok) { showToast('Nedostatek kreditu nebo chyba platby.', 'warning'); return; }
         clearInterval(window._fioTimer);
         const profile = window._privateProfileCache?.data || {};
         const item = window._pendingOrderItem || {};
         generateContractPDF({ orderId, itemTitle: item.title, itemPrice: item.price, buyerName: profile.display_name || window.currentUser.email });
+        // Lokálně označ objednávku jako zaplacenou
+        if (Array.isArray(window._myOrdersCache)) {
+            const o = window._myOrdersCache.find(x => x.id === orderId);
+            if (o) o.status = 'paid';
+        }
         window._pendingOrderId = null;
         showToast('✅ Zaplaceno z peněženky! Smlouva stažena.', 'success');
         setTimeout(() => navigate('moje-objednavky'), 1500);
