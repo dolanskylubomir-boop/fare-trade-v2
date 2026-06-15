@@ -8415,11 +8415,16 @@
             } else {
                 const idx = dataPevnaCena.findIndex(i=>i.id==u.id);
                 if (idx !== -1) {
-                    dataPevnaCena[idx] = { ...dataPevnaCena[idx], ...u, db_status: u.status };
+                    const prev = dataPevnaCena[idx];
+                    dataPevnaCena[idx] = { ...prev, ...u, db_status: u.status };
                     dataPevnaCena[idx].reserved_until = u.reserved_until ? new Date(u.reserved_until).getTime() : null;
                     const h = window.location.hash;
                     if (h.includes('pevna-cena')&&!h.includes('detail')) navigate('pevna-cena', _currentCategory);
-                    if (h.includes('pevna-cena-detail/'+u.id)) navigate('pevna-cena-detail', u.id);
+                    if (h.includes('pevna-cena-detail/'+u.id)) {
+                        // Pokud se nezměnil status ani cena (jen views_count apod.), nepřerendruj celou stránku
+                        const criticalChange = String(u.status) !== String(prev.db_status) || Number(u.price) !== Number(prev.price);
+                        if (criticalChange) navigate('pevna-cena-detail', u.id);
+                    }
                     if (h.includes('profil')) navigate('profil/inzeraty');
                 } else if (u.status === 'aktivní') {
                     // Položka byla odstraněna z paměti (vrácení po sporu) — přidej zpět se správným mapováním
