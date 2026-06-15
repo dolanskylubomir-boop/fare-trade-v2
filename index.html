@@ -3414,6 +3414,17 @@
                 </div>
             </div>
 
+            <div id="pwa-install-section" class="hidden mt-6 border-t border-gray-100 pt-6">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-center gap-4">
+                    <span class="text-3xl shrink-0">📲</span>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="text-sm font-bold text-sky-800 mb-0.5">Nainstalovat FairTrade</h4>
+                        <p class="text-xs text-sky-600">Přidat na plochu — funguje bez prohlížeče, rychlejší spuštění.</p>
+                    </div>
+                    <button onclick="window._triggerPwaInstall()" class="shrink-0 bg-sky-500 hover:bg-sky-600 active:scale-95 text-white font-bold py-2 px-4 rounded-xl text-sm transition-all">Přidat</button>
+                </div>
+            </div>
+
             <div class="mt-8 border-t border-red-100 pt-6">
                 <div class="bg-red-50 border border-red-200 rounded-2xl p-4">
                     <h4 class="text-sm font-bold text-red-700 mb-1">Zrušení účtu</h4>
@@ -8762,38 +8773,53 @@
         });
     }
 
-    // === PWA Install prompt (Android) ===
+    // === PWA Install prompt ===
     let _deferredInstall = null;
+
+    function _showPwaInstallBtn(show) {
+        const el = document.getElementById('pwa-install-section');
+        if (el) el.classList.toggle('hidden', !show);
+    }
+
+    window._triggerPwaInstall = async function() {
+        if (!_deferredInstall) return;
+        _deferredInstall.prompt();
+        const { outcome } = await _deferredInstall.userChoice;
+        if (outcome === 'accepted') { _deferredInstall = null; _showPwaInstallBtn(false); }
+    };
+
     window.addEventListener('beforeinstallprompt', e => {
         e.preventDefault();
         _deferredInstall = e;
-        // Zobraz toast s výzvou k instalaci po 3 sekundách
+        _showPwaInstallBtn(true);
+        // Toast po 3 sekundách (jen pokud uživatel ještě nezavřel stránku)
         setTimeout(() => {
-            if (_deferredInstall) {
-                const container = document.getElementById('toast-container');
-                if (!container) return;
-                const toast = document.createElement('div');
-                toast.className = 'flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-white border-l-4 border-sky-500 shadow-xl max-w-[320px] pointer-events-auto';
-                toast.innerHTML = `
-                    <svg class="w-5 h-5 text-sky-500 shrink-0 mt-0.5 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="_pwa-icon"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                    <div class="flex-grow cursor-pointer" id="_pwa-text">
-                        <div class="font-bold text-sm text-gray-800">Nainstalovat FairTrade</div>
-                        <div class="text-xs text-gray-500 mt-0.5">Přidat na plochu jako app</div>
-                    </div>
-                    <button id="_pwa-close" aria-label="Zavřít" class="text-gray-400 hover:text-gray-600 transition-colors ml-1 shrink-0 -mt-0.5">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>`;
-                toast.querySelector('#_pwa-close').addEventListener('click', e => { e.stopPropagation(); toast.remove(); });
-                toast.querySelector('#_pwa-icon').addEventListener('click', () => { _deferredInstall?.prompt(); _deferredInstall?.userChoice.then(() => { _deferredInstall = null; }); toast.remove(); });
-                toast.querySelector('#_pwa-text').addEventListener('click', () => { _deferredInstall?.prompt(); _deferredInstall?.userChoice.then(() => { _deferredInstall = null; }); toast.remove(); });
-                container.appendChild(toast);
-                setTimeout(() => toast.remove(), 15000);
-            }
+            if (!_deferredInstall) return;
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-white border-l-4 border-sky-500 shadow-xl max-w-[320px] pointer-events-auto';
+            toast.innerHTML = `
+                <svg class="w-5 h-5 text-sky-500 shrink-0 mt-0.5 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="_pwa-icon"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <div class="flex-grow cursor-pointer" id="_pwa-text">
+                    <div class="font-bold text-sm text-gray-800">Nainstalovat FairTrade</div>
+                    <div class="text-xs text-gray-500 mt-0.5">Přidat na plochu — funguje jako app</div>
+                </div>
+                <button id="_pwa-close" aria-label="Zavřít" class="text-gray-400 hover:text-gray-600 transition-colors ml-1 shrink-0 -mt-0.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>`;
+            toast.querySelector('#_pwa-close').addEventListener('click', e => { e.stopPropagation(); toast.remove(); });
+            const doInstall = () => { window._triggerPwaInstall(); toast.remove(); };
+            toast.querySelector('#_pwa-icon').addEventListener('click', doInstall);
+            toast.querySelector('#_pwa-text').addEventListener('click', doInstall);
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 15000);
         }, 3000);
     });
 
     window.addEventListener('appinstalled', () => {
         _deferredInstall = null;
+        _showPwaInstallBtn(false);
         if (typeof showToast === 'function') showToast('FairTrade byla úspěšně nainstalována!', 'success');
     });
     </script>
