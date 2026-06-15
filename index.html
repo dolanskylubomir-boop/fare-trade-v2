@@ -2008,13 +2008,41 @@
                         <span class="inline-block text-[10px] px-2 py-0.5 rounded-full font-bold ${statusCls} mt-0.5">${statusLabel}</span>
                     </div>
                     <span class="font-bold text-sm text-gray-500 shrink-0">${Number(item.price).toLocaleString('cs-CZ')} Kč</span>
-                    ${!isProdano ? `<button onclick="reactivateItem('${item.id}')" class="w-8 h-8 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors shrink-0" title="Znovu aktivovat"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>` : ''}
+                    ${!isProdano ? `<div class="flex gap-1 shrink-0">
+                        <button onclick="reactivateItem('${item.id}')" class="w-8 h-8 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors" title="Znovu aktivovat"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>
+                        <button onclick="_permanentlyDeleteListing('${item.id}','pevna_cena')" class="w-8 h-8 rounded-xl bg-red-50 text-red-500 hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors" title="Trvale smazat"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                    </div>` : ''}
                 </div>`;
             });
             html += '</div></div>';
             container.innerHTML = html;
         } catch(e) {}
     }
+
+    // Trvalé smazání inzerátu (z archivu „Vráceno") — smaže řádek z DB i fotky ze storage
+    window._permanentlyDeleteListing = async function(id, type) {
+        if (!confirm('Trvale smazat tento inzerát? Tuto akci NELZE vrátit zpět.')) return;
+        const tableName = type === 'aukce' ? 'aukce' : 'pevna_cena';
+        try {
+            const token = await _ensureValidToken();
+            const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
+            // Úklid fotek ze storage (orphan cleanup) — cestu vytáhneme z public URL
+            try {
+                const ir = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}?id=eq.${id}&select=images`, { headers: hdrs });
+                const rows = await ir.json();
+                const imgs = (rows && rows[0] && Array.isArray(rows[0].images)) ? rows[0].images : [];
+                const paths = imgs.map(function(u){ const m = String(u).match(/\/inzeraty\/(.+?)(\?|$)/); return m ? m[1] : null; }).filter(Boolean);
+                if (paths.length) await supabaseClient.storage.from('inzeraty').remove(paths);
+            } catch(_) {}
+            // Smaž řádek z DB (RLS pc_delete_own/au_delete_own → vlastník smí)
+            const { error } = await supabaseClient.from(tableName).delete().eq('id', id);
+            if (error) { showToast('Chyba při mazání: ' + error.message, 'error'); return; }
+            // Odeber z paměti
+            [dataAukce, dataPevnaCena].forEach(function(arr){ const i = arr.findIndex(function(x){ return x.id === id; }); if (i !== -1) arr.splice(i, 1); });
+            showToast('Inzerát byl trvale smazán.', 'success');
+            _loadSellerArchive();  // překresli archiv (položka z něj zmizí)
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
 
     // ── Aktivity / Notifikace ─────────────────────────────────────
     const NOTIF_ICONS = {
