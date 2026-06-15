@@ -3108,7 +3108,7 @@
             <div class="mt-1 flex items-center justify-between text-[10px] text-gray-400">
                 <span class="${timeInfo.urgent ? 'countdown-urgent text-red-500 font-bold' : ''}">${isAukce ? '⏱ ' + timeInfo.text : ''}</span>
                 <div class="flex items-center gap-2">
-                    ${(item.rating_count || 0) > 0 ? `<span class="text-yellow-500 font-bold">⭐ ${Number(item.rating).toFixed(1)}</span>` : ''}
+                    ${(item.rating_count || 0) > 0 ? `<span class="text-yellow-500 font-bold seller-rating-badge" data-sid="${item.seller_id}">⭐ ${Number(item.rating).toFixed(1)}</span>` : `<span class="seller-rating-badge" data-sid="${item.seller_id}" style="display:none"></span>`}
                     <span class="views-badge"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>${item.views_count || 0}</span>
                 </div>
             </div>
@@ -4663,7 +4663,7 @@
                             <div class="w-10 h-10 rounded-full bg-sky-200 flex items-center justify-center text-sky-700 font-bold shrink-0">${item.seller.charAt(0).toUpperCase()}</div>
                             <div>
                                 <p class="font-bold text-gray-800 text-sm flex items-center gap-1">${item.seller}${item.verified?`<svg class="w-4 h-4 text-sky-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`:''}</p>
-                                <p class="text-xs ${timeInfo.urgent?'text-red-600 font-bold countdown-urgent':timeInfo.urgent?'text-red-500':'text-gray-500'}">⏱ ${timeInfo.text} · <button onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
+                                <p class="text-xs ${timeInfo.urgent?'text-red-600 font-bold countdown-urgent':timeInfo.urgent?'text-red-500':'text-gray-500'}">⏱ ${timeInfo.text} · <button id="detail-seller-rating-${item.seller_id}" onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
                             </div>
                         </div>
                         <div class="mb-6">
@@ -4785,7 +4785,7 @@
                             <div class="w-10 h-10 rounded-full bg-pink-200 flex items-center justify-center text-pink-700 font-bold shrink-0">${item.seller.charAt(0).toUpperCase()}</div>
                             <div>
                                 <p class="font-bold text-gray-800 text-sm flex items-center gap-1">${item.seller}${item.verified?`<svg class="w-4 h-4 text-sky-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`:''}</p>
-                                <p class="text-xs text-gray-400"><button onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
+                                <p class="text-xs text-gray-400"><button id="detail-seller-rating-${item.seller_id}" onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
                             </div>
                         </div>
                         <div class="mb-5">
@@ -8730,6 +8730,31 @@
                 else showToast('Chyba při ukládání hodnocení.', 'error');
             } else {
                 showToast('Děkujeme za hodnocení! Pomáhá ostatním kupujícím.', 'success', 5000);
+                const sid = _ratingSellerId;
+                try {
+                    const token2 = await _ensureValidToken();
+                    const pr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${sid}&select=rating,rating_count`, {
+                        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token2}` }
+                    });
+                    if (pr.ok) {
+                        const pdata = await pr.json();
+                        if (pdata && pdata[0]) {
+                            const { rating, rating_count } = pdata[0];
+                            if (window._profilesMap && window._profilesMap[sid]) {
+                                window._profilesMap[sid].rating = rating;
+                                window._profilesMap[sid].rating_count = rating_count;
+                            }
+                            if (window.dataPevnaCena) window.dataPevnaCena.forEach(i => { if (i.seller_id === sid) { i.rating = rating; i.rating_count = rating_count; } });
+                            if (window.dataAukce) window.dataAukce.forEach(i => { if (i.seller_id === sid) { i.rating = rating; i.rating_count = rating_count; } });
+                            document.querySelectorAll(`.seller-rating-badge[data-sid="${sid}"]`).forEach(el => {
+                                if (rating_count > 0) { el.textContent = `⭐ ${Number(rating).toFixed(1)}`; el.className = 'text-yellow-500 font-bold seller-rating-badge'; el.style.display = ''; }
+                                else { el.style.display = 'none'; }
+                            });
+                            const detailBtn = document.getElementById(`detail-seller-rating-${sid}`);
+                            if (detailBtn) detailBtn.textContent = rating_count > 0 ? `⭐ ${Number(rating).toFixed(1)} (${rating_count}x hodnocení)` : '⭐ Nový prodejce';
+                        }
+                    }
+                } catch (_) {}
             }
         } catch(e) {
             showToast('Chyba sítě — hodnocení nebylo uloženo.', 'error');
