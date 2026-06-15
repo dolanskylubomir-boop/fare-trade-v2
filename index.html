@@ -2462,8 +2462,9 @@
                 const file  = avatarInput.files[0];
                 const check = validateImageFile(file);
                 if (!check.ok) throw new Error(check.error);
-                const fileName = `avatar-${user.id}-${Date.now()}.${check.ext}`;
-                const { data:sd, error:se } = await supabaseClient.storage.from('avatary').upload(fileName, file, { cacheControl:'3600', upsert:true });
+                const resizedAvatar = await window._resizeImageForUpload(file);
+                const fileName = `avatar-${user.id}-${Date.now()}.${resizedAvatar.ext}`;
+                const { data:sd, error:se } = await supabaseClient.storage.from('avatary').upload(fileName, resizedAvatar.blob, { cacheControl:'3600', upsert:true });
                 if (se) {
                     showToast('Fotografie se nepodařilo nahrát (' + se.message + ') – profil bude uložen bez avataru.', 'warning');
                 } else if (sd) {
@@ -5202,9 +5203,10 @@
             const urls  = [];
             for (let i = 0; i < photos.length; i++) {
                 const file = photos[i];
-                const ext  = file.name.split('.').pop() || 'jpg';
+                const resizedShip = await window._resizeImageForUpload(file);
+                const ext  = resizedShip.ext;
                 const path = 'shipping/' + _shipOrderId + '/' + Date.now() + '_' + i + '.' + ext;
-                const { error: upErr } = await supabaseClient.storage.from('order-photos').upload(path, file, { upsert: true });
+                const { error: upErr } = await supabaseClient.storage.from('order-photos').upload(path, resizedShip.blob, { upsert: true });
                 if (!upErr) {
                     const { data } = supabaseClient.storage.from('order-photos').getPublicUrl(path);
                     if (data?.publicUrl) urls.push(data.publicUrl);
@@ -5346,9 +5348,10 @@
             const urls  = [];
             for (let i = 0; i < photos.length; i++) {
                 const file = photos[i];
-                const ext  = file.name.split('.').pop() || 'jpg';
+                const resizedDispute = await window._resizeImageForUpload(file);
+                const ext  = resizedDispute.ext;
                 const path = 'dispute/' + _disputeOrderId + '/' + Date.now() + '_' + i + '.' + ext;
-                const { error: upErr } = await supabaseClient.storage.from('order-photos').upload(path, file, { upsert: true });
+                const { error: upErr } = await supabaseClient.storage.from('order-photos').upload(path, resizedDispute.blob, { upsert: true });
                 if (!upErr) {
                     const { data } = supabaseClient.storage.from('order-photos').getPublicUrl(path);
                     if (data?.publicUrl) urls.push(data.publicUrl);
@@ -8206,9 +8209,15 @@
             const uid = window.currentUser.id;
             const uploadDoc = async (file, side) => {
                 if (!file) return null;
-                const ext = file.name.split('.').pop().toLowerCase();
+                let uploadFile = file;
+                let ext = file.name.split('.').pop().toLowerCase();
+                if (file.type.startsWith('image/')) {
+                    const resizedKyc = await window._resizeImageForUpload(file);
+                    uploadFile = resizedKyc.blob;
+                    ext = resizedKyc.ext;
+                }
                 const fileName = `kyc-${uid}-${side}-${Date.now()}.${ext}`;
-                const { data, error } = await supabaseClient.storage.from('kyc-docs').upload(fileName, file, { cacheControl: '3600', upsert: true });
+                const { data, error } = await supabaseClient.storage.from('kyc-docs').upload(fileName, uploadFile, { cacheControl: '3600', upsert: true });
                 if (error) throw new Error('Nahrání dokladu selhalo: ' + error.message);
                 return fileName; // Store path only — bucket is private, signed URL generated on demand
             };
