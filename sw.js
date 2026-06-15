@@ -1,4 +1,4 @@
-// FairTrade Service Worker v1.2
+// FairTrade Service Worker — verze cache je jediný zdroj pravdy níže (CACHE)
 const CACHE = 'fairtrade-v3';
 const OFFLINE_PAGE = './index.html';
 
@@ -74,8 +74,12 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Statické soubory (ikony, manifest) — Cache first, fallback network
-  if (req.url.includes('icon') || req.url.includes('manifest')) {
+  // Statické soubory (ikony, manifest) — Cache first, fallback network.
+  // Match dle pathname/koncovky, ne substringem v celé URL (zabrání chybnému
+  // obsloužení nesouvisejících adres jako /api/manifest nebo ?iconset=...).
+  let _path = '';
+  try { _path = new URL(req.url).pathname; } catch (e) {}
+  if (_path.endsWith('/manifest.json') || /\/icon-\d+\.png$/.test(_path)) {
     event.respondWith(
       caches.match(req).then(cached => cached || fetch(req))
     );
