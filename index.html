@@ -8806,29 +8806,33 @@
         e.preventDefault();
         _deferredInstall = e;
         _showPwaInstallBtn(true);
-        // Toast po 3 sekundách (jen pokud uživatel ještě nezavřel stránku)
-        setTimeout(() => {
+        const _showPwaToast = () => {
             if (!_deferredInstall) return;
             const container = document.getElementById('toast-container');
             if (!container) return;
+            document.getElementById('_pwa-toast')?.remove();
             const toast = document.createElement('div');
+            toast.id = '_pwa-toast';
             toast.className = 'flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-white border-l-4 border-sky-500 shadow-xl max-w-[320px] pointer-events-auto';
             toast.innerHTML = `
                 <svg class="w-5 h-5 text-sky-500 shrink-0 mt-0.5 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="_pwa-icon"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 <div class="flex-grow cursor-pointer" id="_pwa-text">
-                    <div class="font-bold text-sm text-gray-800">Nainstalovat FairTrade</div>
+                    <div class="font-bold text-sm text-gray-800">📲 Nainstalovat FairTrade</div>
                     <div class="text-xs text-gray-500 mt-0.5">Přidat na plochu — funguje jako app</div>
                 </div>
                 <button id="_pwa-close" aria-label="Zavřít" class="text-gray-400 hover:text-gray-600 transition-colors ml-1 shrink-0 -mt-0.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>`;
-            toast.querySelector('#_pwa-close').addEventListener('click', e => { e.stopPropagation(); toast.remove(); });
-            const doInstall = () => { window._triggerPwaInstall(); toast.remove(); };
+            const autoRemove = setTimeout(() => toast.remove(), 3000);
+            toast.querySelector('#_pwa-close').addEventListener('click', ev => { ev.stopPropagation(); clearTimeout(autoRemove); toast.remove(); });
+            const doInstall = () => { clearTimeout(autoRemove); window._triggerPwaInstall(); toast.remove(); };
             toast.querySelector('#_pwa-icon').addEventListener('click', doInstall);
             toast.querySelector('#_pwa-text').addEventListener('click', doInstall);
             container.appendChild(toast);
-            setTimeout(() => toast.remove(), 15000);
-        }, 3000);
+        };
+        // Zobraz toast hned, nebo počkej na DOM pokud stránka ještě načítá
+        if (document.readyState === 'complete') { _showPwaToast(); }
+        else { window.addEventListener('load', _showPwaToast, { once: true }); }
     });
 
     window.addEventListener('appinstalled', () => {
