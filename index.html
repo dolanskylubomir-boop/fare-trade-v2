@@ -7999,6 +7999,27 @@
     // ──────────────────────────────────────────────────────────────
     window.handleRealtimeAuctionUpdate = function(newData) {
         const id = newData.id || newData.auction_id;
+        // Změna stavu aukce (deaktivace adminem / prodáno / ukončeno / zrušeno) → odeber z katalogu v realtime
+        if (newData.status && newData.status !== 'aktivní') {
+            const existed = dataAukce.some(a => a.id === id);
+            dataAukce = dataAukce.filter(a => a.id !== id);
+            if (existed) {
+                const wasDeact = newData.status === 'deaktivován_adminem';
+                const h = window.location.hash;
+                if (h.includes('aukce') && !h.includes('detail')) navigate('aukce', _currentCategory);
+                else if (h.includes('aukce-detail/' + id)) { showToast(wasDeact ? 'Tato aukce byla deaktivována administrátorem.' : 'Tato aukce již není dostupná.', 'warning'); setTimeout(() => navigate('aukce'), 2000); }
+                else if (h.includes('profil') && !h.includes('admin')) navigate('profil/inzeraty');
+            }
+            return;
+        }
+        // Reaktivace aukce adminem → vrať zpět do katalogu
+        if (newData.status === 'aktivní' && !dataAukce.some(a => a.id === id)) {
+            _fetchAndAddListing('aukce', id).then(function() {
+                const h = window.location.hash;
+                if (h.includes('aukce') && !h.includes('detail')) navigate('aukce', _currentCategory);
+            });
+            return;
+        }
         const idx = dataAukce.findIndex(a => a.id === id);
         if (idx === -1) return;
         const auction   = dataAukce[idx];
@@ -8848,12 +8869,15 @@
         supabaseClient.channel('rt_bids').on('postgres_changes',{ event:'INSERT', schema:'public', table:'bids' },(p)=>handleRealtimeAuctionUpdate({ id:p.new.auction_id, current_price:p.new.amount, last_bidder_id:p.new.bidder_id })).subscribe();
         supabaseClient.channel('rt_pevna').on('postgres_changes',{ event:'UPDATE', schema:'public', table:'pevna_cena' },(p)=>{
             const u = p.new;
-            if (['prodano','prodáno','archivováno','zruseno'].includes(u.status)) {
+            if (['prodano','prodáno','archivováno','zruseno','deaktivován_adminem','neaktivní'].includes(u.status)) {
+                const wasDeact = u.status === 'deaktivován_adminem';
+                const wasSold  = u.status === 'prodano' || u.status === 'prodáno';
                 dataPevnaCena = dataPevnaCena.filter(i=>i.id!==u.id);
                 const h = window.location.hash;
-                if (h.includes('pevna-cena')&&!h.includes('detail')) navigate('pevna-cena');
-                if (h.includes('pevna-cena-detail/'+u.id)) { showToast('Tato položka byla právě zakoupena jiným uživatelem.','warning'); setTimeout(()=>navigate('pevna-cena'),2000); }
+                if (h.includes('pevna-cena')&&!h.includes('detail')) navigate('pevna-cena', _currentCategory);
+                if (h.includes('pevna-cena-detail/'+u.id)) { showToast(wasDeact ? 'Tento inzerát byl deaktivován administrátorem.' : (wasSold ? 'Tato položka byla právě zakoupena jiným uživatelem.' : 'Tato položka již není dostupná.'),'warning'); setTimeout(()=>navigate('pevna-cena'),2000); }
                 if (h.includes('profil/oblibene')) navigate('profil/oblibene');
+                else if (h.includes('profil') && !h.includes('admin')) navigate('profil/inzeraty');
             } else if (u.status === 'ceka_na_platbu') {
                 const idx = dataPevnaCena.findIndex(i=>i.id==u.id);
                 if (idx !== -1) {
