@@ -2541,17 +2541,19 @@
             }
             window._userRole = profile.role || 'user';
             window._kycStatus = profile.kyc_status || 'unverified';
-            // Registrace/ověření je povinné jen pro prodejce — neverzeme nikoho násilně do KYC.
-            // Ověření přes BankID se vyžaduje až při pokusu o prodej (viz 'novy-inzerat').
-            if (redirectIfVerified) navigate('profil');
+            // Registrace/ověření je povinné jen pro prodejce — nevezeme nikoho násilně do KYC.
+            // Po čerstvé registraci nasměrujeme na ověření přes BankID (onboarding prodejce).
+            if (redirectIfVerified) {
+                if (window._justSignedUp) { window._justSignedUp = false; navigate('kyc'); }
+                else navigate('profil');
+            }
             return;
         }
 
-        // Profil se nepodařilo načíst (chybí/expirovaný token, síť, výpadek RPC) →
-        // FAIL-CLOSED: nepouštět dál jako ověřeného. Tvrdou ochranu dat drží RLS.
+        // Profil se nepodařilo načíst (chybí/expirovaný token, síť, výpadek RPC).
         if (redirectIfVerified) {
-            showToast('Nepodařilo se ověřit účet, přihlaste se prosím znovu.', 'warning');
-            navigate('login');
+            if (window._justSignedUp) { window._justSignedUp = false; navigate('kyc'); }
+            else { showToast('Nepodařilo se ověřit účet, přihlaste se prosím znovu.', 'warning'); navigate('login'); }
         }
     }
 
@@ -2620,12 +2622,16 @@
         if (action === 'signup' && !document.getElementById('vop-consent')?.checked)
             return showToast('Pro registraci musíte být starší 18 let a souhlasit s obchodními podmínkami.','warning');
         if (action === 'signup') {
+            window._justSignedUp = true;
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
-            if (error) showToast('Chyba registrace: ' + error.message, 'warning');
-            else {
-                showToast('Registrace úspěšná! Vyplňte prosím identifikační formulář.', 'success');
-                if (data?.user) { await checkUserProfileKYC(data.user, true); }
-                // checkUserProfileKYC zajistí navigaci: unverified → kyc, verified → profil
+            if (error) { window._justSignedUp = false; showToast('Chyba registrace: ' + error.message, 'warning'); }
+            else if (!data?.session) {
+                // E-mailové potvrzení je zapnuté → zatím není session; uživatel musí potvrdit e-mail
+                window._justSignedUp = false;
+                showToast('Registrace úspěšná! Potvrďte e-mail v doručené poště a poté se přihlaste.', 'success', 7000);
+            } else {
+                // Session vznikla hned → onAuthStateChange (SIGNED_IN) → checkUserProfileKYC nasměruje na BankID ověření
+                showToast('Registrace úspěšná! Pokračujte ověřením přes BankID.', 'success');
             }
         } else {
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -4206,11 +4212,31 @@
     // ──────────────────────────────────────────────────────────────
     // NÁKUP PEVNÉ CENY
     // ──────────────────────────────────────────────────────────────
+    // Nákup za pevnou cenu nevyžaduje registraci — pro vytvoření objednávky stačí host (anonymní session).
+    // (U aukcí registrace zůstává — viz placeBid.)
+    window._ensureBuyerSession = async function() {
+        if (window.currentUser) return true;
+        try {
+            const { data, error } = await supabaseClient.auth.signInAnonymously();
+            if (error || !data?.user) {
+                showToast('Pro dokončení nákupu se prosím přihlaste.', 'warning');
+                navigate('login');
+                return false;
+            }
+            window.currentUser = data.user;
+            window._isAnonBuyer = true;
+            return true;
+        } catch(e) {
+            showToast('Pro dokončení nákupu se prosím přihlaste.', 'warning');
+            navigate('login');
+            return false;
+        }
+    };
+
     window.buyItem = function(id) {
-        if (!window.currentUser) { showToast('Pro nákup se musíte přihlásit.','warning'); navigate('login'); return; }
         const item = dataPevnaCena.find(i=>i.id==id);
         if (!item) return;
-        if (item.seller_id === window.currentUser.id) { showToast('Nemůžete koupit vlastní inzerát.','warning'); return; }
+        if (window.currentUser && item.seller_id === window.currentUser.id) { showToast('Nemůžete koupit vlastní inzerát.','warning'); return; }
         if (item.reserved_until && item.reserved_until > Date.now()) { showToast('Položka je momentálně rezervována jiným kupujícím.','warning'); return; }
         navigate('platba-hned', id);
     };
@@ -5342,7 +5368,6 @@
         get() { try { return JSON.parse(localStorage.getItem(this._key) || '{}'); } catch { return {}; } },
         save(c) { localStorage.setItem(this._key, JSON.stringify(c)); _updateCartBadge(); },
         add(item) {
-            if (!window.currentUser) { showToast('Pro přidání do košíku se přihlaste.','warning'); navigate('login'); return false; }
             const c = this.get();
             const key = item.seller_id;
             if (!c[key]) c[key] = { seller_id: item.seller_id, seller_name: item.seller, payment_type: 'escrow', items: [] };
@@ -5428,6 +5453,7 @@
         const name = get('co-name'), street = get('co-street'), city = get('co-city'), zip = get('co-zip'), phone = get('co-phone');
         if (!name || !street || !city || !zip || !phone) { showToast('Vyplňte všechna povinná pole adresy.','warning'); return; }
         if (!_checkoutCarrier) { showToast('Vyberte způsob doručení.','warning'); return; }
+        if (!await window._ensureBuyerSession()) return;
         const cart = window.Cart.get();
         const group = cart[groupKey];
         if (!group?.items?.length) { showToast('Košík je prázdný.','warning'); return; }
@@ -5709,6 +5735,7 @@
         const item = dataPevnaCena.find(i => i.id == itemId);
         if (!item) { showToast('Položka nenalezena.','warning'); return; }
         if (item.reserved_until && item.reserved_until > Date.now()) { showToast('Položka je rezervována jiným kupujícím.','warning'); return; }
+        if (!await window._ensureBuyerSession()) return;
         const sub = item.price, fee = Math.round(sub * 0.05) + 49, total = sub + _checkoutCarrier.price + fee;
         const btn = document.getElementById('create-order-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Zpracovávám…'; }
@@ -5913,7 +5940,6 @@
     };
 
     views['pokladna'] = (groupKey) => {
-        if (!window.currentUser) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center min-h-[300px] flex flex-col items-center justify-center gap-4"><p class="text-gray-500">Přihlaste se pro dokončení objednávky.</p><button onclick="navigate('login')" class="bg-sky-500 text-white font-bold px-6 py-3 rounded-2xl">Přihlásit se</button></div>`;
         const cart = window.Cart.get();
         const group = cart[groupKey];
         if (!group?.items?.length) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center min-h-[300px] flex flex-col items-center justify-center gap-4"><p class="text-gray-500">Košík je prázdný.</p><button onclick="navigate('kosik')" class="bg-pink-500 text-white font-bold px-6 py-3 rounded-2xl">Zpět do košíku</button></div>`;
@@ -5983,10 +6009,9 @@
     </div>`;
 
     views['platba-hned'] = (id) => {
-        if (!window.currentUser) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center min-h-[300px] flex flex-col items-center justify-center gap-4"><p class="text-gray-500">Přihlaste se pro nákup.</p><button onclick="navigate('login')" class="bg-sky-500 text-white font-bold px-6 py-3 rounded-2xl">Přihlásit se</button></div>`;
         const item = dataPevnaCena.find(i => i.id == id);
         if (!item) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in"><button onclick="navigate('pevna-cena')" class="text-pink-500 font-bold flex items-center gap-2">← Zpět</button><p class="mt-8 text-gray-500">${!window.dataLoaded?'⌛ Načítám data…':'Položka nenalezena.'}</p></div>`;
-        if (item.seller_id === window.currentUser.id) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center"><button onclick="navigate('pevna-cena-detail/${item.id}')" class="text-pink-500 font-bold flex items-center gap-2 mb-6">← Zpět</button><p class="text-gray-500">Nemůžete koupit vlastní inzerát.</p></div>`;
+        if (window.currentUser && item.seller_id === window.currentUser.id) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center"><button onclick="navigate('pevna-cena-detail/${item.id}')" class="text-pink-500 font-bold flex items-center gap-2 mb-6">← Zpět</button><p class="text-gray-500">Nemůžete koupit vlastní inzerát.</p></div>`;
         const isReserved = item.reserved_until && item.reserved_until > Date.now();
         if (isReserved) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50 text-center"><button onclick="navigate('pevna-cena-detail/${item.id}')" class="mb-6 text-pink-500 font-bold hover:text-pink-600 flex items-center gap-2 mx-auto justify-center">← Zpět na detail</button><div class="text-5xl mb-4">🔒</div><h2 class="text-xl font-bold text-gray-800 mb-2">Položka je rezervována</h2><p class="text-gray-500 text-sm">Jiný kupující momentálně dokončuje objednávku. Zkuste to za <strong>${_reserveCountdown(item.reserved_until)}</strong>.</p></div>`;
         _checkoutCarrier = null;
