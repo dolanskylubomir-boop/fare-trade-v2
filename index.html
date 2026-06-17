@@ -3228,7 +3228,6 @@
         const timeInfo   = getTimeRemaining(item.endTime);
         const prices     = getPriceInfo(item.price);
         const catCls     = isAukce ? 'text-sky-500' : 'text-pink-500';
-        const priceCls   = isAukce ? 'text-sky-500' : 'text-pink-500';
         const btnCls     = isAukce
             ? 'bg-sky-50 text-sky-600 border-sky-100 hover:bg-sky-100'
             : (isReserved ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed' : 'bg-pink-50 text-pink-600 border-pink-100 hover:bg-pink-100');
@@ -3241,8 +3240,8 @@
                 ${isReserved ? `<div class="absolute inset-0 bg-gray-900/55 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center z-10 pointer-events-none"><svg class="w-5 h-5 text-white mb-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg><span class="text-white font-extrabold text-xs tracking-wide">Rezervováno</span><span class="text-white/70 text-[10px] mt-0.5">${_reserveCountdown(item.reserved_until)}</span></div>` : ''}
                 <img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" loading="lazy" decoding="async" alt="${item.title}" class="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500">
                 <div class="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-lg backdrop-blur-sm leading-tight">
-                    <div class="text-white/70 font-normal text-[9px]">Cena pro kupujícího</div>
-                    ${prices.total.toLocaleString('cs-CZ')} Kč
+                    <div class="text-white/70 font-normal text-[9px]">Cena prodejce</div>
+                    <span id="list-seller-${item.id}">${item.price.toLocaleString('cs-CZ')} Kč</span>
                 </div>
                 <button onclick="toggleFavorite(event,'${item.id}','${item.type}')" data-id="${item.id}"
                     class="fav-btn absolute top-2 right-2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors ${isFav ? 'text-red-500' : 'text-white'}" aria-label="Oblíbené">
@@ -3265,10 +3264,73 @@
                 </div>
             </div>
             <div class="mt-auto pt-3 border-t border-gray-50">
-                <div class="text-lg sm:text-xl font-black ${priceCls} mb-2" id="list-price-${item.id}">${item.price.toLocaleString('cs-CZ')} Kč</div>
+                <button type="button" onclick="event.stopPropagation();showPriceBreakdown(event,'${item.id}')" class="flex items-center gap-1.5 mb-2 hover:opacity-80 transition-opacity" title="Konečná cena pro kupujícího — rozbor ceny a escrow ochrana">
+                    <span class="text-lg sm:text-xl font-black text-red-600" id="list-price-${item.id}">${prices.total.toLocaleString('cs-CZ')} Kč</span>
+                    <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                </button>
                 <button class="w-full font-bold py-2.5 rounded-xl transition-colors border text-sm ${btnCls}">${btnLabel}</button>
             </div>
         </div>`;
+    };
+
+    // Rozbor konečné ceny + výhody escrow (po kliknutí na cenu v kartě)
+    window.showPriceBreakdown = function(e, itemId) {
+        if (e) e.stopPropagation();
+        const item = [...dataAukce, ...dataPevnaCena].find(i => i.id === itemId);
+        if (!item) return;
+        const isAukce   = item.type === 'aukce';
+        const base      = Number(item.price) || 0;
+        const commission= Math.round(base * 0.05);
+        const total     = base + commission + ESCROW_FEE;
+        // title je esc()-zpracovaný (bezpečné do innerHTML)
+        const titleHtml = item.title || '';
+        const baseLabel = isAukce ? 'Aktuální cena (příhoz)' : 'Cena prodejce';
+
+        const existing = document.getElementById('price-breakdown-modal');
+        if (existing) existing.remove();
+        const modal = document.createElement('div');
+        modal.id = 'price-breakdown-modal';
+        modal.className = 'fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm';
+        modal.innerHTML = `
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="p-5 bg-gradient-to-r from-emerald-500 to-sky-600 text-white shrink-0">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <svg class="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                            <p class="font-extrabold text-base">Konečná cena pro kupujícího</p>
+                        </div>
+                        <p class="text-white/80 text-xs truncate">${titleHtml}</p>
+                    </div>
+                    <button onclick="document.getElementById('price-breakdown-modal').remove()" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold text-lg shrink-0 transition-colors">×</button>
+                </div>
+            </div>
+            <div class="overflow-y-auto p-5 flex flex-col gap-4">
+                <div class="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-500">${baseLabel}</span><span class="font-bold text-gray-800">${base.toLocaleString('cs-CZ')} Kč</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Provize platformy (5 %)</span><span class="font-semibold text-gray-700">${commission.toLocaleString('cs-CZ')} Kč</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Escrow ochrana</span><span class="font-semibold text-gray-700">${ESCROW_FEE.toLocaleString('cs-CZ')} Kč</span></div>
+                    <div class="flex justify-between items-center pt-2 mt-1 border-t border-gray-200"><span class="font-extrabold text-gray-800">Celkem (bez dopravy)</span><span class="font-black text-red-600 text-lg">${total.toLocaleString('cs-CZ')} Kč</span></div>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                    <p class="font-bold text-emerald-800 text-sm mb-2 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        Proč je cena vyšší? Escrow vás chrání.
+                    </p>
+                    <ul class="flex flex-col gap-2 text-xs text-emerald-900">
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 font-black shrink-0">✓</span><span>Vaše peníze jsou v <strong>bezpečné úschově</strong> a prodejce je dostane až po vašem potvrzení doručení.</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 font-black shrink-0">✓</span><span>Když zboží nedorazí nebo neodpovídá popisu, <strong>otevřete spor</strong> a peníze vám vrátíme.</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 font-black shrink-0">✓</span><span>Každý prodejce je <strong>ověřený (KYC)</strong> — žádná anonymita, podvodníci dostávají trvalý ban.</span></li>
+                    </ul>
+                </div>
+                <p class="text-[11px] text-gray-400 text-center">Provize 5 % + ${ESCROW_FEE} Kč escrow hradí kupující. Doprava se přičítá v košíku dle dopravce.</p>
+            </div>
+            <div class="p-4 border-t border-gray-100 shrink-0">
+                <button onclick="document.getElementById('price-breakdown-modal').remove()" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-2xl transition-colors text-sm">Rozumím</button>
+            </div>
+        </div>`;
+        modal.addEventListener('click', function(ev) { if (ev.target === modal) modal.remove(); });
+        document.body.appendChild(modal);
     };
 
     // ──────────────────────────────────────────────────────────────
@@ -7149,9 +7211,11 @@
             const pEl = document.getElementById('price-'+id);
             const tEl = document.getElementById('total-'+id);
             const lEl = document.getElementById('list-price-'+id);
+            const sEl = document.getElementById('list-seller-'+id);
             if (pEl) { pEl.setAttribute('data-price',newPrice); pEl.innerText=newPrice.toLocaleString('cs-CZ')+' Kč'; pEl.classList.add('text-green-500'); setTimeout(()=>pEl.classList.remove('text-green-500'),600); }
             if (tEl) tEl.innerText = getPriceInfo(newPrice).total.toLocaleString('cs-CZ')+' Kč';
-            if (lEl) lEl.innerText = newPrice.toLocaleString('cs-CZ')+' Kč';
+            if (lEl) lEl.innerText = getPriceInfo(newPrice).total.toLocaleString('cs-CZ')+' Kč';
+            if (sEl) sEl.innerText = newPrice.toLocaleString('cs-CZ')+' Kč';
         }
     };
 
