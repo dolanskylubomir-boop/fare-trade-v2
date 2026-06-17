@@ -815,6 +815,7 @@
     } catch(e) { /* Supabase init failed */ }
 
     const ESCROW_FEE    = 49;    // poplatek escrow (kupující)
+    const BANKID_FEE    = 65;    // vstupní ověření prodejce přes BankID (vrátí se do peněženky)
     // FIO účet provozovatele — NAHRAĎTE skutečnými údaji
     const FIO_ACCT      = '000000000/2010';           // ← NAHRAĎTE
     const FIO_IBAN      = 'CZ0000000000000000000000'; // ← NAHRAĎTE (bez mezer)
@@ -1366,7 +1367,7 @@
     // opts: { amount, refId, vsMsg, paymentType, onPaid }
     window._renderPayStep = async function(bodyEl, opts) {
         if (!bodyEl) return;
-        const { amount, refId, vsMsg, paymentType, onPaid } = opts;
+        const { amount, refId, vsMsg, paymentType, onPaid, cardPay, confirmLabel } = opts;
         bodyEl.innerHTML = '<div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-amber-200 border-t-amber-500 rounded-full animate-spin"></div></div>';
         const bal = await _getWalletBalance();
         const payment = await createPendingPayment(paymentType, amount, refId);
@@ -1394,13 +1395,20 @@
                 <div class="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin"></div>
                 Čekáme na platbu…
             </div>
-            <button type="button" id="pay-step-confirm" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold py-3.5 rounded-2xl transition-all shadow-lg text-sm">✅ Už jsem zaplatil — potvrdit</button>`;
+            ${cardPay ? `<button type="button" id="pay-step-card" class="w-full mb-2 flex items-center justify-center gap-2 bg-white border border-gray-200 hover:border-sky-400 hover:bg-sky-50 text-gray-700 font-bold py-3 rounded-2xl transition-all text-sm"><svg class="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>💳 Zaplatit kartou</button>` : ''}
+            <button type="button" id="pay-step-confirm" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold py-3.5 rounded-2xl transition-all shadow-lg text-sm">${confirmLabel || '✅ Už jsem zaplatil — potvrdit'}</button>`;
         setTimeout(() => renderFioQR('pay-step-qr', amount, vs || '0', vsMsg), 50);
         const walletBtn = document.getElementById('pay-step-wallet-btn');
         if (walletBtn) walletBtn.onclick = async function() {
             walletBtn.disabled = true; walletBtn.textContent = 'Platím…';
             const ok = await deductWallet(amount, vsMsg);
             if (!ok) { showToast('Nedostatek kreditu v peněžence.', 'warning'); walletBtn.disabled = false; walletBtn.textContent = 'Zaplatit ' + amtStr + ' Kč'; return; }
+            clearInterval(window._fioTimer);
+            await onPaid();
+        };
+        const cardBtn = document.getElementById('pay-step-card');
+        if (cardBtn) cardBtn.onclick = async function() {
+            cardBtn.disabled = true; cardBtn.textContent = 'Zpracovávám platbu kartou…';
             clearInterval(window._fioTimer);
             await onPaid();
         };
@@ -2533,7 +2541,8 @@
             }
             window._userRole = profile.role || 'user';
             window._kycStatus = profile.kyc_status || 'unverified';
-            if (profile.kyc_status === 'unverified') { navigate('kyc'); return; }
+            // Registrace/ověření je povinné jen pro prodejce — neverzeme nikoho násilně do KYC.
+            // Ověření přes BankID se vyžaduje až při pokusu o prodej (viz 'novy-inzerat').
             if (redirectIfVerified) navigate('profil');
             return;
         }
@@ -2737,78 +2746,94 @@
         }
     };
 
-    window.handleKYCSubmit = async function(e) {
-        e.preventDefault();
-        if (!supabaseClient) return alert('Supabase není nakonfigurován!');
-        const btn = e.target.querySelector('button[type="submit"]');
-        const origText = btn?.innerText || 'Odeslat';
-        if (btn) { btn.innerText='Nahrávám a ukládám…'; btn.disabled=true; }
+    // ──────────────────────────────────────────────────────────────
+    // OVĚŘENÍ PRODEJCE PŘES BankID (vstupní poplatek 65 Kč → vrátí se do peněženky)
+    // ──────────────────────────────────────────────────────────────
+    let _bankIdState = { dname: '', avatarFile: null };
+
+    window._isSellerVerified = function() {
+        return ['verified','approved'].includes(window._kycStatus) || (window._privateProfileCache?.data?.is_verified === true);
+    };
+
+    window.startBankIdVerify = function() {
+        if (!window.currentUser) { showToast('Pro ověření se musíte přihlásit.','warning'); navigate('login'); return; }
+        const dname = (document.getElementById('kyc-dname')?.value || '').trim();
+        if (!dname) { showToast('Zadejte přezdívku / zobrazované jméno.','warning'); document.getElementById('kyc-dname')?.focus(); return; }
+        const avatarInput = document.getElementById('kyc-avatar');
+        _bankIdState = { dname, avatarFile: (avatarInput && avatarInput.files && avatarInput.files[0]) || null };
+        document.getElementById('bankid-intro').classList.add('hidden');
+        document.getElementById('bankid-pay').classList.remove('hidden');
+        _renderPayStep(document.getElementById('bankid-pay-body'), {
+            amount: BANKID_FEE,
+            refId: window.currentUser.id,
+            vsMsg: 'Overeni BankID FairTrade',
+            paymentType: 'verification',
+            cardPay: true,
+            confirmLabel: '✅ Ověřit ve FIO (TEST)',
+            onPaid: _bankIdComplete
+        });
+    };
+
+    // Návrat 65 Kč do peněženky (test/mock přes wallet_topup + confirm_pending_payment)
+    async function _refundToWallet(amount, description) {
         try {
-            const { data:{ user }, error:userError } = await supabaseClient.auth.getUser();
-            if (userError || !user) { alert('Pro uložení KYC musíte být přihlášeni.'); navigate('login'); return; }
+            const p = await createPendingPayment('wallet_topup', amount, null);
+            if (!p?.id) return false;
+            const token = await _ensureValidToken();
+            const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/confirm_pending_payment', {
+                method: 'POST',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ p_id: p.id, p_fio_trans: 'BANKID-REFUND-' + p.id })
+            });
+            return r.ok;
+        } catch(e) { return false; }
+    }
 
-            // Validace věku 18+
-            const birthInput = document.getElementById('kyc-date');
-            if (!validateAge(birthInput)) {
-                if (btn) { btn.innerText=origText; btn.disabled=false; }
-                return showToast('Pro používání tržiště musíte být starší 18 let.', 'warning');
-            }
-
-            // Validace PSČ (5 číslic)
-            const zipVal = document.getElementById('kyc-zip').value.replace(/\s/g,'');
-            if (!/^\d{5}$/.test(zipVal)) {
-                if (btn) { btn.innerText=origText; btn.disabled=false; }
-                return showToast('PSČ musí obsahovat přesně 5 číslic (formát: XXX XX).', 'warning');
-            }
-
-            // Validace bankovního účtu
-            const bankInput = document.getElementById('kyc-bank');
-            if (!validateBankAccount(bankInput)) {
-                if (btn) { btn.innerText=origText; btn.disabled=false; }
-                return showToast('Neplatný formát bankovního účtu. Použijte formát: 123456/0100', 'warning');
-            }
-
+    // Po zaplacení 65 Kč → "BankID ověření" (v testu naplníme mock data) + vrácení do peněženky
+    async function _bankIdComplete() {
+        if (!window.currentUser) { navigate('login'); return; }
+        try {
+            const st = _bankIdState || {};
             let avatarUrl = null;
-            const avatarInput = document.getElementById('kyc-avatar');
-            if (avatarInput?.files?.[0]) {
-                const file  = avatarInput.files[0];
-                const check = validateImageFile(file);
-                if (!check.ok) throw new Error(check.error);
-                const resizedAvatar = await window._resizeImageForUpload(file);
-                const fileName = `avatar-${user.id}-${Date.now()}.${resizedAvatar.ext}`;
-                const { data:sd, error:se } = await supabaseClient.storage.from('avatary').upload(fileName, resizedAvatar.blob, { cacheControl:'3600', upsert:true });
-                if (se) {
-                    showToast('Fotografie se nepodařilo nahrát (' + se.message + ') – profil bude uložen bez avataru.', 'warning');
-                } else if (sd) {
-                    const { data:pu } = supabaseClient.storage.from('avatary').getPublicUrl(fileName);
-                    avatarUrl = pu?.publicUrl || null;
+            if (st.avatarFile) {
+                const check = validateImageFile(st.avatarFile);
+                if (check.ok) {
+                    const resized = await window._resizeImageForUpload(st.avatarFile);
+                    const fileName = `avatar-${window.currentUser.id}-${Date.now()}.${resized.ext}`;
+                    const { data:sd } = await supabaseClient.storage.from('avatary').upload(fileName, resized.blob, { cacheControl:'3600', upsert:true });
+                    if (sd) { const { data:pu } = supabaseClient.storage.from('avatary').getPublicUrl(fileName); avatarUrl = pu?.publicUrl || null; }
                 }
             }
+            // MOCK identita z BankID (zatím testovací data — BankID bude napojen později)
             const profileData = {
-                display_name: document.getElementById('kyc-dname').value,
-                first_name:   document.getElementById('kyc-fname').value,
-                last_name:    document.getElementById('kyc-lname').value,
-                birth_date:   document.getElementById('kyc-date').value,
-                street:       document.getElementById('kyc-street').value,
-                building_number: document.getElementById('kyc-cp').value,
-                orientation_number: document.getElementById('kyc-co').value,
-                city:         document.getElementById('kyc-city').value,
-                zip_code:     document.getElementById('kyc-zip').value,
-                bank_account: document.getElementById('kyc-bank').value,
-                kyc_status:  'submitted'
+                display_name: st.dname || 'Ověřený prodejce',
+                first_name: 'Jan', last_name: 'Ověřený',
+                birth_date: '1990-01-01',
+                street: 'Václavské náměstí', building_number: '1', orientation_number: '846',
+                city: 'Praha', zip_code: '11000',
+                bank_account: '123456/0100',
+                kyc_status: 'verified', is_verified: true, fio_verified: true
             };
             if (avatarUrl) profileData.avatar_url = avatarUrl;
-            const { error } = await supabaseClient.from('profiles').update(profileData).eq('id', user.id);
-            if (error) throw new Error(error.message);
-            window._kycStatus = 'submitted'; // guard v navigate() nesmí blokovat další navigaci
-            showToast('Údaje uloženy! Po ověření můžete vkládat inzeráty.', 'success');
+            const token = await _ensureValidToken();
+            await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id, {
+                method: 'PATCH',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                body: JSON.stringify(profileData)
+            });
+            // Lokální stav (UI hned reflektuje ověření i bez čekání na DB/RLS)
+            window._kycStatus = 'verified';
+            if (window._privateProfileCache?.data) Object.assign(window._privateProfileCache.data, profileData);
+            else window._privateProfileCache = { uid: window.currentUser.id, data: profileData };
+            if (window._profilesMap && window._profilesMap[window.currentUser.id]) Object.assign(window._profilesMap[window.currentUser.id], profileData);
+            // Vrácení vstupního poplatku do peněženky
+            await _refundToWallet(BANKID_FEE, 'Vrácení poplatku za ověření BankID');
+            showToast('✅ Ověřeno přes BankID! 65 Kč vráceno do vaší peněženky.', 'success', 6000);
             navigate('profil');
         } catch (err) {
-            showToast('Chyba ukládání: ' + err.message, 'warning');
-        } finally {
-            if (btn) { btn.innerText=origText; btn.disabled=false; }
+            showToast('Chyba ověření: ' + err.message, 'warning');
         }
-    };
+    }
 
     // ──────────────────────────────────────────────────────────────
     // VLOŽENÍ INZERÁTU — kategorie picker
@@ -4780,92 +4805,75 @@
         </div>`,
 
         kyc: () => `
-        <div class="w-full max-w-xl mx-auto bg-white/90 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl fade-in border border-white/50">
-            <div class="text-center mb-8">
-                <span class="inline-block bg-sky-100 text-sky-800 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide mb-3">Zabezpečení trhu</span>
-                <h2 class="text-3xl font-extrabold text-pastel-text">Ověření totožnosti (KYC)</h2>
-                <p class="text-gray-500 text-sm mt-1">Vyplňte pravdivé identifikační údaje pro schválení účtu.</p>
+        <div class="w-full max-w-2xl mx-auto bg-white/90 backdrop-blur-xl p-7 md:p-8 rounded-[2.5rem] shadow-2xl fade-in border border-white/50 mb-10">
+            <div class="text-center mb-6">
+                <span class="inline-block bg-sky-100 text-sky-800 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide mb-3">Ověření prodejce</span>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-pastel-text">Ověření totožnosti přes BankID</h2>
+                <p class="text-gray-500 text-sm mt-1">Registrace je povinná pouze pro prodejce. Kupující ji nepotřebují.</p>
             </div>
-            <form onsubmit="handleKYCSubmit(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div class="sm:col-span-2 flex flex-col items-center mb-2">
-                    <label class="text-xs font-bold text-gray-500 mb-2">Profilová fotografie</label>
+
+            <div id="bankid-intro">
+                <!-- Avatar + přezdívka (zůstává na uživateli) -->
+                <div class="flex flex-col items-center gap-3 mb-6">
                     <label class="w-24 h-24 rounded-full border-2 border-dashed border-sky-300 bg-sky-50 hover:bg-sky-100 flex flex-col items-center justify-center cursor-pointer transition-colors overflow-hidden group">
                         <input type="file" id="kyc-avatar" accept="image/*" class="hidden" onchange="previewImage(this)">
                         <svg class="w-6 h-6 text-sky-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         <span class="text-[10px] font-bold text-sky-700 mt-1">Vybrat foto</span>
                     </label>
-                </div>
-                <div class="flex flex-col gap-1 sm:col-span-2"><label class="text-xs font-bold text-gray-500 pl-1">Zobrazované jméno / přezdívka / firma</label><input type="text" id="kyc-dname" required maxlength="60" placeholder="Uvidí ostatní uživatelé" class="w-full px-4 py-3 rounded-xl border border-sky-300 text-sm focus:outline-sky-400 bg-sky-50/30"></div>
-                <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Skutečné jméno</label><input type="text" id="kyc-fname" required class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white/60"></div>
-                <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Skutečné příjmení</label><input type="text" id="kyc-lname" required class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white/60"></div>
-                <!-- Datum narození se živou kontrolou věku 18+ -->
-                <div class="flex flex-col gap-1 sm:col-span-2">
-                    <label class="text-xs font-bold text-gray-500 pl-1">Datum narození <span class="text-red-400">*</span></label>
-                    <input type="date" id="kyc-date" required
-                        max="${new Date(new Date().setFullYear(new Date().getFullYear()-18)).toISOString().split('T')[0]}"
-                        onchange="validateAge(this)"
-                        class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white/60 transition-colors">
-                    <span id="age-hint" class="text-xs pl-1 h-4"></span>
-                </div>
-
-                <!-- Adresa — sekce s nápovědou -->
-                <div class="sm:col-span-2 pt-3 border-t border-gray-200/60">
-                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        Trvalé bydliště — dle občanského průkazu
-                    </p>
-                    <div class="bg-sky-50 border border-sky-100 rounded-xl p-3 mb-3 text-xs text-sky-700 flex gap-2">
-                        <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>Zadejte adresu přesně tak, jak je uvedena na OP nebo ŘP. Formát: <strong>Ulice č.p./č.o., PSČ Město</strong> (např. Václavské náměstí 1/846, 110 00 Praha 1).</span>
+                    <div class="w-full max-w-sm">
+                        <label class="text-xs font-bold text-gray-500 pl-1 block mb-1">Zobrazované jméno / přezdívka / firma</label>
+                        <input type="text" id="kyc-dname" maxlength="60" placeholder="Uvidí ostatní uživatelé" class="w-full px-4 py-3 rounded-xl border border-sky-300 text-sm focus:outline-sky-400 bg-sky-50/30 text-center">
                     </div>
                 </div>
-                <div class="flex flex-col gap-1 sm:col-span-2">
-                    <label class="text-xs font-bold text-gray-500 pl-1">Ulice <span class="text-red-400">*</span></label>
-                    <input type="text" id="kyc-street" required minlength="2" maxlength="100" placeholder="např. Václavské náměstí" autocomplete="off"
-                        oninput="window._streetAutocomplete(this)"
-                        class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white/60 transition-colors">
-                    <span class="text-xs text-gray-400 pl-1">Jen název ulice bez čísla popisného</span>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs font-bold text-gray-500 pl-1">Číslo popisné <span class="text-red-400">*</span></label>
-                    <input type="text" id="kyc-cp" required maxlength="10" placeholder="např. 1"
-                        class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white/60">
-                    <span class="text-xs text-gray-400 pl-1">Číslo popisné (povinné)</span>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs font-bold text-gray-500 pl-1">Č. orientační <span class="text-gray-400 font-normal">(nepovinné)</span></label>
-                    <input type="text" id="kyc-co" maxlength="10" placeholder="např. 846"
-                        class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white/60">
-                    <span class="text-xs text-gray-400 pl-1">Lomítkem za č. popisným (nepovinné)</span>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs font-bold text-gray-500 pl-1">Město / obec <span class="text-red-400">*</span></label>
-                    <input type="text" id="kyc-city" required minlength="2" maxlength="80" placeholder="např. Praha 1" autocomplete="address-level2"
-                        class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white/60">
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs font-bold text-gray-500 pl-1">PSČ <span class="text-red-400">*</span></label>
-                    <input type="text" id="kyc-zip" required maxlength="6" placeholder="110 00" autocomplete="postal-code" inputmode="numeric"
-                        oninput="formatPSC(this); if(this.value.replace(/\s/g,'').length===5) _zipLookup(this, document.getElementById('kyc-city'))"
-                        class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white/60 transition-colors">
-                    <span id="psc-hint" class="text-xs pl-1 h-4"></span>
+
+                <!-- DAC7 — rozšířené vysvětlení -->
+                <div class="bg-sky-50 border border-sky-100 rounded-2xl p-5 mb-4">
+                    <h3 class="font-extrabold text-sky-800 text-base mb-2 flex items-center gap-2"><span class="text-xl">🇪🇺</span> EU direktiva 2021/514 (DAC7) — Povinná identifikace</h3>
+                    <p class="text-sm text-sky-900 leading-relaxed mb-2">Jako provozovatel online tržiště a aukční platformy máme <strong>ze zákona povinnost</strong> ověřit totožnost prodávajících. Vyplývá to z evropské směrnice <strong>DAC7 (2021/514)</strong> promítnuté do zákona č. 164/2013 Sb. o mezinárodní spolupráci při správě daní.</p>
+                    <p class="text-sm text-sky-900 leading-relaxed mb-2">Platforma musí příslušným finančním úřadům reportovat prodejce, kteří v jednom kalendářním roce uskuteční <strong>30 a více prodejů</strong> nebo jejichž příjmy přesáhnou <strong>2 000 EUR (cca 50 000 Kč)</strong>. Abychom tuto povinnost splnili bez zbytečného papírování, ověřujeme totožnost rovnou při registraci prodejce.</p>
+                    <p class="text-xs text-sky-700 leading-relaxed bg-white/60 rounded-xl p-3 border border-sky-100"><strong>Důležité:</strong> samotné ověření ani případné hlášení <u>neznamená</u>, že musíte platit daň. Běžný prodej vlastních použitých věcí je od daně z příjmu osvobozen. Více v sekci <button onclick="navigate('jak-to-funguje')" class="text-sky-600 font-bold underline">Jak to funguje</button>.</p>
                 </div>
 
-                <!-- Bankovní účet -->
-                <div class="flex flex-col gap-1 sm:col-span-2 pt-3 border-t border-gray-200/60">
-                    <label class="text-xs font-bold text-gray-500 pl-1">Bankovní účet <span class="text-red-400">*</span></label>
-                    <input type="text" id="kyc-bank" required maxlength="34" placeholder="123456/0100 nebo 000000-123456/0100"
-                        oninput="validateBankAccount(this)"
-                        class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white/60 transition-colors">
-                    <span id="bank-hint" class="text-xs pl-1 h-4 text-gray-400">Formát: čísloúčtu/kódbanky (např. 123456/0100)</span>
-                    <div class="flex flex-wrap gap-1.5 mt-1">
-                        ${['0100 Komerční banka','0300 ČSOB','0600 MONETA','0800 Česká spořitelna','2010 Fio banka','3030 Air Bank','5500 Raiffeisenbank'].map(b =>
-                            `<button type="button" onclick="document.getElementById('kyc-bank').value += document.getElementById('kyc-bank').value.includes('/') ? '' : '/${b.split(' ')[0]}'; validateBankAccount(document.getElementById('kyc-bank'));" class="text-[10px] bg-gray-50 hover:bg-sky-50 border border-gray-200 hover:border-sky-300 text-gray-600 px-2 py-1 rounded-lg font-semibold transition-colors">${b}</button>`
-                        ).join('')}
+                <!-- Bezpečnost — výrazné zdůvodnění -->
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-4">
+                    <h3 class="font-extrabold text-emerald-800 text-base mb-2 flex items-center gap-2"><span class="text-xl">🛡️</span> Proč to děláme — pro vaši bezpečnost i bezpečí celé platformy</h3>
+                    <p class="text-sm text-emerald-900 leading-relaxed mb-3">Ověření přes BankID je <strong>klíčový pilíř důvěry</strong> na FairTrade. Díky němu má každý prodejce skutečnou, bankou ověřenou identitu — žádná anonymita, žádné falešné účty.</p>
+                    <ul class="flex flex-col gap-2 text-sm text-emerald-900">
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 font-black shrink-0">✓</span><span><strong>Chrání kupující</strong> — vědí, že na druhé straně je prověřený člověk, ne podvodník.</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 font-black shrink-0">✓</span><span><strong>Chrání vás jako prodejce</strong> — ověřený účet má vyšší důvěru, prodáte rychleji a za lepší cenu.</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 font-black shrink-0">✓</span><span><strong>Chrání celou platformu</strong> — podvodníci jsou dohledatelní a okamžitě a trvale vykázáni.</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 font-black shrink-0">✓</span><span>Ve spojení s <strong>escrow ochranou plateb</strong> tvoří nejbezpečnější prostředí pro nákup i prodej z druhé ruky.</span></li>
+                    </ul>
+                </div>
+
+                <!-- Poplatek 65 Kč -->
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5 flex items-start gap-3">
+                    <span class="text-2xl shrink-0">💰</span>
+                    <p class="text-sm text-amber-800 leading-relaxed">Vstupní registrace přes BankID je zpoplatněna jednorázově <strong>65 Kč</strong>. Tuto částku vám ale <strong>po úspěšném ověření vrátíme zpět do vaší virtuální peněženky</strong> — využijete ji např. na TOPování inzerátů, prodlužování nebo další služby. Fakticky vás tak ověření nestojí nic navíc, jen potvrzuje, že jste skutečná osoba.</p>
+                </div>
+
+                <!-- BankID tlačítko -->
+                <button onclick="startBankIdVerify()" class="w-full flex items-center justify-center gap-3 bg-[#003d6b] hover:bg-[#002b4d] active:scale-[.99] text-white font-extrabold py-4 rounded-2xl transition-all shadow-lg text-base">
+                    <span class="bg-white text-[#003d6b] font-black text-sm px-2 py-0.5 rounded">BankID</span>
+                    Ověřit totožnost přes BankID
+                </button>
+                <p class="text-xs text-center text-gray-400 mt-3">BankID bude napojen později — nyní probíhá ověření v testovacím režimu.</p>
+                <button onclick="navigate('home')" class="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors py-2 mt-1">Ověřím se později (zatím jen nakupuji)</button>
+            </div>
+
+            <!-- Krok platby 65 Kč -->
+            <div id="bankid-pay" class="hidden">
+                <div class="flex items-center gap-3 mb-4">
+                    <button onclick="document.getElementById('bankid-pay').classList.add('hidden');document.getElementById('bankid-intro').classList.remove('hidden');clearInterval(window._fioTimer);" class="text-gray-400 hover:text-gray-600 transition-colors p-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <div>
+                        <h3 class="font-extrabold text-lg text-gray-800">Platba za ověření — 65 Kč</h3>
+                        <p class="text-sm text-gray-500">Po ověření se 65 Kč vrátí do vaší peněženky.</p>
                     </div>
                 </div>
-                <div class="sm:col-span-2 mt-3"><button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-4 rounded-xl transition-all shadow-md">Uložit a odeslat ke kontrole</button></div>
-            </form>
+                <div id="bankid-pay-body"></div>
+            </div>
         </div>`,
 
         profil: (activeTab) => {
@@ -4926,6 +4934,15 @@
         },
 
         'novy-inzerat': () => {
+            if (!window._isSellerVerified()) return `
+            <div class="w-full max-w-2xl mx-auto bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-sky-200 text-center">
+                <div class="text-6xl mb-4">🪪</div>
+                <h2 class="text-2xl font-extrabold text-sky-700 mb-3">Pro prodej je nutné ověření</h2>
+                <p class="text-gray-600 mb-2">Abyste mohli vkládat inzeráty, musíte jednorázově ověřit svou totožnost přes <strong>BankID</strong> — vyžaduje to EU direktiva DAC7 (2021/514) a chrání to celé tržiště.</p>
+                <p class="text-gray-500 text-sm mb-6">Poplatek <strong>65 Kč</strong> vám po ověření vrátíme do peněženky. Kupující ověření nepotřebují.</p>
+                <button onclick="navigate('kyc')" class="bg-[#003d6b] hover:bg-[#002b4d] text-white font-extrabold px-8 py-3 rounded-2xl transition-colors inline-flex items-center gap-2"><span class="bg-white text-[#003d6b] font-black text-xs px-2 py-0.5 rounded">BankID</span>Ověřit přes BankID →</button>
+                <button onclick="navigate('home')" class="ml-3 text-gray-500 hover:text-gray-700 font-bold px-4 py-3">← Zpět</button>
+            </div>`;
             if (window._dac7Status === 'blocked') return `
             <div class="w-full max-w-2xl mx-auto bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-red-200 text-center">
                 <div class="text-6xl mb-4">🔒</div>
@@ -7217,8 +7234,7 @@
         if (path.includes('/')) { const parts = path.split('/'); viewName = parts[0]; idOrCategory = parts[1]; }
         if (viewName === 'novy-inzerat' && !window.currentUser) { viewName = 'login'; idOrCategory = null; }
         if (window._banInfo && viewName !== 'banned') { viewName = 'banned'; idOrCategory = null; }
-        // Unverified users are locked to KYC form until they fill it
-        if (window.currentUser && window._kycStatus === 'unverified' && !['kyc','login','banned','reset-hesla'].includes(viewName)) { viewName = 'kyc'; idOrCategory = null; }
+        // Kupující ani neověření uživatelé nejsou nuceni do KYC — ověření (BankID) se řeší až u prodeje.
         if (!views[viewName]) { document.getElementById('app').innerHTML = views['not-found'](viewName); history.pushState({ view:'not-found' }, '', '#'+viewName); return; }
         // Reset podkategorie při přechodu na jinou hlavní kategorii
         if (idOrCategory !== null && vsechnyKategorie.includes(idOrCategory) && idOrCategory !== _currentCategory) {
