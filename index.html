@@ -494,57 +494,48 @@
                         <p id="top-payment-summary" class="text-sm text-gray-500"></p>
                     </div>
                 </div>
-                <div class="p-5">
-                    <div class="flex gap-2 mb-5">
-                        <button class="pay-tab active" id="tab-qr" onclick="switchPayTab('qr')">QR / Bankovní převod</button>
-                        <button class="pay-tab" id="tab-online" onclick="switchPayTab('online')">Online platba</button>
-                    </div>
+                <div id="top-pay-body" class="p-5"></div>
+            </div>
+        </div>
+    </div>
 
-                    <!-- QR platba -->
-                    <div id="pay-panel-qr">
-                        <div class="flex flex-col sm:flex-row gap-5 items-center mb-5">
-                            <div class="shrink-0 bg-white p-3 rounded-2xl shadow-md border border-gray-100">
-                                <img id="top-qr-img" src="" alt="QR platba" class="w-40 h-40 rounded-lg">
-                            </div>
-                            <div class="text-sm space-y-2 w-full">
-                                <div class="flex justify-between py-2 border-b border-gray-100">
-                                    <span class="text-gray-500 font-medium">Číslo účtu</span>
-                                    <span class="font-bold text-gray-800 text-right" id="top-account">282 614 8009/0800</span>
-                                </div>
-                                <div class="flex justify-between py-2 border-b border-gray-100">
-                                    <span class="text-gray-500 font-medium">Částka</span>
-                                    <span class="font-bold text-amber-600 text-lg" id="top-amount-display"></span>
-                                </div>
-                                <div class="flex justify-between py-2 border-b border-gray-100">
-                                    <span class="text-gray-500 font-medium">Variabilní symbol</span>
-                                    <span class="font-mono font-bold text-gray-800" id="top-vs"></span>
-                                </div>
-                                <div class="flex justify-between py-2">
-                                    <span class="text-gray-500 font-medium">Zpráva</span>
-                                    <span class="font-semibold text-gray-700 text-right">TOP inzerát FairTrade</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 mb-4">
-                            <strong>Důležité:</strong> Po odeslání platby klikněte na tlačítko níže. TOP bude aktivován po ověření platby (obvykle do 24 h). Vygenerujte QR kód naskenováním nebo zadejte údaje ručně ve své bankovní aplikaci.
-                        </div>
-                    </div>
+    <!-- ===== MODAL: PRODLOUŽENÍ INZERÁTU ===== -->
+    <div id="modal-extend" class="hidden fixed inset-0 z-50 bg-black/70 modal-backdrop flex items-center justify-center p-4" onclick="closeExtendModal(event)">
+        <div class="modal-panel bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
 
-                    <!-- Online platba (placeholder) -->
-                    <div id="pay-panel-online" class="hidden">
-                        <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center flex flex-col items-center gap-3 mb-5">
-                            <span class="text-3xl">🔧</span>
-                            <p class="font-bold text-gray-700">Online platba — brzy dostupné</p>
-                            <p class="text-xs text-gray-400">Platba kartou a přes platební brány bude spuštěna v další verzi FairTrade. Pro TOP inzerát prosím využijte QR / bankovní převod.</p>
-                        </div>
+            <!-- Krok 1: Výběr délky -->
+            <div id="extend-step-1">
+                <div class="p-6 bg-gradient-to-r from-sky-400 to-sky-600 text-white">
+                    <div class="flex items-center gap-3 mb-1">
+                        <span class="text-3xl">⏱</span>
+                        <h3 class="text-2xl font-extrabold">Prodloužit inzerát</h3>
                     </div>
-
-                    <button onclick="confirmTopPayment()"
-                        class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold py-4 rounded-2xl transition-all shadow-lg shadow-amber-500/30 text-base mt-2">
-                        ✅ Potvrzuji platbu – aktivovat TOP
-                    </button>
-                    <p class="text-xs text-center text-gray-400 mt-2">TOP bude zobrazen okamžitě a ověřen do 24 h. V případě nezaplacení bude deaktivován.</p>
+                    <p class="text-white/85 text-sm">Vyberte, o kolik dní chcete inzerát prodloužit.</p>
                 </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-3 gap-3 mb-5" id="extend-tier-grid"></div>
+                    <div class="flex gap-3">
+                        <button onclick="closeExtendModal()" class="flex-1 border border-gray-200 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-50 transition-colors">Zrušit</button>
+                        <button onclick="showExtendPaymentStep()" id="btn-extend-continue"
+                            class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+                            Pokračovat →
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Krok 2: Platba -->
+            <div id="extend-step-2" class="hidden">
+                <div class="p-5 border-b border-gray-100 flex items-center gap-3">
+                    <button onclick="showExtendTierStep()" class="text-gray-400 hover:text-gray-600 transition-colors p-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <div>
+                        <h3 class="font-extrabold text-lg">Platba za prodloužení</h3>
+                        <p id="extend-payment-summary" class="text-sm text-gray-500"></p>
+                    </div>
+                </div>
+                <div id="extend-pay-body" class="p-5"></div>
             </div>
         </div>
     </div>
@@ -595,6 +586,16 @@
                 <div id="edit-price-wrap" class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-gray-500 pl-1" id="edit-price-label">Cena (Kč)</label>
                     <input type="number" id="edit-price" min="1" max="100000000" class="edit-input text-xl font-bold text-sky-600" placeholder="Cena">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-bold text-gray-500 pl-1">Fotografie <span class="text-gray-400 font-normal">(klikněte na × pro smazání)</span></label>
+                    <div id="edit-photo-grid" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+                    <input type="file" id="edit-photo-input" accept="image/*" multiple class="hidden" onchange="addEditPhotos(this)">
+                    <button type="button" onclick="document.getElementById('edit-photo-input').click()" class="mt-1 flex items-center justify-center gap-2 text-sm font-bold text-sky-600 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 px-3 py-2 rounded-xl transition-colors w-full sm:w-auto">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Přidat fotku
+                    </button>
+                    <p class="text-xs text-gray-400 pl-1">Smazané fotky se po uložení odstraní z úložiště. Inzerát musí mít aspoň 1 fotku.</p>
                 </div>
                 <div class="flex gap-3 pt-2">
                     <button type="button" onclick="closeEditModal()" class="flex-1 border border-gray-200 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-50 transition-colors">Zrušit</button>
@@ -825,6 +826,12 @@
         { days:3,  amount:59,  label:'3 dny',   popular:false },
         { days:7,  amount:99,  label:'7 dní',   popular:true  },
         { days:30, amount:299, label:'30 dní',  popular:false }
+    ];
+    // Prodloužení inzerátu — délka a cena
+    const EXTEND_TIERS = [
+        { days:10, amount:5,  label:'10 dní', popular:false },
+        { days:20, amount:9,  label:'20 dní', popular:true  },
+        { days:30, amount:13, label:'30 dní', popular:false }
     ];
 
     const KATEGORIE = [
@@ -1329,6 +1336,83 @@
         return rows?.[0] ? { id: rows[0].id, vs: rows[0].id } : null;
     };
 
+    // ── Odečte z peněženky (kredit), vrátí true pokud OK ────────
+    window.deductWallet = async function(amount, description) {
+        const token = await _ensureValidToken();
+        if (!token) return false;
+        const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/wallet_deduct', {
+            method: 'POST',
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_amount: amount, p_description: description })
+        });
+        return res.ok;
+    };
+
+    // ── Zjistí aktuální zůstatek peněženky ──────────────────────
+    async function _getWalletBalance() {
+        try {
+            const token = await _ensureValidToken();
+            if (!token) return 0;
+            const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_own_profile', {
+                method: 'POST',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: '{}'
+            });
+            const rows = await r.json();
+            return Number(rows?.[0]?.wallet_balance) || 0;
+        } catch(e) { return 0; }
+    }
+
+    // ── Sdílený platební krok (peněženka + FIO QR + polling) ────
+    // opts: { amount, refId, vsMsg, paymentType, onPaid }
+    window._renderPayStep = async function(bodyEl, opts) {
+        if (!bodyEl) return;
+        const { amount, refId, vsMsg, paymentType, onPaid } = opts;
+        bodyEl.innerHTML = '<div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-amber-200 border-t-amber-500 rounded-full animate-spin"></div></div>';
+        const bal = await _getWalletBalance();
+        const payment = await createPendingPayment(paymentType, amount, refId);
+        const vs = payment ? String(payment.vs) : '';
+        const amtStr = amount.toLocaleString('cs-CZ');
+        const walletHtml = bal >= amount ? `
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-3">
+                <div><p class="font-bold text-emerald-700 text-sm">💰 Zaplatit z peněženky</p><p class="text-xs text-emerald-600">Zůstatek: ${bal.toLocaleString('cs-CZ')} Kč</p></div>
+                <button type="button" id="pay-step-wallet-btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl transition-colors text-sm whitespace-nowrap">Zaplatit ${amtStr} Kč</button>
+            </div>
+            <p class="text-center text-xs text-gray-400 mb-3">— nebo zaplaťte bankovním převodem —</p>` : `
+            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-3 mb-4 text-xs text-gray-500 text-center">💰 Peněženka: ${bal.toLocaleString('cs-CZ')} Kč — nedostatek kreditu, zaplaťte převodem nebo <button type="button" onclick="navigate('penezenka')" class="text-emerald-600 font-bold hover:underline">dobijte kredit</button>.</p>`;
+        bodyEl.innerHTML = `
+            ${walletHtml}
+            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-5 mb-4 flex flex-col items-center gap-3">
+                <canvas id="pay-step-qr" class="rounded-xl shadow-md"></canvas>
+                <p class="text-xs text-gray-500 font-bold">Naskenujte QR kód v mobilní bance</p>
+            </div>
+            <div class="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2 text-sm mb-4">
+                <div class="flex justify-between"><span class="text-gray-500">Číslo účtu</span><span class="font-bold font-mono">${FIO_ACCT}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Částka</span><span class="font-bold text-amber-600">${amtStr} Kč</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Variabilní symbol</span><span class="font-bold font-mono text-pink-600">${vs || '—'}</span></div>
+            </div>
+            <div class="flex items-center gap-2 text-sm text-gray-400 justify-center mb-4">
+                <div class="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin"></div>
+                Čekáme na platbu…
+            </div>
+            <button type="button" id="pay-step-confirm" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold py-3.5 rounded-2xl transition-all shadow-lg text-sm">✅ Už jsem zaplatil — potvrdit</button>`;
+        setTimeout(() => renderFioQR('pay-step-qr', amount, vs || '0', vsMsg), 50);
+        const walletBtn = document.getElementById('pay-step-wallet-btn');
+        if (walletBtn) walletBtn.onclick = async function() {
+            walletBtn.disabled = true; walletBtn.textContent = 'Platím…';
+            const ok = await deductWallet(amount, vsMsg);
+            if (!ok) { showToast('Nedostatek kreditu v peněžence.', 'warning'); walletBtn.disabled = false; walletBtn.textContent = 'Zaplatit ' + amtStr + ' Kč'; return; }
+            clearInterval(window._fioTimer);
+            await onPaid();
+        };
+        const confirmBtn = document.getElementById('pay-step-confirm');
+        if (confirmBtn) confirmBtn.onclick = async function() {
+            confirmBtn.disabled = true; confirmBtn.textContent = 'Zpracovávám…';
+            clearInterval(window._fioTimer);
+            await onPaid();
+        };
+        if (payment?.id) startFioPolling(payment.id, function() { onPaid(); });
+    };
+
     window.getTimeRemaining = function(dateString) {
         if (!dateString) return { text:'Vyprší brzy', urgent:false };
         const diff = new Date(dateString).getTime() - Date.now();
@@ -1567,85 +1651,175 @@
 
     window.showTopPaymentStep = function() {
         if (!_topState.selectedTier) return;
-        const tier   = _topState.selectedTier;
-        const vs     = String(crypto.getRandomValues(new Uint32Array(1))[0]).slice(-8).padStart(8,'0');
-        _topState.vs = vs;
-
-        const qrData = `SPD*1.0*ACC:${PAYMENT_IBAN}+${PAYMENT_BIC}*AM:${tier.amount}.00*CC:CZK*MSG:TOP FairTrade*X-VS:${vs}`;
-        const qrUrl  = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=M&data=${encodeURIComponent(qrData)}`;
-
-        document.getElementById('top-qr-img').src          = qrUrl;
-        document.getElementById('top-amount-display').textContent = `${tier.amount} Kč`;
-        document.getElementById('top-vs').textContent       = vs;
+        const tier = _topState.selectedTier;
         document.getElementById('top-payment-summary').textContent = `${tier.amount} Kč / ${tier.label}`;
-
-        switchPayTab('qr');
         document.getElementById('top-step-1').classList.add('hidden');
         document.getElementById('top-step-2').classList.remove('hidden');
+        _renderPayStep(document.getElementById('top-pay-body'), {
+            amount: tier.amount,
+            refId: _topState.id,
+            vsMsg: 'TOP inzerat FairTrade',
+            paymentType: 'top',
+            onPaid: _activateTop
+        });
     };
 
-    window.switchPayTab = function(tab) {
-        document.getElementById('tab-qr').classList.toggle('active', tab==='qr');
-        document.getElementById('tab-online').classList.toggle('active', tab==='online');
-        document.getElementById('pay-panel-qr').classList.toggle('hidden', tab!=='qr');
-        document.getElementById('pay-panel-online').classList.toggle('hidden', tab!=='online');
-    };
-
-    window.confirmTopPayment = async function() {
-        const { id, type, selectedTier, vs } = _topState;
+    async function _activateTop() {
+        const { id, type, selectedTier } = _topState;
         if (!id || !type || !selectedTier) return;
-
-        const btn = document.querySelector('#modal-top button[onclick="confirmTopPayment()"]');
-        if (btn) { btn.textContent = 'Aktivuji TOP…'; btn.disabled = true; }
-
         try {
             const tableName = type === 'aukce' ? 'aukce' : 'pevna_cena';
             const topUntil  = new Date(Date.now() + selectedTier.days * 86400000).toISOString();
-
-            // Zapiš platbu
             if (supabaseClient && window.currentUser) {
-                await supabaseClient.from('top_payments').insert([{
-                    user_id:   window.currentUser.id,
-                    item_id:   id,
-                    item_type: type,
-                    amount_kc: selectedTier.amount,
-                    days:      selectedTier.days,
-                    vs,
-                    status:   'pending',
-                    top_until: topUntil
-                }]);
-                // Aktivuj TOP optimisticky
                 await supabaseClient.from(tableName).update({ is_top:true, top_expires_at:topUntil, top_paid_kc:selectedTier.amount }).eq('id', id);
             }
-
-            // Lokálně aktualizuj data
             const arr = type === 'aukce' ? dataAukce : dataPevnaCena;
             const item = arr.find(i => i.id === id);
             if (item) { item.is_top = true; item.top_expires_at = topUntil; }
-
             closeTopModal();
             showToast(`⭐ TOP aktivován na ${selectedTier.label}! Váš inzerát je nyní na prvním místě.`, 'success');
-
-            // Přechod zpět na detail nebo profil
             const hash = window.location.hash.replace('#','');
-            if (hash.includes('detail')) navigate(hash); else navigate('profil');
-
+            if (hash.includes('detail')) navigate(hash); else navigate('profil/inzeraty');
         } catch (err) {
             showToast('Chyba při aktivaci TOP: ' + err.message, 'warning');
-        } finally {
-            if (btn) { btn.textContent = '✅ Potvrzuji platbu – aktivovat TOP'; btn.disabled = false; }
         }
-    };
+    }
 
     window.closeTopModal = function(e) {
         if (e && e.target !== document.getElementById('modal-top')) return;
         document.getElementById('modal-top').classList.add('hidden');
         document.body.style.overflow = '';
+        clearInterval(window._fioTimer);
+    };
+
+    // ──────────────────────────────────────────────────────────────
+    // PRODLOUŽENÍ INZERÁTU (10/20/30 dní, platba peněženka / QR)
+    // ──────────────────────────────────────────────────────────────
+    let _extendState = { id:null, type:null, tier:null };
+
+    window.extendAd = function(type, id) {
+        if (!window.currentUser) { showToast('Pro prodloužení se musíte přihlásit.','warning'); navigate('login'); return; }
+        _extendState = { id, type, tier:null };
+        const grid = document.getElementById('extend-tier-grid');
+        if (grid) grid.innerHTML = EXTEND_TIERS.map((t, i) => `
+            <div class="tier-btn ${t.popular?'popular':''}" id="ext-tier-${i}" onclick="selectExtendTier(${i})">
+                <div class="text-2xl font-extrabold text-sky-500 mb-0.5">${t.amount} Kč</div>
+                <div class="font-bold text-gray-700 text-sm">${t.label}</div>
+            </div>
+        `).join('');
+        document.getElementById('btn-extend-continue').disabled = true;
+        document.getElementById('extend-step-1').classList.remove('hidden');
+        document.getElementById('extend-step-2').classList.add('hidden');
+        document.getElementById('modal-extend').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.selectExtendTier = function(idx) {
+        document.querySelectorAll('#extend-tier-grid .tier-btn').forEach((el,i) => el.classList.toggle('selected', i===idx));
+        _extendState.tier = EXTEND_TIERS[idx];
+        document.getElementById('btn-extend-continue').disabled = false;
+    };
+
+    window.showExtendTierStep = function() {
+        document.getElementById('extend-step-1').classList.remove('hidden');
+        document.getElementById('extend-step-2').classList.add('hidden');
+    };
+
+    window.showExtendPaymentStep = function() {
+        if (!_extendState.tier) return;
+        const tier = _extendState.tier;
+        document.getElementById('extend-payment-summary').textContent = `${tier.amount} Kč / ${tier.label}`;
+        document.getElementById('extend-step-1').classList.add('hidden');
+        document.getElementById('extend-step-2').classList.remove('hidden');
+        _renderPayStep(document.getElementById('extend-pay-body'), {
+            amount: tier.amount,
+            refId: _extendState.id,
+            vsMsg: 'Prodlouzeni inzeratu FT',
+            paymentType: 'extend',
+            onPaid: _applyExtend
+        });
+    };
+
+    async function _applyExtend() {
+        const { id, type, tier } = _extendState;
+        if (!id || !type || !tier) return;
+        try {
+            const tableName = type === 'aukce' ? 'aukce' : 'pevna_cena';
+            const items = type === 'aukce' ? dataAukce : dataPevnaCena;
+            const item = items.find(i => i.id === id);
+            const baseEnd = (item && item.endTime) ? new Date(item.endTime) : new Date();
+            const from = baseEnd.getTime() > Date.now() ? baseEnd : new Date();
+            const newEnd = new Date(from.getTime() + tier.days * 86400000);
+            const updateData = type === 'aukce' ? { end_time: newEnd.toISOString() } : { expires_at: newEnd.toISOString() };
+            if (supabaseClient) await supabaseClient.from(tableName).update(updateData).eq('id', id);
+            if (item) item.endTime = newEnd.toISOString();
+            closeExtendModal();
+            showToast(`Inzerát byl prodloužen o ${tier.label}!`, 'success');
+            const hash = window.location.hash.replace('#','');
+            if (hash.includes('detail')) navigate(hash); else navigate('profil/inzeraty');
+        } catch (err) {
+            showToast('Chyba při prodlužování: ' + err.message, 'warning');
+        }
+    }
+
+    window.closeExtendModal = function(e) {
+        if (e && e.target !== document.getElementById('modal-extend')) return;
+        document.getElementById('modal-extend').classList.add('hidden');
+        document.body.style.overflow = '';
+        clearInterval(window._fioTimer);
     };
 
     // ──────────────────────────────────────────────────────────────
     // EDITACE INZERÁTU
     // ──────────────────────────────────────────────────────────────
+    let _editState = { images: [], newFiles: [], removed: [] };
+
+    function _renderEditPhotos() {
+        const grid = document.getElementById('edit-photo-grid');
+        if (!grid) return;
+        let html = '';
+        _editState.images.forEach((url, i) => {
+            html += `<div class="relative aspect-square rounded-xl overflow-hidden border border-gray-200">
+                <img src="${safeUrl(url)}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}'" class="w-full h-full object-cover">
+                <button type="button" onclick="removeEditPhoto(${i})" class="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-red-500 text-white flex items-center justify-center text-sm font-bold transition-colors" title="Smazat fotku">×</button>
+            </div>`;
+        });
+        _editState.newFiles.forEach((nf, i) => {
+            html += `<div class="relative aspect-square rounded-xl overflow-hidden border-2 border-emerald-300">
+                <img src="${nf.url}" class="w-full h-full object-cover">
+                <span class="absolute bottom-1 left-1 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">nová</span>
+                <button type="button" onclick="removeEditNewPhoto(${i})" class="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-red-500 text-white flex items-center justify-center text-sm font-bold transition-colors" title="Odebrat">×</button>
+            </div>`;
+        });
+        if (!html) html = '<p class="col-span-full text-xs text-gray-400 py-3 text-center">Žádné fotky — přidejte alespoň jednu.</p>';
+        grid.innerHTML = html;
+    }
+
+    window.addEditPhotos = function(input) {
+        const files = Array.from(input.files || []);
+        for (const file of files) {
+            const check = validateImageFile(file);
+            if (!check.ok) { showToast(check.error, 'warning'); continue; }
+            _editState.newFiles.push({ file, url: URL.createObjectURL(file) });
+        }
+        input.value = '';
+        _renderEditPhotos();
+    };
+
+    window.removeEditPhoto = function(idx) {
+        const url = _editState.images[idx];
+        if (url) _editState.removed.push(url);
+        _editState.images.splice(idx, 1);
+        _renderEditPhotos();
+    };
+
+    window.removeEditNewPhoto = function(idx) {
+        const nf = _editState.newFiles[idx];
+        if (nf && nf.url) { try { URL.revokeObjectURL(nf.url); } catch(e) {} }
+        _editState.newFiles.splice(idx, 1);
+        _renderEditPhotos();
+    };
+
     window.showEditModal = function(id, type) {
         const arr  = type === 'aukce' ? dataAukce : dataPevnaCena;
         const item = arr.find(i => i.id === id);
@@ -1667,6 +1841,14 @@
         const condSel = document.getElementById('edit-condition');
         if (condSel) condSel.value = item.condition;
 
+        // Fotografie — vychází z DB URL (dekódované), nové se přidávají zvlášť
+        _editState = {
+            images: (item.images || []).map(u => window._htmlDecode(u)).filter(Boolean),
+            newFiles: [],
+            removed: []
+        };
+        _renderEditPhotos();
+
         document.getElementById('modal-edit').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
     };
@@ -1675,6 +1857,7 @@
         if (e && e.target !== document.getElementById('modal-edit')) return;
         document.getElementById('modal-edit').classList.add('hidden');
         document.body.style.overflow = '';
+        if (_editState && _editState.newFiles) _editState.newFiles.forEach(nf => { try { URL.revokeObjectURL(nf.url); } catch(e) {} });
     };
 
     window.handleEditSubmit = async function(e) {
@@ -1722,12 +1905,38 @@
                 updateObj.price = price;
             }
 
+            // Fotografie: nahraj nové, sestav finální seznam (zachované + nové)
+            btn.textContent = 'Nahrávám fotky…';
+            const newUploaded = [];
+            for (const nf of _editState.newFiles) {
+                const resized = await window._resizeImageForUpload(nf.file);
+                const ext = resized.ext || 'jpg';
+                const fileName = `${Date.now()}-${(crypto.randomUUID?.() || Math.random().toString(36).substring(7)).slice(0,8)}.${ext}`;
+                const { data, error: upErr } = await supabaseClient.storage.from('inzeraty').upload(fileName, resized.blob, { cacheControl:'3600', upsert:false });
+                if (!upErr && data) {
+                    const { data: pu } = supabaseClient.storage.from('inzeraty').getPublicUrl(fileName);
+                    if (pu?.publicUrl) newUploaded.push(pu.publicUrl);
+                }
+            }
+            const finalImages = [..._editState.images, ...newUploaded].filter(Boolean);
+            if (!finalImages.length) { showToast('Inzerát musí mít alespoň 1 fotku.', 'warning'); btn.textContent = origText; btn.disabled = false; return; }
+            updateObj.images = finalImages;
+            updateObj.has_360 = finalImages.length >= 4;
+            btn.textContent = 'Ukládám…';
+
             const { error } = await supabaseClient.from(tableName).update(updateObj).eq('id', id);
             if (error) throw new Error(error.message);
+
+            // Smaž odstraněné fotky z úložiště (orphan cleanup)
+            const paths = _editState.removed.map(u => { const m = String(u).match(/\/inzeraty\/(.+?)(\?|$)/); return m ? decodeURIComponent(m[1]) : null; }).filter(Boolean);
+            if (paths.length) { try { await supabaseClient.storage.from('inzeraty').remove(paths); } catch(_) {} }
 
             // Lokálně aktualizuj
             if (item) {
                 const patch = { title: esc(title), description: esc(description), brand: esc(brand), category: esc(category), condition: esc(condition) };
+                patch.images = finalImages.map(u => safeUrl(u));
+                patch.img    = finalImages[0] ? safeUrl(finalImages[0]) : FALLBACK_IMG;
+                patch.has360 = finalImages.length >= 4;
                 if (type === 'aukce') {
                     if (auctionPriceChanged) { patch.starting_price = price; patch.current_price = price; patch.price = price; }
                     // s příhozy: cenu lokálně needitujeme
@@ -2109,21 +2318,6 @@
         fetchDatabaseItems();  // dosync zbytku na pozadí (bez await)
     };
 
-    window.extendAd = async function(type, id) {
-        if (!confirm('Prodloužení inzerátu o dalších 10 dní je zpoplatněno 5 Kč. Přejete si inzerát prodloužit?')) return;
-        const tableName = type === 'aukce' ? 'aukce' : 'pevna_cena';
-        const items     = type === 'aukce' ? dataAukce : dataPevnaCena;
-        const item      = items.find(i => i.id === id);
-        if (!item || !item.endTime) { alert('Chyba: Nepodařilo se zjistit konec inzerátu.'); return; }
-        const newEnd = new Date(item.endTime);
-        newEnd.setDate(newEnd.getDate() + 10);
-        const updateData = type === 'aukce' ? { end_time: newEnd.toISOString() } : { expires_at: newEnd.toISOString() };
-        const { error } = await supabaseClient.from(tableName).update(updateData).eq('id', id);
-        if (error) { alert('Chyba při prodlužování: ' + error.message); return; }
-        showToast('Inzerát byl prodloužen o 10 dní!', 'success');
-        await fetchDatabaseItems();
-        navigate(type === 'aukce' ? 'aukce-detail' : 'pevna-cena-detail', id);
-    };
 
     // ──────────────────────────────────────────────────────────────
     // NAČÍTÁNÍ Z DATABÁZE
