@@ -1363,6 +1363,16 @@
         } catch(e) { return 0; }
     }
 
+    // ── Okamžitě (realtime) promítne zůstatek peněženky do UI ───
+    window._setWalletBalanceUI = function(bal) {
+        const n = Number(bal) || 0;
+        const txt = n.toLocaleString('cs-CZ') + ' Kč';
+        const el = document.getElementById('profile-wallet-balance');
+        if (el) { el.textContent = txt; el.className = 'text-sm font-black ' + (n > 0 ? 'text-emerald-700' : 'text-gray-400'); }
+        const pw = document.getElementById('pw-balance');
+        if (pw) pw.textContent = txt;
+    };
+
     // ── Sdílený platební krok (peněženka + FIO QR + polling) ────
     // opts: { amount, refId, vsMsg, paymentType, onPaid }
     window._renderPayStep = async function(bodyEl, opts) {
@@ -2810,6 +2820,9 @@
                     if (sd) { const { data:pu } = supabaseClient.storage.from('avatary').getPublicUrl(fileName); avatarUrl = pu?.publicUrl || null; }
                 }
             }
+            // Vrácení vstupního poplatku 65 Kč do peněženky (test/mock — nastavíme zůstatek)
+            const curBal = await _getWalletBalance();
+            const newBal = (Number(curBal) || 0) + BANKID_FEE;
             // MOCK identita z BankID (zatím testovací data — BankID bude napojen později)
             const profileData = {
                 display_name: st.dname || 'Ověřený prodejce',
@@ -2818,7 +2831,8 @@
                 street: 'Václavské náměstí', building_number: '1', orientation_number: '846',
                 city: 'Praha', zip_code: '11000',
                 bank_account: '123456/0100',
-                kyc_status: 'verified', is_verified: true, fio_verified: true
+                kyc_status: 'verified', is_verified: true, fio_verified: true,
+                wallet_balance: newBal
             };
             if (avatarUrl) profileData.avatar_url = avatarUrl;
             const token = await _ensureValidToken();
@@ -2827,15 +2841,16 @@
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
                 body: JSON.stringify(profileData)
             });
-            // Lokální stav (UI hned reflektuje ověření i bez čekání na DB/RLS)
+            // Lokální stav (UI hned reflektuje ověření i zůstatek bez čekání na DB/RLS)
             window._kycStatus = 'verified';
             if (window._privateProfileCache?.data) Object.assign(window._privateProfileCache.data, profileData);
             else window._privateProfileCache = { uid: window.currentUser.id, data: profileData };
             if (window._profilesMap && window._profilesMap[window.currentUser.id]) Object.assign(window._profilesMap[window.currentUser.id], profileData);
-            // Vrácení vstupního poplatku do peněženky
-            await _refundToWallet(BANKID_FEE, 'Vrácení poplatku za ověření BankID');
-            showToast('✅ Ověřeno přes BankID! 65 Kč vráceno do vaší peněženky.', 'success', 6000);
+            // Realtime: ihned ukaž zůstatek 65 Kč u ikony peněženky
+            _setWalletBalanceUI(newBal);
+            showToast('✅ Ověřeno přes BankID! ' + BANKID_FEE + ' Kč vráceno do vaší peněženky.', 'success', 6000);
             navigate('profil');
+            setTimeout(() => _setWalletBalanceUI(newBal), 80);
         } catch (err) {
             showToast('Chyba ověření: ' + err.message, 'warning');
         }
@@ -8447,6 +8462,10 @@
             const eEl=document.getElementById('profile-earned'); const sEl=document.getElementById('profile-spent');
             if (eEl&&d.total_earned!==undefined) eEl.innerHTML=`${Number(d.total_earned).toLocaleString('cs-CZ')} <span class="text-xs text-gray-400 font-bold">Kč</span>`;
             if (sEl&&d.total_spent!==undefined)  sEl.innerHTML=`${Number(d.total_spent).toLocaleString('cs-CZ')} <span class="text-xs text-gray-400 font-bold">Kč</span>`;
+            if (d.wallet_balance !== undefined && d.wallet_balance !== null) {
+                _setWalletBalanceUI(d.wallet_balance);
+                if (window._privateProfileCache?.uid === window.currentUser.id) window._privateProfileCache.data = { ...window._privateProfileCache.data, wallet_balance: d.wallet_balance };
+            }
             if (d.dac7_status !== undefined) {
                 window._dac7Status    = d.dac7_status || 'ok';
                 window._dac7SoldCzk   = d.annual_sold_czk || 0;
