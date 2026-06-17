@@ -3717,9 +3717,15 @@
                 kycRejBox.classList.add('hidden');
             }
         }
-        // Pre-fill DAC7 birth number if already saved
-        const bnInput = document.getElementById('dac7-birth-number');
-        if (bnInput && data.kyc_birth_number) bnInput.value = data.kyc_birth_number;
+        // DAC7 ověření přes BankID — stav (žádné ruční zadávání)
+        const bidBox = document.getElementById('dac7-bankid-box');
+        if (bidBox) {
+            const verified = data.is_verified === true || ['verified','approved'].includes(data.kyc_status);
+            bidBox.className = (verified ? 'bg-emerald-50 border-emerald-200' : 'bg-sky-50 border-sky-200') + ' rounded-2xl border p-4 flex items-start gap-3';
+            bidBox.innerHTML = verified
+                ? `<span class="text-2xl shrink-0">✅</span><div><p class="font-bold text-emerald-800 text-sm mb-1">Totožnost ověřena přes BankID</p><p class="text-xs text-emerald-700 leading-relaxed">Vaše identita pro účely DAC7 je ověřena prostřednictvím <strong>BankID</strong>. Není potřeba nic zadávat — vše proběhlo bezpečně přes vaši banku.</p></div>`
+                : `<span class="text-2xl shrink-0">🪪</span><div><p class="font-bold text-sky-800 text-sm mb-1">Ověření přes BankID</p><p class="text-xs text-sky-700 leading-relaxed mb-2">Totožnost se ověřuje jednoduše přes <strong>BankID</strong> — žádné ruční zadávání rodného čísla ani nahrávání dokladů.</p><button onclick="navigate('kyc')" class="text-xs font-extrabold bg-[#003d6b] hover:bg-[#002b4d] text-white px-3 py-1.5 rounded-lg transition-colors">Ověřit přes BankID →</button></div>`;
+        }
         // DAC7 badge
         const dac7Badge = document.getElementById('dac7-kyc-badge');
         if (dac7Badge) {
@@ -3928,38 +3934,12 @@
                     <button onclick="_showDac7Modal()" class="w-5 h-5 rounded-full bg-gray-200 hover:bg-sky-100 hover:text-sky-600 text-gray-500 text-xs font-extrabold flex items-center justify-center transition-colors shrink-0" title="Co to znamená?">?</button>
                 </div>
                 <p class="text-xs text-gray-500 mb-4">EU direktiva 2021/514 ukládá platformám povinnost ověřovat prodejce překračující 2 000 EUR nebo 30 prodejů ročně a hlásit je Finanční správě. <button onclick="_showDac7Modal()" class="text-sky-500 hover:underline font-semibold">Více info →</button></p>
-                <div class="bg-gray-50 rounded-2xl border border-gray-200 p-4 flex flex-col gap-4">
+                <div id="dac7-bankid-box" class="bg-emerald-50 rounded-2xl border border-emerald-200 p-4 flex items-start gap-3">
+                    <span class="text-2xl shrink-0">✅</span>
                     <div>
-                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Rodné číslo / IČO</label>
-                        <input id="dac7-birth-number" type="text" placeholder="např. 900101/1234 nebo 12345678" maxlength="20"
-                            class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white font-mono">
-                        <p class="text-xs text-gray-400 mt-1">Fyzická osoba: rodné číslo ve formátu RRMMDD/XXXX. Firma: IČO.</p>
+                        <p class="font-bold text-emerald-800 text-sm mb-1">Totožnost ověřena přes BankID</p>
+                        <p class="text-xs text-emerald-700 leading-relaxed">Vaše identita pro účely DAC7 je ověřena prostřednictvím <strong>BankID</strong>. Není potřeba zadávat rodné číslo ani nahrávat doklady — vše proběhlo bezpečně přes vaši banku.</p>
                     </div>
-                    <div>
-                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Doklad totožnosti — přední strana</label>
-                        <div class="flex items-center gap-3">
-                            <label class="flex-1 cursor-pointer border-2 border-dashed border-sky-200 bg-sky-50 hover:bg-sky-100 rounded-xl px-4 py-3 flex items-center gap-2 transition-colors">
-                                <input id="dac7-id-front" type="file" accept="image/*,.pdf" class="hidden" onchange="previewDac7Doc(this,'dac7-front-preview')">
-                                <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                <span class="text-sm font-bold text-sky-600">Nahrát přední stranu</span>
-                            </label>
-                            <img id="dac7-front-preview" class="hidden w-16 h-16 rounded-xl object-cover border border-gray-200" src="">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Doklad totožnosti — zadní strana</label>
-                        <div class="flex items-center gap-3">
-                            <label class="flex-1 cursor-pointer border-2 border-dashed border-sky-200 bg-sky-50 hover:bg-sky-100 rounded-xl px-4 py-3 flex items-center gap-2 transition-colors">
-                                <input id="dac7-id-back" type="file" accept="image/*,.pdf" class="hidden" onchange="previewDac7Doc(this,'dac7-back-preview')">
-                                <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                <span class="text-sm font-bold text-sky-600">Nahrát zadní stranu</span>
-                            </label>
-                            <img id="dac7-back-preview" class="hidden w-16 h-16 rounded-xl object-cover border border-gray-200" src="">
-                        </div>
-                    </div>
-                    <button onclick="_saveDac7Kyc()" class="bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3 px-6 rounded-2xl transition-colors text-sm w-full sm:w-auto">
-                        Uložit identifikaci →
-                    </button>
                 </div>
             </div>
 
