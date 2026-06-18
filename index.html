@@ -7198,6 +7198,65 @@
         } catch(e) { container.innerHTML = '<p class="text-red-500 text-center py-8">Nepodařilo se načíst objednávky.</p>'; }
     };
 
+    // ── Vratka zboží (spor ve prospěch kupujícího) — blok do karty objednávky ──
+    window._returnBlock = function(o, isSeller) {
+        if (!o || !o.return_status) return '';
+        const carr = (DOPRAVCI.find(d => d.id === o.return_carrier) || {}).name || o.return_carrier || 'dopravce';
+        const refund = Number(o.refund_amount || 0).toLocaleString('cs-CZ');
+        const cost = Number(o.return_cost || 0).toLocaleString('cs-CZ');
+        const wrap = s => `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 text-xs">${s}</div>`;
+        if (o.return_status === 'refunded')
+            return wrap(`<p class="font-bold text-green-700">✅ Vratka uzavřena — peníze vráceny</p><p class="text-amber-800 mt-0.5">Kupujícímu bylo vráceno <strong>${refund} Kč</strong> do peněženky.</p>`);
+        if (isSeller) {
+            if (o.return_status === 'received')
+                return wrap(`<p class="font-bold text-amber-800">📦 Vratka přijata</p><p class="text-amber-700 mt-0.5">Peníze se kupujícímu vrátí automaticky do 2 hodin.</p>`);
+            return wrap(`<p class="font-bold text-amber-800">↩️ Kupující vrací zboží</p>
+                <p class="text-amber-700 mt-0.5">${esc(carr)} · podací č. <span class="font-mono">${esc(o.return_tracking || '')}</span>${o.return_status === 'shipped' ? ' · <strong>na cestě k vám</strong>' : ''}</p>
+                <button onclick="event.stopPropagation();window._confirmReturnReceived('${o.id}')" class="mt-2 bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-1.5 rounded-lg transition-colors">✓ Potvrdit přijetí vratky</button>`);
+        }
+        // pohled kupujícího
+        if (o.return_status === 'received')
+            return wrap(`<p class="font-bold text-amber-800">📦 Vratka přijata prodejcem</p><p class="text-amber-700 mt-0.5"><strong>${refund} Kč</strong> vám vrátíme do peněženky do 2 hodin.</p>`);
+        return wrap(`<p class="font-bold text-amber-800">↩️ Vraťte zboží — štítek je připraven</p>
+            <p class="text-amber-700 mt-0.5">${esc(carr)} · podací č. <span class="font-mono">${esc(o.return_tracking || '')}</span></p>
+            <p class="text-amber-700 mt-0.5">Vrátíme vám <strong>${refund} Kč</strong> (cena + doprava + provize − ${cost} Kč za vratku) po přijetí prodejcem.</p>
+            <div class="flex gap-2 mt-2 flex-wrap">
+                <button onclick="event.stopPropagation();window._downloadReturnLabel('${o.id}')" class="bg-white border border-amber-300 text-amber-700 font-bold px-3 py-1.5 rounded-lg">🏷️ Štítek</button>
+                ${o.return_status === 'label_ready' ? `<button onclick="event.stopPropagation();window._markReturnShipped('${o.id}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-lg">📦 Odeslal jsem vratku</button>` : '<span class="text-amber-700 self-center font-bold">Vratka odeslána ✓</span>'}
+            </div>`);
+    };
+
+    window._markReturnShipped = async function(orderId) {
+        const token = await _ensureValidToken(); if (!token) return;
+        try {
+            const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/mark_return_shipped', { method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':'Bearer '+token, 'Content-Type':'application/json' }, body: JSON.stringify({ p_order_id: orderId }) });
+            if (!(r.ok || r.status === 204)) throw new Error(await r.text());
+            showToast('📦 Vratka označena jako odeslaná.', 'success');
+            _loadObjednavkyTab();
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window._confirmReturnReceived = async function(orderId) {
+        if (!confirm('Potvrzujete přijetí vrácené zásilky? Kupujícímu se do 2 hodin automaticky vrátí peníze.')) return;
+        const token = await _ensureValidToken(); if (!token) return;
+        try {
+            const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/confirm_return_received', { method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':'Bearer '+token, 'Content-Type':'application/json' }, body: JSON.stringify({ p_order_id: orderId }) });
+            if (!(r.ok || r.status === 204)) throw new Error(await r.text());
+            showToast('✅ Přijetí vratky potvrzeno. Peníze se kupujícímu vrátí do 2 hodin.', 'success', 5000);
+            _loadSellerObjednavkyTab();
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window._downloadReturnLabel = function(orderId) {
+        const o = (window._myOrdersCache || []).find(x => x.id === orderId) || (window._mySellerOrdersCache || []).find(x => x.id === orderId);
+        if (!o) { showToast('Objednávka nenalezena.', 'warning'); return; }
+        const txt = 'FAIRTRADE — ŠTÍTEK NA VRATKU (TEST)\n\n'
+            + 'Objednávka: ' + o.id + '\nDopravce: ' + (o.return_carrier || '') + '\nPodací číslo: ' + (o.return_tracking || '') + '\n\n'
+            + 'Odesílatel: kupující\nPříjemce: prodejce\n\n(Mock štítek — ostrý štítek dopravce se vygeneruje po napojení API.)';
+        if (window._downloadBlob) window._downloadBlob(txt, 'text/plain;charset=utf-8', 'vratka-stitek-' + (o.return_tracking || orderId) + '.txt');
+        else showToast('Podací číslo: ' + (o.return_tracking || ''), 'info', 6000);
+    };
+
     async function _loadObjednavkyTab() {
         const container = document.getElementById('profil-obj-content');
         if (!container || !window.currentUser) return;
@@ -7220,6 +7279,7 @@
                 return `<div onclick="navigate('objednavka-detail','${o.id}')" class="border ${expired?'border-orange-200 bg-orange-50/30':'border-gray-100'} rounded-2xl p-4 mb-3 hover:shadow-md transition-shadow cursor-pointer group">
                     ${expired?`<div class="bg-orange-100 border border-orange-200 rounded-xl px-3 py-2 mb-3 text-xs text-orange-800"><strong>⏰ Rezervace vypršela</strong> — zboží bylo uvolněno.</div>`:''}
                     ${(()=>{if(o.status!=='shipped'||!o.shipped_at)return '';const dLeft=Math.max(0,14-Math.floor((Date.now()-new Date(o.shipped_at).getTime())/86400000));const cls=dLeft<=3?'bg-red-50 border-red-200 text-red-800':dLeft<=7?'bg-orange-50 border-orange-200 text-orange-800':'bg-amber-50 border-amber-200 text-amber-800';const label=dLeft===0?'Dnes vyprší!':dLeft===1?'Zbývá 1 den':'Zbývá '+dLeft+' dní';return '<div class="border '+cls+' rounded-xl px-3 py-2 mb-3 text-xs"><strong>⏰ '+label+'</strong> — potvrďte doručení, jinak platba automaticky uvolněna prodejci.</div>';})()}
+                    ${window._returnBlock(o, false)}
                     <div class="flex items-start justify-between gap-2 mb-3"><div><p class="font-mono text-xs text-gray-400 mb-0.5 group-hover:text-sky-500 transition-colors">#${o.id.substring(0,8).toUpperCase()} <span class="text-[10px] text-sky-400">→ detail</span></p><p class="text-xs text-gray-400">${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'short',year:'numeric'})}</p></div>${window._statusBadge(o.status, st, false)}</div>
                     <div class="flex flex-col gap-1.5 mb-3">${items.map(i=>`<div class="flex items-center gap-2"><img src="${i.img||FI}" onerror="this.onerror=null;this.src='${FI}'" class="w-9 h-9 rounded-lg object-cover bg-gray-100 shrink-0"><span class="text-sm flex-1 min-w-0 truncate">${esc(i.title)}</span><span class="text-sm font-bold shrink-0 whitespace-nowrap text-pink-600">${Number(i.price).toLocaleString('cs-CZ')} Kč</span></div>`).join('')}</div>
                     <div class="flex items-center justify-between pt-2 border-t border-gray-100">
@@ -7349,6 +7409,7 @@
                 const items = o.objednavka_polozky || [];
                 const carr = DOPRAVCI.find(d => d.id === o.carrier) || { name: o.carrier || '—', icon:'📦' };
                 return `<div onclick="navigate('objednavka-detail','${o.id}')" class="border ${o.status==='paid'?'border-orange-300 bg-orange-50/40':'border-purple-100 bg-purple-50/30'} rounded-2xl p-4 mb-3 hover:shadow-md transition-shadow cursor-pointer group">
+                    ${window._returnBlock(o, true)}
                     <div class="flex items-start justify-between gap-2 mb-3"><div><p class="font-mono text-xs text-gray-400 mb-0.5 group-hover:text-purple-500 transition-colors">#${o.id.substring(0,8).toUpperCase()} <span class="text-[10px] text-purple-400">→ detail</span></p><p class="text-xs text-gray-400">${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'short',year:'numeric'})}</p></div>${window._statusBadge(o.status, st, true)}</div>
                     <div class="flex flex-col gap-1.5 mb-3">${items.map(i=>`<div class="flex items-center gap-2"><img src="${i.img||FI}" onerror="this.onerror=null;this.src='${FI}'" class="w-9 h-9 rounded-lg object-cover bg-gray-100 shrink-0"><span class="text-sm flex-1 min-w-0 truncate">${esc(i.title)}</span><span class="text-sm font-bold shrink-0 whitespace-nowrap text-purple-600">${Number(i.price).toLocaleString('cs-CZ')} Kč</span></div>`).join('')}</div>
                     <div class="flex items-center justify-between pt-2 border-t border-purple-100">
@@ -8392,6 +8453,7 @@
                     ${photoGrid(evPhotos, '📷 Důkazy kupujícího')}
                     <div class="flex gap-2 flex-wrap pt-2 border-t border-red-100 mt-2">
                         <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','refund_buyer',false,false)" class="bg-sky-500 hover:bg-sky-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">↩️ Vrátit kupujícímu</button>
+                        <button onclick="adminStartReturn('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">↩️📦 Vrátit + vratka zboží</button>
                         <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','release_seller',false,false)" class="bg-purple-500 hover:bg-purple-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">✓ Vyplatit prodejci</button>
                         <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','refund_buyer',true,false)" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">↩️ Vrátit + BAN prodejce</button>
                         <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','release_seller',false,true)" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">✓ Vyplatit + BAN kupujícího</button>
@@ -9124,6 +9186,21 @@
             showToast('Spor byl vyřešen.', 'success');
             window._checkAdminBadge();
             setTimeout(() => window._loadAdminTab('spory'), 500);
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    // Spor ve prospěch kupujícího S VRÁCENÍM ZBOŽÍ (vratka → refund po přijetí)
+    window.adminStartReturn = async function(orderId, buyerId, sellerId, disputeId) {
+        if (!confirm('Rozhodnout ve prospěch kupujícího s VRÁCENÍM ZBOŽÍ?\n\nVygeneruje se štítek na vratku. Po přijetí prodejcem se kupujícímu do 2 hodin vrátí cena + původní doprava + provize (mínus cena vratky) do peněženky.')) return;
+        const token = await _ensureValidToken();
+        const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_start_return`, { method: 'POST', headers: hdrs, body: JSON.stringify({ p_order_id: orderId, p_dispute_id: disputeId }) });
+            if (!r.ok) throw new Error(await r.text());
+            const res = await r.json().catch(() => null);
+            showToast('↩️ Vratka spuštěna — podací č. ' + (res && res.tracking || '') + ', refund ' + (res && res.refund || 0) + ' Kč po přijetí.', 'success', 6000);
+            window._checkAdminBadge();
+            setTimeout(() => window._loadAdminTab('spory'), 600);
         } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
     };
 
