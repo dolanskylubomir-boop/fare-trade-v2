@@ -7203,7 +7203,7 @@
     window._returnRefundBreakdown = function(o) {
         const cz = n => Number(n||0).toLocaleString('cs-CZ');
         const price = Number(o.subtotal||0), comm = Number(o.platform_fee||0), ship = Number(o.shipping_fee||0), retc = Number(o.return_cost||0);
-        const refund = (o.refund_amount != null) ? Number(o.refund_amount) : Math.max(price + comm + ship - retc, 0);
+        const refund = Math.max(price + comm + ship - retc, 0);   // celá zaplacená částka − doprava vratky
         return `<div class="mt-1.5 bg-white/70 rounded-lg p-2 text-[11px] text-gray-600 border border-amber-100">
             <div class="flex justify-between"><span>Cena zboží</span><span>${cz(price)} Kč</span></div>
             <div class="flex justify-between"><span>Provize (5 % + 49 Kč)</span><span>${cz(comm)} Kč</span></div>
