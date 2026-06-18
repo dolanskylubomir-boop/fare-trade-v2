@@ -9158,7 +9158,7 @@
         const token = await _ensureValidToken();
         const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
         try {
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_ban_user`, { method: 'POST', headers: hdrs, body: JSON.stringify({ p_user_id: userId, p_reason: reason }) });
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_ban_user`, { method: 'POST', headers: hdrs, body: JSON.stringify({ p_target_id: userId, p_reason: reason }) });
             if (!r.ok) throw new Error(await r.text());
             showToast('Uživatel byl deaktivován.', 'success');
             document.getElementById('admin-ban-userid').value = '';
