@@ -3585,6 +3585,74 @@
             .slice(0, 16);
     }
 
+    // ── Promo plného účtu (jen pro nepřihlášené) ───────────────────
+    window._renderFullRegPromo = function() {
+        const el = document.getElementById('fullreg-promo');
+        if (!el) return;
+        if (window.currentUser) { el.innerHTML = ''; return; }   // jen host
+        el.innerHTML = `
+        <div class="vip-band rounded-[2rem] p-6 sm:p-8 mb-3 relative overflow-hidden fade-in">
+            <div class="vip-shine-wrap"><span class="vip-shine"></span></div>
+            <div class="relative flex flex-col md:flex-row md:items-center gap-5 justify-between">
+                <div class="min-w-0">
+                    <span class="inline-flex items-center gap-1.5 bg-amber-400/20 text-amber-200 text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full mb-2">👑 Plný účet</span>
+                    <h2 class="gold-text text-2xl sm:text-3xl font-black leading-tight">Odemkněte vše, co FairTrade umí</h2>
+                    <p class="text-slate-300 text-sm mt-2 max-w-xl leading-relaxed">Ověřte se přes <strong class="text-amber-300">BankID</strong> a získejte prodej, aukce, peněženku, prémiový výběr na míru i ověřený odznak důvěry. <strong class="text-amber-300">Vstupních 65 Kč vám vrátíme do peněženky.</strong></p>
+                </div>
+                <div class="flex flex-col gap-2 shrink-0">
+                    <button onclick="window._showFullRegBenefits()" class="vip-btn whitespace-nowrap">✨ Zobrazit všechny výhody</button>
+                    <button onclick="navigate('login')" class="text-center text-amber-200/80 hover:text-amber-100 text-xs font-bold transition-colors">Už mám účet → přihlásit se</button>
+                </div>
+            </div>
+        </div>`;
+    };
+
+    window._showFullRegBenefits = function() {
+        const benefits = [
+            ['🏷️','Prodávejte a vydělávejte','Vkládejte inzeráty i aukce a oslovte tisíce ověřených kupujících.'],
+            ['⚡','Aukce a přihazování','Zapojte se do aukcí a získejte vysněné kousky za nejlepší cenu.'],
+            ['🛒','Košík','Nakupte více položek najednou — rychle a přehledně.'],
+            ['💬','Zprávy s prodejci','Ptejte se přímo u inzerátu, bezpečně a bez sdílení kontaktů.'],
+            ['💰','Virtuální peněženka','Kredit, vratky a 65 Kč zpět za ověření — využijete na zviditelnění.'],
+            ['💎','Prémiový výběr na míru','Oblíbené kategorie + luxusní feed TOP nabídek jen pro vás.'],
+            ['🚀','Zviditelnění s garancí dosahu','Dostaňte inzerát nahoru — garantujeme dosah, jinak vracíme kredit.'],
+            ['🪪','Ověřený odznak (BankID)','Zlatá pečeť důvěry — kupující i prodejci vám víc věří.'],
+            ['🔒','Escrow ochrana','Peníze v bezpečí až do potvrzení doručení; spor vyřešíme do 48 h.'],
+            ['❤️','Oblíbené a hodnocení','Ukládejte si nabídky a budujte veřejnou reputaci.']
+        ];
+        const old = document.getElementById('fullreg-modal'); if (old) old.remove();
+        const m = document.createElement('div');
+        m.id = 'fullreg-modal';
+        m.className = 'fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm';
+        m.innerHTML = `
+        <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col fade-in">
+            <div class="vip-band p-6 relative shrink-0">
+                <div class="vip-shine-wrap"><span class="vip-shine"></span></div>
+                <button onclick="document.getElementById('fullreg-modal').remove()" class="absolute top-4 right-4 text-white/70 hover:text-white p-1 z-10"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                <div class="relative">
+                    <span class="inline-flex items-center gap-1.5 bg-amber-400/20 text-amber-200 text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full mb-2">👑 Plný účet</span>
+                    <h3 class="gold-text text-2xl font-black leading-tight">Proč se vyplatí ověřit</h3>
+                    <p class="text-slate-300 text-sm mt-1.5">Vše níže odemknete jediným ověřením přes BankID — a 65 Kč vám vrátíme.</p>
+                </div>
+            </div>
+            <div class="p-5 overflow-y-auto flex flex-col gap-2.5">
+                ${benefits.map(b => `<div class="flex items-start gap-3 bg-gray-50 rounded-2xl p-3.5 border border-gray-100">
+                    <span class="text-2xl shrink-0 mt-0.5">${b[0]}</span>
+                    <div><p class="font-extrabold text-gray-800 text-sm">${b[1]}</p><p class="text-xs text-gray-500 leading-relaxed mt-0.5">${b[2]}</p></div>
+                </div>`).join('')}
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-800 flex items-start gap-2">
+                    <span class="shrink-0">💡</span><span>Nakupovat můžete i jako host. <strong>Plný účet</strong> (ověření přes BankID) odemkne prodej, aukce a všechny výhody výše — a vstupní poplatek 65 Kč se vám vrátí do peněženky.</span>
+                </div>
+            </div>
+            <div class="p-5 border-t border-gray-100 shrink-0 flex flex-col gap-2">
+                <button onclick="document.getElementById('fullreg-modal').remove();navigate('login')" class="w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-amber-950 font-black py-3.5 rounded-2xl shadow-lg transition-all text-base">Vytvořit účet zdarma →</button>
+                <p class="text-center text-[11px] text-gray-400">Registrace je zdarma · ověření přes BankID je dobrovolné a 65 Kč se vrací</p>
+            </div>
+        </div>`;
+        m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+        document.body.appendChild(m);
+    };
+
     window._renderVipShowcase = async function() {
         let el = document.getElementById('vip-showcase');
         if (!el) return;
@@ -4736,8 +4804,9 @@
     // ──────────────────────────────────────────────────────────────
     const views = {
         home: () => {
-        setTimeout(function(){ window._renderVipStories && window._renderVipStories(); window._renderVipShowcase && window._renderVipShowcase(); }, 0);
+        setTimeout(function(){ window._renderFullRegPromo && window._renderFullRegPromo(); window._renderVipStories && window._renderVipStories(); window._renderVipShowcase && window._renderVipShowcase(); }, 0);
         return `
+        <div id="fullreg-promo" class="w-full"></div>
         <div id="vip-stories" class="w-full fade-in"></div>
         <div class="grid grid-cols-2 gap-3 w-full fade-in mb-2">
             <div onclick="navigate('aukce','Vše')" class="card-lift relative h-[120px] sm:h-[150px] rounded-2xl overflow-hidden shadow-md cursor-pointer group">
