@@ -4873,7 +4873,7 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 ${[
                     ['🔒','Escrow ochrana','Peníze uvolněny až po potvrzení přijetí zboží kupujícím'],
-                    ['🪪','KYC ověření','Každý prodejce má ověřenou totožnost — žádná anonymita'],
+                    ['🪪','Ověření přes BankID','Každý prodejce ověřuje totožnost bankovní identitou — žádná anonymita'],
                     ['⚡','Ban za podvod','Jediné porušení pravidel = trvalý zákaz přístupu'],
                     ['🔔','Realtime notifikace','Okamžité upozornění na každou aktivitu ve vašem účtu'],
                 ].map(([icon,title,desc]) => `
@@ -4892,7 +4892,7 @@
                 </div>
                 <div class="flex flex-col gap-0">
                     ${[
-                        ['sky','1','Registrace zdarma','Vytvořte si účet za 30 sekund — e-mail a heslo stačí. Pro aktivní prodej navíc ověříte totožnost přes KYC (doklad + selfie). Jednou a navždy.'],
+                        ['sky','1','Účet zdarma (i jako host)','Kupovat můžete bez předchozí registrace — účet vám vytvoříme přímo u pokladny (e-mail + heslo), abyste mohli sledovat objednávku, potvrdit doručení a řešit spory i z jiného zařízení. Pro prodej a aukce se navíc jednorázově ověříte přes BankID.'],
                         ['indigo','2','Vložte inzerát s AI pomocníkem','Přidejte min. 1 fotku, popis a cenu. U použitého zboží uveďte vady — kupující s popsaným stavem souhlasí, čímž se minimalizují spory. Zabudovaný AI vám s popisem pomůže.'],
                         ['violet','3','Kupující zaplatí přes escrow','Kupující odešle platbu — peníze nekončí u prodejce, ale jsou bezpečně uschovány FairTrade až do potvrzení doručení.'],
                         ['pink','4','Zdokumentujte a odešlete zásilku','Před odesláním nafotíte zásilku (obsah, balení, štítek) přímo v aplikaci. Fotky jsou uloženy jako důkaz. Poté zadáte číslo zásilky — kupující ji může sledovat online.'],
@@ -4949,7 +4949,7 @@
                         ['🤖','AI popis zboží','Napište název zboží — AI vám okamžitě navrhne profesionální popis i výhody produktu. Ušetříte čas a přilákáte více zájemců.'],
                         ['📦','Sledování zásilky','Číslo zásilky zadané prodejcem je okamžitě dostupné v detailu objednávky s přímým odkazem na sledování.'],
                         ['⭐','Hodnocení a recenze','Po každé transakci obě strany hodnotí. Průměrné hodnocení a počet recenzí jsou veřejně viditelné — pomáhají bezpečně vybrat prodejce.'],
-                        ['🪪','KYC ověření prodejce','Každý prodejce projde ověřením totožnosti (doklad + selfie). Admin schválí do 24 hodin. Bez KYC prodej není možný.'],
+                        ['🪪','Ověření přes BankID','Prodejci ověří totožnost bankovní identitou (BankID) — okamžitě, dle EU směrnice DAC7. Vstupní poplatek 65 Kč vrátíme do peněženky. Bez ověření nelze prodávat ani přihazovat v aukcích.'],
                         ['⚖️','Spory s admin rozhodčím','Problém s objednávkou? Otevřete spor přímo v aplikaci, nahrajte fotodůkazy. Admin případ objektivně rozhodne do 48 hodin.'],
                     ].map(([icon,title,desc]) => `
                     <div class="flex items-start gap-4 bg-gray-50 rounded-2xl p-4 border border-gray-100">
@@ -4972,7 +4972,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     ${[
                         ['🟢','V pořádku','Prodeje pod limitem — žádná akce nutná.'],
-                        ['🟡','Blížíte se limitu','Dosáhli jste 80 % limitu (cca 40 000 Kč nebo 24 prodejů). Doporučujeme vyplnit KYC předem.'],
+                        ['🟡','Blížíte se limitu','Dosáhli jste 80 % limitu (cca 40 000 Kč nebo 24 prodejů). Doporučujeme ověřit se přes BankID předem.'],
                         ['🔴','Limit překročen','Překročení 50 000 Kč nebo 30 prodejů za rok. Prodej je dočasně pozastaven do dokončení KYC ověření.'],
                     ].map(([dot,title,desc]) => `
                     <div class="bg-white rounded-xl p-3 border border-amber-100 text-sm">
@@ -5009,7 +5009,7 @@
                     <ul class="flex flex-col gap-2.5 text-sm text-gray-700">
                         ${[
                             'Escrow: peníze uvolněny prodejci až po potvrzení doručení',
-                            'KYC: každý prodejce má ověřenou totožnost',
+                            'BankID: každý prodejce má totožnost ověřenou bankovní identitou',
                             'Fotodokumentace zásilek jako časově razítkovaný důkaz',
                             'In-app spory s adminovým rozhodnutím do 48 hodin',
                             'Realtime notifikace na každou změnu vaší objednávky',
@@ -5050,7 +5050,7 @@
                         ['Co když zboží nedorazí nebo je poškozené?','Neklikejte na Doručeno. Otevřete spor přímo v aplikaci — vyberte důvod, přiložte min. 2 fotky přijatého zboží. Platba zůstává v escrow po celou dobu šetření.'],
                         ['Jak fungují aukce — jsem vítěz, co teď?','Po skončení aukce se v sekci Moje objednávky zobrazí výzva k platbě. Zaplatíte přes escrow a prodejce zásilku odešle standardně. Pokud nezaplatíte do 48 hodin, může prodejce nabídnout zboží dalšímu zájemci.'],
                         ['Co je DAC7 a týká se mě?','DAC7 je EU směrnice o hlášení příjmů prodávajících digitálním platformám. Pokud v jednom kalendářním roce prodáte za více než 50 000 Kč nebo uzavřete více než 30 transakcí, platforma je povinna nahlásit vaše příjmy finančnímu úřadu. Aplikace vás upozorní automaticky ještě před dosažením limitu.'],
-                        ['Jak probíhá ověření totožnosti (KYC)?','V sekci Profil → KYC nahrajte fotku dokladu totožnosti (OP nebo pas) a pořiďte selfie. Ověření probíhá ručně adminem zpravidla do 24 hodin. Bez KYC lze nakupovat i přihazovat v aukcích — prodej a vyplacení peněz vyžaduje ověření.'],
+                        ['Jak probíhá ověření totožnosti (BankID)?','V sekci Profil → KYC se ověříte jediným klikem přes BankID (bankovní identita) — okamžitě, bez nahrávání dokladů. Vyžaduje to EU směrnice DAC7. Vstupní poplatek 65 Kč vám vrátíme do virtuální peněženky (využijete ho např. na zviditelnění inzerátu). Nakupovat můžete i bez ověření (účet vznikne u pokladny); pro prodej a účast v aukcích je ověření přes BankID nutné.'],
                         ['Mohu prodat cokoliv?','Zákon je zákon — zakázány jsou zbraně, drogy, živá zvířata (CITES), padělky, kradené zboží a obsah porušující autorská práva. Admin může inzerát kdykoli deaktivovat, pokud porušuje pravidla — prodejce obdrží notifikaci s důvodem. Vše ostatní legální je vítáno.'],
                         ['Jak kontaktuji podporu?','Přihlaste se a přejděte na stránku Kontakt (odkaz v menu). Váš e-mail a jméno se předvyplní automaticky. Napište dotaz, vyberte téma a odešlete. Odpověď admina přijde jako notifikace přímo do vašich Aktivit.'],
                     ].map(([q,a])=>`
@@ -5079,7 +5079,7 @@
             <button onclick="navigate('home')" class="mb-6 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2">← Zpět</button>
             <div class="mb-8">
                 <h2 class="text-3xl md:text-4xl font-extrabold text-pastel-text mb-1">Všeobecné obchodní podmínky</h2>
-                <p class="text-gray-400 text-xs">Platné od 1. 1. 2025 · Verze 1.0</p>
+                <p class="text-gray-400 text-xs">Platné od 18. 6. 2026 · Verze 1.1</p>
             </div>
             <div class="space-y-8 text-gray-700 text-sm leading-relaxed">
 
@@ -5097,13 +5097,15 @@
                         <li><strong>Inzerát</strong> – nabídka zboží za pevnou cenu zveřejněná na Platformě.</li>
                         <li><strong>Aukce</strong> – veřejné nabídkové řízení, kde zboží získá Uživatel s nejvyšším příhozem.</li>
                         <li><strong>Escrow</strong> – bezpečnostní úschova platby Provozovatelem do doby potvrzení přijetí zboží Kupujícím.</li>
-                        <li><strong>KYC</strong> – ověření totožnosti Uživatele (Know Your Customer).</li>
+                        <li><strong>KYC / BankID</strong> – ověření totožnosti Uživatele bankovní identitou (BankID) dle směrnice DAC7 a zákona č. 253/2008 Sb. (AML).</li>
+                        <li><strong>Light účet</strong> – základní účet Kupujícího (e-mail + heslo) vytvořený i v rámci dokončení nákupu; slouží ke sledování objednávek, potvrzení doručení a řešení sporů.</li>
+                        <li><strong>Peněženka</strong> – virtuální kreditní účet Uživatele u Provozovatele (vratky, vrácený poplatek za ověření, úhrada zviditelnění inzerátu).</li>
                     </ul>
                 </section>
 
                 <section>
                     <h3 class="text-base font-extrabold text-gray-800 mb-2 pb-2 border-b border-gray-100">3. Registrace a uživatelský účet</h3>
-                    <p class="mb-2">Používání Platformy vyžaduje registraci. Uživatel musí být starší <strong>18 let</strong>. Registrací Uživatel potvrzuje, že:</p>
+                    <p class="mb-2">Prohlížet nabídku lze bez registrace. Pro nákup se Kupujícímu vytvoří <strong>light účet</strong> (e-mail + heslo) — i přímo při dokončení objednávky — aby mohl sledovat objednávku, potvrdit doručení a řešit případné spory. Pro prodej a účast v aukcích je nutné ověření přes <strong>BankID</strong>. Uživatel musí být starší <strong>18 let</strong>. Registrací nebo ověřením Uživatel potvrzuje, že:</p>
                     <ul class="list-disc pl-5 space-y-1 mb-2">
                         <li>je plně svéprávnou fyzickou osobou starší 18 let nebo oprávněným zástupcem právnické osoby,</li>
                         <li>zadané registrační údaje jsou pravdivé, aktuální a úplné,</li>
@@ -5114,14 +5116,11 @@
                 </section>
 
                 <section>
-                    <h3 class="text-base font-extrabold text-gray-800 mb-2 pb-2 border-b border-gray-100">4. KYC – ověření totožnosti</h3>
-                    <p class="mb-2">Pro aktivní prodej je vyžadováno ověření totožnosti. Uživatel je povinen poskytnout:</p>
-                    <ul class="list-disc pl-5 space-y-1 mb-2">
-                        <li>jméno, příjmení a datum narození,</li>
-                        <li>adresu trvalého bydliště,</li>
-                        <li>číslo bankovního účtu pro výplatu výnosů.</li>
-                    </ul>
-                    <p>Platforma si vyhrazuje právo omezit nebo zablokovat účet bez dokončeného KYC. KYC údaje jsou zpracovávány výhradně pro účely ověření a bezpečnosti Tržiště.</p>
+                    <h3 class="text-base font-extrabold text-gray-800 mb-2 pb-2 border-b border-gray-100">4. Ověření totožnosti (BankID), DAC7 a AML</h3>
+                    <p class="mb-2">Pro prodej a účast v aukcích je vyžadováno ověření totožnosti prostřednictvím <strong>BankID</strong> (bankovní identita). Ověření je okamžité a nevyžaduje nahrávání dokladů — totožnost potvrzuje banka Uživatele. Provozovatel touto cestou získává a zpracovává zejména jméno, příjmení, datum narození a adresu; pro výplatu výnosů Uživatel uvede číslo bankovního účtu.</p>
+                    <p class="mb-2">Vstupní ověření je zpoplatněno částkou <strong>65 Kč</strong>, kterou Provozovatel po úspěšném ověření vrací Uživateli do jeho virtuální <strong>peněženky</strong>.</p>
+                    <p class="mb-2">Ověření je vyžadováno též z titulu povinností Provozovatele dle směrnice EU 2021/514 (<strong>DAC7</strong>) a zákona č. 253/2008 Sb. o opatřeních proti legalizaci výnosů z trestné činnosti (<strong>AML</strong>). Provozovatel v nezbytném rozsahu provádí kontrolu klienta, sankční a PEP prověření a monitoring podezřelých obchodů. Podezřelé obchody je povinen oznámit Finančnímu analytickému úřadu (FAÚ); o takovém oznámení není oprávněn Uživatele informovat.</p>
+                    <p>Platforma si vyhrazuje právo omezit nebo zablokovat účet bez dokončeného ověření. Údaje z ověření jsou zpracovávány výhradně pro účely identifikace, plnění zákonných povinností a bezpečnosti Tržiště.</p>
                 </section>
 
                 <section>
@@ -5136,7 +5135,7 @@
                         <li>Aukce je závazná: vítěz příhozu je povinen zboží zakoupit a uhradit.</li>
                         <li>Prodávající je povinen <strong>před odesláním zásilky</strong> nahrát min. 1 fotografii zásilky (obsah, balení, přepravní štítek) prostřednictvím funkce „Zdokumentovat a odeslat" v aplikaci. Fotografie slouží jako důkaz v případě sporu.</li>
                         <li>Prodávající je povinen odeslat zboží do <strong>5 pracovních dnů</strong> od potvrzení platby.</li>
-                        <li>Inzerát za pevnou cenu je aktivní po dobu <strong>20 dní</strong>, aukce po dobu zvolené Prodávajícím (7–20 dní).</li>
+                        <li>Inzerát za pevnou cenu je aktivní po dobu <strong>30 dní</strong> (lze prodloužit), aukce po dobu zvolenou Prodávajícím. V <strong>prázdninovém režimu</strong> jsou inzeráty Prodávajícího dočasně skryté a jejich platnost se pozastaví.</li>
                     </ul>
                     <p>Prodávající smí inzerát kdykoli smazat, pokud neexistuje probíhající escrow transakce nebo aukce s příhozem.</p>
                 </section>
@@ -5158,19 +5157,20 @@
 
                 <section>
                     <h3 class="text-base font-extrabold text-gray-800 mb-2 pb-2 border-b border-gray-100">7. Poplatky a platby</h3>
-                    <p class="mb-2">Platforma účtuje tyto poplatky, které hradí <strong>Kupující</strong>:</p>
+                    <p class="mb-2">Platforma účtuje tyto poplatky (provizi a escrow hradí Kupující v rámci ceny; ověření a zviditelnění hradí Prodávající):</p>
                     <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-2">
                         <div class="grid grid-cols-2 gap-2 text-xs">
                             <div class="font-bold text-gray-500 uppercase tracking-wide">Poplatek</div><div class="font-bold text-gray-500 uppercase tracking-wide">Výše</div>
                             <div>Provize z ceny</div><div class="font-bold text-sky-600">5 % z prodejní ceny</div>
                             <div>Escrow ochrana</div><div class="font-bold text-sky-600">49 Kč / transakci</div>
+                            <div>Vstupní ověření (BankID)</div><div class="font-bold text-green-600">65 Kč — vrací se do peněženky</div>
                             <div>TOP inzerát 1 den</div><div class="font-bold text-amber-600">29 Kč</div>
                             <div>TOP inzerát 3 dny</div><div class="font-bold text-amber-600">59 Kč</div>
                             <div>TOP inzerát 7 dní</div><div class="font-bold text-amber-600">99 Kč</div>
                             <div>TOP inzerát 30 dní</div><div class="font-bold text-amber-600">299 Kč</div>
                         </div>
                     </div>
-                    <p>Platby za TOP inzeráty probíhají bankovním převodem nebo QR platbou. Provozovatel je oprávněn poplatky změnit s <strong>30denním předstihem</strong> oznámeným Uživateli.</p>
+                    <p>Platby za zviditelnění (TOP) a prodloužení inzerátu probíhají QR platbou, kartou nebo z kreditu v peněžence. U zviditelnění Provozovatel uvádí orientační garanci dosahu — při nenaplnění garantovaného počtu zhlédnutí vrací poměrnou část ceny do peněženky. Provozovatel je oprávněn poplatky změnit s <strong>30denním předstihem</strong> oznámeným Uživateli.</p>
                 </section>
 
                 <section>
@@ -5203,14 +5203,14 @@
                     <h3 class="text-base font-extrabold text-gray-800 mb-2 pb-2 border-b border-gray-100">10. Ochrana osobních údajů (GDPR)</h3>
                     <p class="mb-2">Provozovatel zpracovává osobní údaje v souladu s Nařízením (EU) 2016/679 (GDPR) a zákonem č. 110/2019 Sb. o zpracování osobních údajů.</p>
                     <div class="bg-sky-50 rounded-2xl p-4 border border-sky-100 mb-3 text-xs space-y-2">
-                        <p><strong>Identifikační údaje</strong> (jméno, datum nar.) – účel: KYC ověření · právní základ: plnění smlouvy (čl. 6 odst. 1 písm. b GDPR)</p>
+                        <p><strong>Identifikační údaje</strong> (jméno, datum nar., adresa) – účel: ověření totožnosti (BankID), DAC7, AML · právní základ: plnění právní povinnosti (čl. 6 odst. 1 písm. c GDPR)</p>
                         <p><strong>Kontaktní údaje</strong> (e-mail) – účel: komunikace, oznámení · právní základ: plnění smlouvy</p>
                         <p><strong>Platební údaje</strong> (č. účtu) – účel: výplata výnosů · právní základ: plnění smlouvy</p>
                         <p><strong>Adresní údaje</strong> – účel: KYC, doručení · právní základ: plnění smlouvy</p>
                         <p><strong>Technická data</strong> (IP, cookies) – účel: bezpečnost · právní základ: oprávněný zájem (čl. 6 odst. 1 písm. f)</p>
                     </div>
                     <p class="mb-2"><strong>Práva subjektu údajů:</strong> Máte právo na přístup, opravu, výmaz (právo být zapomenut), omezení zpracování, přenositelnost údajů a námitku. Stížnost lze podat u Úřadu pro ochranu osobních údajů (<a href="https://www.uoou.cz" class="text-sky-500 underline">www.uoou.cz</a>).</p>
-                    <p class="mb-2"><strong>Doba uchovávání:</strong> Osobní údaje jsou uchovávány po dobu trvání účtu + 3 roky od jeho zrušení (pro případné právní nároky). Účetní doklady po dobu stanovenou zákonem (5–10 let).</p>
+                    <p class="mb-2"><strong>Doba uchovávání:</strong> Osobní údaje jsou uchovávány po dobu trvání účtu + 3 roky od jeho zrušení (pro případné právní nároky). Záznamy pořízené dle zákona č. 253/2008 Sb. (AML) a účetní/daňové doklady se uchovávají po zákonem stanovenou dobu, zpravidla <strong>10 let</strong>; po tuto dobu má plnění zákonné povinnosti přednost před právem na výmaz.</p>
                     <p><strong>Předávání dat:</strong> Data jsou uložena na serverech Supabase (EU – Frankfurt, certifikace ISO 27001). Provozovatel neprodává ani nepředává osobní údaje třetím stranám pro marketingové účely.</p>
                 </section>
 
