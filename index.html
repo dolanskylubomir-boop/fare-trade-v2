@@ -7199,6 +7199,20 @@
     };
 
     // ── Vratka zboží (spor ve prospěch kupujícího) — blok do karty objednávky ──
+    // Rozpis vrácené částky: celá zaplacená částka − doprava vratky
+    window._returnRefundBreakdown = function(o) {
+        const cz = n => Number(n||0).toLocaleString('cs-CZ');
+        const price = Number(o.subtotal||0), comm = Number(o.platform_fee||0), ship = Number(o.shipping_fee||0), retc = Number(o.return_cost||0);
+        const refund = (o.refund_amount != null) ? Number(o.refund_amount) : Math.max(price + comm + ship - retc, 0);
+        return `<div class="mt-1.5 bg-white/70 rounded-lg p-2 text-[11px] text-gray-600 border border-amber-100">
+            <div class="flex justify-between"><span>Cena zboží</span><span>${cz(price)} Kč</span></div>
+            <div class="flex justify-between"><span>Provize (5 % + 49 Kč)</span><span>${cz(comm)} Kč</span></div>
+            <div class="flex justify-between"><span>Doprava (původní)</span><span>${cz(ship)} Kč</span></div>
+            <div class="flex justify-between text-red-500"><span>− Doprava vratky</span><span>−${cz(retc)} Kč</span></div>
+            <div class="flex justify-between font-extrabold text-green-700 border-t border-amber-200 pt-1 mt-1"><span>K vrácení</span><span>${cz(refund)} Kč</span></div>
+        </div>`;
+    };
+
     window._returnBlock = function(o, isSeller) {
         if (!o || !o.return_status) return '';
         const carr = (DOPRAVCI.find(d => d.id === o.return_carrier) || {}).name || o.return_carrier || 'dopravce';
@@ -7209,17 +7223,18 @@
             return wrap(`<p class="font-bold text-green-700">✅ Vratka uzavřena — peníze vráceny</p><p class="text-amber-800 mt-0.5">Kupujícímu bylo vráceno <strong>${refund} Kč</strong> do peněženky.</p>`);
         if (isSeller) {
             if (o.return_status === 'received')
-                return wrap(`<p class="font-bold text-amber-800">📦 Vratka přijata</p><p class="text-amber-700 mt-0.5">Peníze se kupujícímu vrátí automaticky do 2 hodin.</p>`);
+                return wrap(`<p class="font-bold text-amber-800">📦 Vratka přijata</p><p class="text-amber-700 mt-0.5">Peníze kupujícímu vyplatí administrátor po posouzení.</p>`);
             return wrap(`<p class="font-bold text-amber-800">↩️ Kupující vrací zboží</p>
                 <p class="text-amber-700 mt-0.5">${esc(carr)} · podací č. <span class="font-mono">${esc(o.return_tracking || '')}</span>${o.return_status === 'shipped' ? ' · <strong>na cestě k vám</strong>' : ''}</p>
                 <button onclick="event.stopPropagation();window._confirmReturnReceived('${o.id}')" class="mt-2 bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-1.5 rounded-lg transition-colors">✓ Potvrdit přijetí vratky</button>`);
         }
         // pohled kupujícího
         if (o.return_status === 'received')
-            return wrap(`<p class="font-bold text-amber-800">📦 Vratka přijata prodejcem</p><p class="text-amber-700 mt-0.5"><strong>${refund} Kč</strong> vám vrátíme do peněženky do 2 hodin.</p>`);
+            return wrap(`<p class="font-bold text-amber-800">📦 Vratka přijata prodejcem</p><p class="text-amber-700 mt-0.5">Po schválení administrátorem vám vrátíme celou částku (jen mínus doprava vratky):</p>${window._returnRefundBreakdown(o)}`);
         return wrap(`<p class="font-bold text-amber-800">↩️ Vraťte zboží — štítek je připraven</p>
             <p class="text-amber-700 mt-0.5">${esc(carr)} · podací č. <span class="font-mono">${esc(o.return_tracking || '')}</span></p>
-            <p class="text-amber-700 mt-0.5">Vrátíme vám <strong>${refund} Kč</strong> (cena + doprava + provize − ${cost} Kč za vratku) po přijetí prodejcem.</p>
+            <p class="text-amber-700 mt-0.5">Po přijetí prodejcem vám vrátíme <strong>celou částku</strong> — odečteme jen dopravu vratky:</p>
+            ${window._returnRefundBreakdown(o)}
             <div class="flex gap-2 mt-2 flex-wrap">
                 <button onclick="event.stopPropagation();window._downloadReturnLabel('${o.id}')" class="bg-white border border-amber-300 text-amber-700 font-bold px-3 py-1.5 rounded-lg">🏷️ Štítek</button>
                 ${o.return_status === 'label_ready' ? `<button onclick="event.stopPropagation();window._markReturnShipped('${o.id}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-lg">📦 Odeslal jsem vratku</button>` : '<span class="text-amber-700 self-center font-bold">Vratka odeslána ✓</span>'}
@@ -8453,7 +8468,8 @@
                     ${photoGrid(evPhotos, '📷 Důkazy kupujícího')}
                     ${o.return_status ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 text-xs">
                         <p class="font-bold text-amber-800">↩️ Vratka zboží — ${({label_ready:'štítek vydán, čeká na odeslání kupujícím',shipped:'na cestě k prodejci',received:'PŘIJATA / limit — připraveno k výplatě',refunded:'vyplaceno ✓'})[o.return_status]||o.return_status}</p>
-                        <p class="text-amber-700 mt-0.5">Podací č. <span class="font-mono">${esc(o.return_tracking||'—')}</span> · k výplatě <strong>${Number(o.refund_amount||0).toLocaleString('cs-CZ')} Kč</strong></p>
+                        <p class="text-amber-700 mt-0.5">Podací č. <span class="font-mono">${esc(o.return_tracking||'—')}</span></p>
+                        ${window._returnRefundBreakdown(o)}
                         ${o.return_status==='received' ? `<button onclick="adminPayoutReturn('${o.order_id}')" class="mt-2 bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors">💸 Vyplatit kupujícímu ${Number(o.refund_amount||0).toLocaleString('cs-CZ')} Kč</button>` : ''}
                     </div>` : ''}
                     <div class="flex gap-2 flex-wrap pt-2 border-t border-red-100 mt-2">
