@@ -1697,7 +1697,7 @@
         _renderPayStep(document.getElementById('top-pay-body'), {
             amount: tier.amount,
             refId: _topState.id,
-            vsMsg: 'TOP inzerat FairTrade',
+            vsMsg: 'TOP #' + _topState.id,
             paymentType: 'top',
             onPaid: _activateTop
         });
@@ -1773,7 +1773,7 @@
         _renderPayStep(document.getElementById('extend-pay-body'), {
             amount: tier.amount,
             refId: _extendState.id,
-            vsMsg: 'Prodlouzeni inzeratu FT',
+            vsMsg: 'Prodloužení #' + _extendState.id,
             paymentType: 'extend',
             onPaid: _applyExtend
         });
@@ -6406,6 +6406,19 @@
     // ══════════════════════════════════════════════════════════════
     // PENĚŽENKA — přehled a dobití kreditu
     // ══════════════════════════════════════════════════════════════
+    // Popisek transakce peněženky — pokud obsahuje ID inzerátu, doplní jeho název
+    window._walletTxLabel = function(desc) {
+        const raw = (desc || '—').trim();
+        const m = raw.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+        if (m) {
+            const item = [...(dataAukce||[]), ...(dataPevnaCena||[])].find(i => i.id === m[0]);
+            const prefix = (raw.split('#')[0] || '').replace(/[:\s]+$/,'').trim() || 'Inzerát';
+            if (item && item.title) return esc(prefix) + ': „' + item.title + '"';   // item.title už je esc()-ováno
+            return esc(prefix) + ' #' + m[0].substring(0,8) + '…';
+        }
+        return esc(raw);
+    };
+
     views['penezenka'] = () => {
         if (!window.currentUser) { navigate('login'); return ''; }
         setTimeout(async function() {
@@ -6428,7 +6441,7 @@
                 histEl.innerHTML = hist.length ? hist.map(function(tx) {
                     const plus = tx.amount > 0;
                     return '<div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">'
-                        + '<div><p class="text-sm font-semibold text-gray-700">' + esc(tx.description || '—') + '</p>'
+                        + '<div><p class="text-sm font-semibold text-gray-700">' + window._walletTxLabel(tx.description) + '</p>'
                         + '<p class="text-xs text-gray-400">' + new Date(tx.created_at).toLocaleDateString('cs-CZ') + '</p></div>'
                         + '<span class="font-bold ' + (plus ? 'text-green-600' : 'text-red-500') + '">'
                         + (plus ? '+' : '') + tx.amount + ' Kč</span></div>';
