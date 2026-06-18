@@ -188,6 +188,10 @@
         .vip-shine-wrap{position:absolute;inset:0;overflow:hidden;pointer-events:none;border-radius:inherit;}
         .vip-shine{position:absolute;top:0;left:0;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.13),transparent);transform:translateX(-150%);animation:vipShine 5.5s ease-in-out infinite;}
         @keyframes vipShine{0%,55%{transform:translateX(-150%)}100%{transform:translateX(320%)}}
+        .story-ring{display:block;width:64px;height:64px;border-radius:9999px;padding:2px;background:linear-gradient(45deg,#d4af37,#f7e08c,#d4af37);box-shadow:0 4px 12px -4px rgba(212,175,55,.6);}
+        .story-ring img{width:100%;height:100%;border-radius:9999px;}
+        .story-bar{animation:storyBar 5s linear forwards;}
+        @keyframes storyBar{from{width:0}to{width:100%}}
     </style>
 </head>
 <body class="bg-animated text-pastel-text font-sans min-h-screen flex flex-col selection:bg-sky-200">
@@ -3558,6 +3562,7 @@
                 <div class="flex items-center gap-1.5 mt-1.5 mb-2 text-[10px] text-slate-400">
                     ${item.verified?`<span class="text-sky-300 font-bold flex items-center gap-0.5 shrink-0"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>Ověřený</span>`:''}
                     <span class="truncate">${item.seller}</span>
+                    <span class="ml-auto flex items-center gap-1 shrink-0">${(item.views_count||0) >= 50 ? '<span class="text-orange-400" title="Žhavé">🔥</span>' : ''}<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>${(item.views_count||0).toLocaleString('cs-CZ')}</span>
                 </div>
                 <div class="flex items-end justify-between gap-2 pt-2 border-t border-white/10">
                     <div class="min-w-0">
@@ -3706,6 +3711,135 @@
         if (!items.length) { el.innerHTML = `<div class="vip-band rounded-2xl p-6 text-center"><p class="text-slate-300 text-sm">Ve vybraných kategoriích teď nejsou žádné TOP inzeráty. Jakmile někdo zaplatí TOPování, objeví se tu. ✨</p></div>`; return; }
         el.innerHTML = `<div class="vip-band rounded-2xl p-4"><div class="vip-scroll flex gap-4 overflow-x-auto pb-2">${items.map(window.renderVipCard).join('')}</div></div>`;
     };
+
+    // ── Dashboard TOPu pro prodejce (statistiky + garance dosahu) ──
+    window.showTopStats = async function(id, type) {
+        const token = await _ensureValidToken();
+        if (!token) { showToast('Pro statistiky se přihlas.', 'warning'); return; }
+        let s;
+        try {
+            const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_top_stats',
+                { method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':'Bearer '+token, 'Content-Type':'application/json' },
+                  body: JSON.stringify({ p_type: type, p_id: id }) });
+            if (!r.ok) throw new Error('status ' + r.status);
+            s = await r.json();
+        } catch(e) { showToast('Chyba načtení statistik: ' + e.message, 'error'); return; }
+        const delivered = s.delivered || 0, guaranteed = s.guaranteed || 0;
+        const pct = guaranteed > 0 ? Math.min(100, Math.round(delivered / guaranteed * 100)) : 0;
+        const met = guaranteed > 0 && delivered >= guaranteed;
+        const active = s.is_top && s.expires_at && new Date(s.expires_at) > new Date();
+        const daysLeft = s.expires_at ? Math.max(0, Math.ceil((new Date(s.expires_at) - Date.now()) / 86400000)) : 0;
+        const old = document.getElementById('top-stats-modal'); if (old) old.remove();
+        const m = document.createElement('div');
+        m.id = 'top-stats-modal';
+        m.className = 'fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm';
+        m.innerHTML = `
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="p-5 vip-band shrink-0 relative">
+                <div class="vip-shine-wrap"><span class="vip-shine"></span></div>
+                <div class="flex items-center justify-between gap-3 relative">
+                    <div class="min-w-0"><p class="gold-text font-black text-lg">📊 Statistiky TOPu</p><p class="text-slate-300 text-xs truncate">${esc(s.title || '')}</p></div>
+                    <button onclick="document.getElementById('top-stats-modal').remove()" class="text-white/70 hover:text-white p-1 shrink-0"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>
+            </div>
+            <div class="p-5 overflow-y-auto flex flex-col gap-4">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-amber-50 rounded-2xl p-3"><p class="text-2xl font-black text-amber-600">${delivered.toLocaleString('cs-CZ')}</p><p class="text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-0.5">Zhlédnutí v TOPu</p></div>
+                    <div class="bg-pink-50 rounded-2xl p-3"><p class="text-2xl font-black text-pink-600">${(s.saves||0).toLocaleString('cs-CZ')}</p><p class="text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-0.5">Uloženo ❤️</p></div>
+                    <div class="bg-sky-50 rounded-2xl p-3"><p class="text-2xl font-black text-sky-600">${active ? daysLeft : 0}</p><p class="text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-0.5">Dní zbývá</p></div>
+                </div>
+                ${guaranteed > 0 ? `
+                <div class="border border-gray-100 rounded-2xl p-4">
+                    <div class="flex items-center justify-between mb-2"><p class="font-bold text-gray-700 text-sm">🛡️ Garance dosahu</p><p class="text-sm font-black ${met?'text-green-600':'text-amber-600'}">${delivered} / ${guaranteed}</p></div>
+                    <div class="h-3 bg-gray-100 rounded-full overflow-hidden"><div class="h-full ${met?'bg-green-500':'bg-gradient-to-r from-amber-400 to-yellow-500'} transition-all" style="width:${pct}%"></div></div>
+                    <p class="text-xs text-gray-500 mt-2 leading-relaxed">${met ? '✅ Garantovaný dosah je splněn — díky za využití TOPu!' : (active ? `Garantujeme <strong>${guaranteed}</strong> zhlédnutí. Pokud jich do konce TOPu nedosáhneme, poměrnou část z <strong>${s.paid||0} Kč</strong> ti automaticky vrátíme do peněženky. 💰` : `Garance nebyla splněna — poměrná část se vrací do peněženky automaticky.`)}</p>
+                </div>` : ''}
+                <div class="flex items-center justify-between text-xs text-gray-400">
+                    <span>Celkem zhlédnutí: <strong class="text-gray-600">${(s.views||0).toLocaleString('cs-CZ')}</strong></span>
+                    <span>Zaplaceno za TOP: <strong class="text-gray-600">${(s.paid||0)} Kč</strong></span>
+                </div>
+                ${!active ? '<p class="text-xs text-center text-gray-400">TOP právě není aktivní. Aktivuj ho tlačítkem ⭐ TOP inzerát.</p>' : ''}
+            </div>
+        </div>`;
+        m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+        document.body.appendChild(m);
+    };
+
+    // ── Spotlight "Stories" prémiových TOP inzerátů (úvodní stránka) ──
+    function _vipStoryItems() {
+        let all = [...dataAukce, ...dataPevnaCena].filter(i => i && i.is_top);
+        const favs = window._privateProfileCache?.data?.fav_categories;
+        if (Array.isArray(favs) && favs.length) {
+            const matched = all.filter(i => _favCatMatch(i, favs));
+            if (matched.length) all = matched;
+        }
+        return all.sort((a,b) => (b.top_paid_kc||0)-(a.top_paid_kc||0) || (b.created_at||0)-(a.created_at||0))
+                  .slice(0, 12);
+    }
+
+    window._renderVipStories = function() {
+        const el = document.getElementById('vip-stories');
+        if (!el) return;
+        if (!window.dataLoaded) { setTimeout(window._renderVipStories, 500); return; }
+        const items = _vipStoryItems();
+        window._storyItems = items;
+        if (!items.length) { el.innerHTML = ''; return; }
+        el.innerHTML = `
+        <div class="flex gap-3 overflow-x-auto pb-1 mb-3 scrollbar-hide">
+            ${items.map((it, idx) => `
+            <button onclick="window._openStory(${idx})" class="shrink-0 flex flex-col items-center gap-1 w-[72px]" aria-label="${it.title}">
+                <span class="story-ring"><img src="${it.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" loading="lazy" alt="${it.title}"></span>
+                <span class="text-[10px] text-gray-500 font-semibold truncate w-full text-center leading-tight">${it.title}</span>
+            </button>`).join('')}
+        </div>`;
+    };
+
+    window._openStory = function(idx) {
+        const items = window._storyItems || [];
+        if (!items.length) return;
+        window._storyIdx = Math.max(0, Math.min(idx, items.length - 1));
+        if (!document.getElementById('story-overlay')) {
+            const ov = document.createElement('div');
+            ov.id = 'story-overlay';
+            ov.className = 'fixed inset-0 z-[10000] bg-black';
+            document.body.appendChild(ov);
+        }
+        document.body.style.overflow = 'hidden';
+        window._renderStory();
+    };
+    window._renderStory = function() {
+        const ov = document.getElementById('story-overlay'); if (!ov) return;
+        const items = window._storyItems || [];
+        const i = window._storyIdx;
+        const it = items[i]; if (!it) { window._closeStory(); return; }
+        const total = getPriceInfo(it.price).total;
+        const detailView = it.type === 'aukce' ? 'aukce-detail' : 'pevna-cena-detail';
+        clearTimeout(window._storyTimer);
+        ov.innerHTML = `
+        <div class="relative w-full h-full max-w-[480px] mx-auto flex flex-col bg-black">
+            <div class="flex gap-1 p-2 absolute top-0 inset-x-0 z-20">
+                ${items.map((_, k) => `<div class="flex-1 h-1 rounded-full bg-white/30 overflow-hidden"><div class="h-full bg-white ${k<i?'w-full':(k===i?'story-bar':'w-0')}"></div></div>`).join('')}
+            </div>
+            <button onclick="window._closeStory()" class="absolute top-4 right-3 z-30 text-white/85 hover:text-white p-1"><svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            <div class="flex-1 relative overflow-hidden">
+                <img src="${it.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" class="absolute inset-0 w-full h-full object-contain">
+                <div class="absolute inset-y-0 left-0 w-1/3 z-10" onclick="window._storyPrev()"></div>
+                <div class="absolute inset-y-0 right-0 w-2/3 z-10" onclick="window._storyNext()"></div>
+                <div class="absolute top-4 left-3 z-10"><span class="vip-ribbon">⭐ TOP</span></div>
+                <div class="absolute inset-x-0 bottom-0 p-5 pt-16 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10 pointer-events-none">
+                    <p class="text-amber-300 text-[11px] font-bold uppercase tracking-wide mb-1">${esc(it.category)}${it.verified?' · ✓ Ověřený prodejce':''}</p>
+                    <h3 class="text-white text-xl font-black leading-tight mb-1">${it.title}</h3>
+                    <p class="gold-text text-2xl font-black mb-1">${total.toLocaleString('cs-CZ')} Kč</p>
+                    <p class="text-white/60 text-[11px] mb-3">👁 ${(it.views_count||0).toLocaleString('cs-CZ')} zhlédnutí</p>
+                    <button onclick="event.stopPropagation();window._closeStory();navigate('${detailView}/${it.id}')" class="vip-btn pointer-events-auto">Zobrazit nabídku →</button>
+                </div>
+            </div>
+        </div>`;
+        window._storyTimer = setTimeout(window._storyNext, 5000);
+    };
+    window._storyNext = function() { const items = window._storyItems || []; if (window._storyIdx < items.length - 1) { window._storyIdx++; window._renderStory(); } else window._closeStory(); };
+    window._storyPrev = function() { if (window._storyIdx > 0) { window._storyIdx--; window._renderStory(); } };
+    window._closeStory = function() { clearTimeout(window._storyTimer); const ov = document.getElementById('story-overlay'); if (ov) ov.remove(); document.body.style.overflow = ''; };
 
     // Rozbor konečné ceny + výhody escrow (po kliknutí na cenu v kartě)
     window.showPriceBreakdown = function(e, itemId) {
@@ -4546,8 +4680,9 @@
     // ──────────────────────────────────────────────────────────────
     const views = {
         home: () => {
-        setTimeout(function(){ window._renderVipShowcase && window._renderVipShowcase(); }, 0);
+        setTimeout(function(){ window._renderVipStories && window._renderVipStories(); window._renderVipShowcase && window._renderVipShowcase(); }, 0);
         return `
+        <div id="vip-stories" class="w-full fade-in"></div>
         <div class="grid grid-cols-2 gap-3 w-full fade-in mb-2">
             <div onclick="navigate('aukce','Vše')" class="card-lift relative h-[120px] sm:h-[150px] rounded-2xl overflow-hidden shadow-md cursor-pointer group">
                 <div class="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image:url('book.png')"></div>
@@ -5437,6 +5572,7 @@
                                     <button onclick="extendAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-white border border-yellow-300 text-yellow-700 hover:bg-yellow-100 font-bold py-2.5 rounded-xl transition-colors text-sm">⏱ Prodloužit</button>
                                     <button onclick="deleteAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-600 hover:text-white text-red-500 font-bold py-2.5 rounded-xl transition-colors border border-red-200 text-sm">🗑️ Smazat</button>
                                 </div>
+                                ${item.is_top ? `<button onclick="showTopStats('${item.id}','${item.type}')" class="w-full mt-2 flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 border border-amber-300 text-amber-800 hover:from-amber-200 hover:to-yellow-200 font-bold py-2.5 rounded-xl transition-colors text-sm">📊 Statistiky TOPu</button>` : ''}
                             </div>` : `
                             <div class="flex flex-col gap-2">
                                 <div class="relative">
@@ -5558,6 +5694,7 @@
                                     <button onclick="extendAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-white border border-yellow-300 text-yellow-700 hover:bg-yellow-100 font-bold py-2.5 rounded-xl transition-colors text-sm">⏱ Prodloužit</button>
                                     <button onclick="deleteAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-600 hover:text-white text-red-500 font-bold py-2.5 rounded-xl transition-colors border border-red-200 text-sm">🗑️ Smazat</button>
                                 </div>
+                                ${item.is_top ? `<button onclick="showTopStats('${item.id}','${item.type}')" class="w-full mt-2 flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 border border-amber-300 text-amber-800 hover:from-amber-200 hover:to-yellow-200 font-bold py-2.5 rounded-xl transition-colors text-sm">📊 Statistiky TOPu</button>` : ''}
                             </div>` : `
                             <div class="flex flex-col gap-2">
                                 ${buyButtons}
