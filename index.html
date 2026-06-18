@@ -2209,7 +2209,8 @@
                 container.innerHTML = '<p class="text-gray-400 text-center py-10 fade-in">Zatím žádné aktivity.</p>';
                 return;
             }
-            container.innerHTML = items.map(n => {
+            const _aShown = window._pageShown.aktivity || 10;
+            container.innerHTML = items.slice(0, _aShown).map(n => {
                 const icon = NOTIF_ICONS[n.type] || NOTIF_ICONS.default;
                 const date = new Date(n.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
                 return `<div onclick="_openNotifLink('${n.id}','${n.link}')" class="flex items-start gap-3 p-4 rounded-2xl mb-2 cursor-pointer transition-all hover:shadow-md ${n.is_read?'bg-white border border-gray-100':'bg-sky-50 border border-sky-200'}">
@@ -2221,7 +2222,7 @@
                     </div>
                     ${!n.is_read?'<span class="w-2.5 h-2.5 bg-sky-500 rounded-full shrink-0 mt-1.5"></span>':''}
                 </div>`;
-            }).join('');
+            }).join('') + window._moreBtn('aktivity', items.length, "_reRenderTab('aktivity')");
         } catch(e) { container.innerHTML = '<p class="text-red-400 text-center py-8">Chyba načítání.</p>'; }
     }
 
@@ -4058,6 +4059,7 @@
 
     window.loadProfileData = function(activeTab = 'inzeraty') {
         if (!supabaseClient) return;
+        window._pageShown = {};   // při (re)otevření záložky profilu vždy od prvních 10
 
         // Synchronní čtení z localStorage — ŽÁDNÝ async, NIKDY nezamrzne
         const user = _getLocalUser();
@@ -4493,8 +4495,8 @@
                 </div>`;
             };
             let html = style;
-            if (myBuys.length)  { html+=`<h4 class="font-bold text-pink-600 mb-3 uppercase tracking-wider text-sm">Moje nákupy (${myBuys.length})</h4>`; myBuys.forEach(tx=>html+=renderTx(tx,false)); }
-            if (mySales.length) { html+=`<h4 class="font-bold text-sky-600 mb-3 mt-6 uppercase tracking-wider text-sm">Moje prodeje (${mySales.length})</h4>`; mySales.forEach(tx=>html+=renderTx(tx,true)); }
+            if (myBuys.length)  { const _sb=window._pageShown.tx_buy||10;  html+=`<h4 class="font-bold text-pink-600 mb-3 uppercase tracking-wider text-sm">Moje nákupy (${myBuys.length})</h4>`; myBuys.slice(0,_sb).forEach(tx=>html+=renderTx(tx,false)); html+=window._moreBtn('tx_buy', myBuys.length, "_reRenderTab('transakce')"); }
+            if (mySales.length) { const _ss=window._pageShown.tx_sell||10; html+=`<h4 class="font-bold text-sky-600 mb-3 mt-6 uppercase tracking-wider text-sm">Moje prodeje (${mySales.length})</h4>`; mySales.slice(0,_ss).forEach(tx=>html+=renderTx(tx,true)); html+=window._moreBtn('tx_sell', mySales.length, "_reRenderTab('transakce')"); }
             return html;
         }
 
@@ -4535,8 +4537,9 @@
                     return live && !INACTIVE.includes(live.db_status);
                 });
                 if (!activeFavs.length) { container.innerHTML = renderEmptyState('❤️', 'Žádné oblíbené', 'Přidej inzeráty do oblíbených klikem na srdíčko.', null, null); return; }
+                const _oShown = window._pageShown.oblibene || 10;
                 let html = '<div class="flex flex-col gap-3">';
-                activeFavs.forEach(item => {
+                activeFavs.slice(0, _oShown).forEach(item => {
                     const isAukce = item.item_type==='aukce';
                     const live    = [...dataAukce,...dataPevnaCena].find(i=>i.id===item.item_id);
                     const price   = live?live.price:item.item_price;
@@ -4549,7 +4552,7 @@
                         </button>
                     </div>`;
                 });
-                html += '</div>';
+                html += '</div>' + window._moreBtn('oblibene', activeFavs.length, "_reRenderTab('oblibene')");
                 container.innerHTML = html;
             }, 0);
             return `<div class="flex items-center justify-between mb-6 fade-in"><h3 class="text-xl font-bold text-gray-800">Oblíbené položky</h3></div><div id="oblibene-content" class="text-gray-400 text-center py-10">⌛ Načítám oblíbené…</div>`;
@@ -4582,8 +4585,9 @@
             if (!myAds.length) {
                 html += `<p class="text-gray-500 py-4 text-center fade-in">Zatím nemáte žádné aktivní inzeráty.</p>`;
             } else {
+                const _iShown = window._pageShown.inzeraty || 10;
                 html += `<div class="flex flex-col gap-3 mb-8">`;
-                myAds.forEach(item => {
+                myAds.slice(0, _iShown).forEach(item => {
                     const isAukce = item.type === 'aukce';
                     const isPending = item.db_status === 'ceka_na_platbu';
                     const topInfo = item.is_top && item.top_expires_at ? `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ml-2">⭐ TOP do ${new Date(item.top_expires_at).toLocaleDateString('cs-CZ')}</span>` : '';
@@ -4614,7 +4618,7 @@
                         </div>
                     </div>`;
                 });
-                html += '</div>';
+                html += '</div>' + window._moreBtn('inzeraty', myAds.length, "_reRenderTab('inzeraty')");
             }
 
             html += `<div id="seller-pending-section" class="mt-2"></div>`;
@@ -7199,6 +7203,18 @@
     };
 
     // ── Vratka zboží (spor ve prospěch kupujícího) — blok do karty objednávky ──
+    // ── Stránkování seznamů v profilu (prvních 10 + Načíst další) ──
+    window._pageShown = window._pageShown || {};
+    window._moreBtn = function(key, total, reloadJs) {
+        const shown = window._pageShown[key] || 10;
+        if (total <= shown) return '';
+        return `<button onclick="window._pageShown['${key}']=(window._pageShown['${key}']||10)+10;${reloadJs}" class="w-full text-center text-sm bg-sky-50 hover:bg-sky-100 text-sky-600 font-bold py-2.5 rounded-xl mt-2 transition-colors">Načíst další (${total - shown})</button>`;
+    };
+    window._reRenderTab = function(tab) {
+        const c = document.getElementById('profile-tab-content');
+        if (c) c.innerHTML = window.renderProfileTabContent(tab);
+    };
+
     // Rozpis vrácené částky: celá zaplacená částka − doprava vratky
     window._returnRefundBreakdown = function(o) {
         const cz = n => Number(n||0).toLocaleString('cs-CZ');
@@ -7622,8 +7638,10 @@
                 threads[key].messages.push(m);
             });
 
+            const _threads = Object.values(threads);
+            const _zShown = window._pageShown.zpravy || 10;
             let html = '<div class="flex flex-col gap-5">';
-            Object.values(threads).forEach(function(thread) {
+            _threads.slice(0, _zShown).forEach(function(thread) {
                 const isAukce = thread.itemType === 'aukce';
                 const color   = isAukce ? 'sky' : 'pink';
                 html += '<div class="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm">';
@@ -7669,7 +7687,7 @@
                 html += '</div></div>';
                 html += '</div></div>';
             });
-            html += '</div>';
+            html += '</div>' + window._moreBtn('zpravy', _threads.length, "_reRenderTab('zpravy')");
             container.innerHTML = html;
         } catch(e) {
             container.innerHTML = '<p class="text-gray-500 text-center py-8">Nepodařilo se načíst zprávy.</p>';
