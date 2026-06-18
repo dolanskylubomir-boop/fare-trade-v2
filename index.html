@@ -4505,6 +4505,7 @@
             };
 
             let html = `<div class="flex items-center justify-between mb-5 fade-in"><h3 class="text-xl font-bold text-gray-800">Moje aktivní nabídky (${myAds.length})</h3><button onclick="navigate('novy-inzerat')" class="bg-sky-100 text-sky-600 hover:bg-sky-200 font-bold py-2 px-4 rounded-xl text-sm transition-colors">+ Nový</button></div>`;
+            if (window._vacationMode) html += `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 text-sm text-amber-800 fade-in">🏖️ <strong>Prázdninový režim je zapnutý</strong> — vaše inzeráty jsou dočasně skryté a jejich platnost je <strong>pozastavená</strong>. Vypnete ho v záložce <strong>KYC</strong> a inzeráty se obnoví.</div>`;
 
             if (!myAds.length) {
                 html += `<p class="text-gray-500 py-4 text-center fade-in">Zatím nemáte žádné aktivní inzeráty.</p>`;
@@ -7576,13 +7577,20 @@
         const token = await _ensureValidToken();
         if (!token) return;
         const newVal = !window._vacationMode;
+        const msgInput = (document.getElementById('vacation-msg-input')?.value || '').trim();
+        // při zapnutí rovnou ulož i automatickou odpověď (ať není potřeba zvlášť „Uložit zprávu")
+        const body = newVal ? { vacation_mode: true, vacation_message: msgInput } : { vacation_mode: false };
         const r = await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id,
             { method: 'PATCH', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-              body: JSON.stringify({ vacation_mode: newVal }) });
+              body: JSON.stringify(body) });
         if (r.ok || r.status === 204) {
             window._vacationMode = newVal;
-            _applyVacationBtn(newVal, document.getElementById('vacation-msg-input')?.value || '');
-            showToast(newVal ? 'Prázdninový režim zapnut — inzeráty jsou skryty.' : 'Prázdninový režim vypnut — inzeráty jsou viditelné.', 'success');
+            if (window._profilesMap?.[window.currentUser.id]) window._profilesMap[window.currentUser.id].vacation_mode = newVal;
+            if (window._privateProfileCache?.data) window._privateProfileCache.data = { ...window._privateProfileCache.data, vacation_mode: newVal, vacation_message: newVal ? msgInput : window._privateProfileCache.data.vacation_message };
+            _applyVacationBtn(newVal, msgInput);
+            showToast(newVal ? '🏖️ Prázdninový režim zapnut — inzeráty skryté a jejich platnost pozastavená.' : '✅ Prázdninový režim vypnut — inzeráty znovu aktivní.', 'success', 5000);
+            // server přepnul stav inzerátů (trigger) → načti katalog znovu, ať se to projeví
+            if (window.fetchDatabaseItems) window.fetchDatabaseItems();
         } else showToast('Chyba uložení.', 'warning');
     };
 
