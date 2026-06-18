@@ -3599,11 +3599,13 @@
             try {
                 const token = await _ensureValidToken();
                 if (token) {
-                    const r = await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id + '&select=fav_categories',
-                        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token } });
+                    // RLS: přímý SELECT na profiles je zakázaný → čteme přes get_own_profile RPC
+                    const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_own_profile',
+                        { method: 'POST', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: '{}' });
                     const j = await r.json();
-                    favs = (Array.isArray(j) && j[0]) ? (j[0].fav_categories || []) : [];
-                    if (window._privateProfileCache?.data) window._privateProfileCache.data.fav_categories = favs;
+                    const prof = (Array.isArray(j) && j[0]) ? j[0] : null;
+                    favs = prof ? (prof.fav_categories || []) : [];
+                    if (prof) window._privateProfileCache = { uid: window.currentUser.id, data: prof };
                 }
             } catch(e) { favs = []; }
         }

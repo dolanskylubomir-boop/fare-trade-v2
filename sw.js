@@ -1,5 +1,5 @@
 // FairTrade Service Worker — verze cache je jediný zdroj pravdy níže (CACHE)
-const CACHE = 'fairtrade-v3';
+const CACHE = 'fairtrade-v4';
 const OFFLINE_PAGE = './index.html';
 
 const PRECACHE = [
@@ -49,6 +49,12 @@ self.addEventListener('activate', event => {
 // === FETCH ===
 self.addEventListener('fetch', event => {
   const req = event.request;
+
+  // Cizí (cross-origin) požadavky NEOBSLUHUJEME — necháme je přímo na prohlížeči.
+  // Jinak u nich SW může vrátit Response.error() a rozbít načtení (např. qrcode z unpkg).
+  let _sameOrigin = false;
+  try { _sameOrigin = new URL(req.url).origin === self.location.origin; } catch (e) {}
+  if (!_sameOrigin) return;
 
   if (req.method !== 'GET' || shouldBypass(req.url)) return;
 
