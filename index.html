@@ -171,6 +171,23 @@
         #mob-sheet-overlay.open #mob-sheet-panel { transform:translateY(0); }
         .mob-nav-item { display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:1rem; transition:background .15s; cursor:pointer; }
         .mob-nav-item:hover, .mob-nav-item:active { background:#f1f5f9; }
+        /* ── Prémiový výběr "Pro vás" / VIP showcase ───────────────── */
+        .vip-band{position:relative;overflow:hidden;background:linear-gradient(125deg,#0b1220 0%,#1e293b 42%,#3a2c08 100%);box-shadow:0 20px 45px -22px rgba(0,0,0,.7),inset 0 0 0 1px rgba(212,175,55,.28);}
+        .vip-band::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 18% -10%,rgba(212,175,55,.30),transparent 45%),radial-gradient(circle at 100% 120%,rgba(56,189,248,.12),transparent 40%);pointer-events:none;}
+        .gold-text{background:linear-gradient(90deg,#fbe9a6,#d4af37 45%,#fff3c4 70%,#d4af37);-webkit-background-clip:text;background-clip:text;color:transparent;}
+        .vip-btn{display:inline-block;background:linear-gradient(90deg,#d4af37,#f3d36b);color:#1a1407;font-weight:800;padding:.6rem 1.4rem;border-radius:9999px;box-shadow:0 8px 20px -8px rgba(212,175,55,.8);transition:transform .15s,box-shadow .15s;}
+        .vip-btn:hover{transform:translateY(-1px);box-shadow:0 12px 26px -8px rgba(212,175,55,.95);}
+        .vip-chip{display:inline-block;background:rgba(212,175,55,.14);color:#f3d36b;border:1px solid rgba(212,175,55,.4);font-weight:700;font-size:.72rem;padding:.4rem .8rem;border-radius:9999px;transition:background .15s;white-space:nowrap;}
+        .vip-chip:hover{background:rgba(212,175,55,.26);}
+        .vip-scroll{scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:rgba(212,175,55,.5) transparent;}
+        .vip-scroll::-webkit-scrollbar{height:6px;}
+        .vip-scroll::-webkit-scrollbar-thumb{background:rgba(212,175,55,.45);border-radius:9999px;}
+        .vip-card{scroll-snap-align:start;flex:0 0 230px;width:230px;background:linear-gradient(165deg,#1b2336,#0e1626);border:1px solid rgba(212,175,55,.42);border-radius:1.25rem;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s;position:relative;}
+        .vip-card:hover{transform:translateY(-4px);box-shadow:0 18px 40px -16px rgba(212,175,55,.55);border-color:rgba(212,175,55,.85);}
+        .vip-ribbon{position:absolute;top:10px;left:10px;z-index:2;background:linear-gradient(90deg,#d4af37,#f7e08c);color:#1a1407;font-weight:900;font-size:.6rem;letter-spacing:.06em;padding:3px 9px;border-radius:9999px;display:inline-flex;align-items:center;gap:3px;box-shadow:0 4px 10px -3px rgba(0,0,0,.5);}
+        .vip-shine-wrap{position:absolute;inset:0;overflow:hidden;pointer-events:none;border-radius:inherit;}
+        .vip-shine{position:absolute;top:0;left:0;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.13),transparent);transform:translateX(-150%);animation:vipShine 5.5s ease-in-out infinite;}
+        @keyframes vipShine{0%,55%{transform:translateX(-150%)}100%{transform:translateX(320%)}}
     </style>
 </head>
 <body class="bg-animated text-pastel-text font-sans min-h-screen flex flex-col selection:bg-sky-200">
@@ -3513,6 +3530,183 @@
         </div>`;
     };
 
+    // ──────────────────────────────────────────────────────────────
+    // PRÉMIOVÝ VÝBĚR "PRO VÁS" — luxusní showcase TOP inzerátů
+    // v oblíbených kategoriích uživatele (zhodnocení placeného TOPování)
+    // ──────────────────────────────────────────────────────────────
+    function _favCatMatch(item, favs) {
+        return Array.isArray(favs) && favs.some(f => f && f.cat === item.category && (!f.sub || f.sub === item.subcategory));
+    }
+    function _vipSkeleton() {
+        return `<div class="vip-band rounded-[2rem] p-6 mt-2"><div class="h-5 w-48 rounded bg-white/10 mb-4"></div><div class="flex gap-4 overflow-hidden">${Array.from({length:4}).map(()=>'<div class="shrink-0 w-[230px] h-64 rounded-xl bg-white/5 animate-pulse"></div>').join('')}</div></div>`;
+    }
+
+    window.renderVipCard = function(item) {
+        const isAukce    = item.type === 'aukce';
+        const detailView = isAukce ? 'aukce-detail' : 'pevna-cena-detail';
+        const total      = getPriceInfo(item.price).total;
+        return `
+        <div onclick="navigate('${detailView}/${item.id}')" class="vip-card">
+            <div class="relative h-40 bg-slate-800 overflow-hidden">
+                <span class="vip-ribbon"><svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>TOP</span>
+                <img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" loading="lazy" decoding="async" alt="${item.title}" class="object-cover w-full h-full">
+                <div class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0e1626] to-transparent"></div>
+            </div>
+            <div class="p-3.5">
+                <span class="block text-[10px] font-bold uppercase tracking-wide text-amber-300/90 truncate mb-1">${item.category}${item.subcategory?(' · '+item.subcategory):''}</span>
+                <h3 class="text-sm font-bold text-slate-100 leading-tight line-clamp-2 min-h-[2.4em]">${item.title}</h3>
+                <div class="flex items-center gap-1.5 mt-1.5 mb-2 text-[10px] text-slate-400">
+                    ${item.verified?`<span class="text-sky-300 font-bold flex items-center gap-0.5 shrink-0"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>Ověřený</span>`:''}
+                    <span class="truncate">${item.seller}</span>
+                </div>
+                <div class="flex items-end justify-between gap-2 pt-2 border-t border-white/10">
+                    <div class="min-w-0">
+                        <p class="text-[9px] text-slate-400 uppercase tracking-wide">Cena s ochranou</p>
+                        <p class="gold-text text-lg font-black leading-none">${total.toLocaleString('cs-CZ')} Kč</p>
+                    </div>
+                    <span class="vip-chip shrink-0">${isAukce?'Aukce':'Koupit'} →</span>
+                </div>
+            </div>
+        </div>`;
+    };
+
+    function _vipMatchedItems(favs) {
+        return [...dataAukce, ...dataPevnaCena]
+            .filter(i => i && i.is_top && _favCatMatch(i, favs))
+            .sort((a,b) => (b.top_paid_kc||0)-(a.top_paid_kc||0) || (b.created_at||0)-(a.created_at||0))
+            .slice(0, 16);
+    }
+
+    window._renderVipShowcase = async function() {
+        let el = document.getElementById('vip-showcase');
+        if (!el) return;
+        // Host (nepřihlášený) — elegantní pozvánka
+        if (!window.currentUser) {
+            el.innerHTML = `<div class="vip-band rounded-[2rem] p-6 sm:p-8 text-center mt-2 fade-in"><div class="vip-shine-wrap"><span class="vip-shine"></span></div>
+                <p class="gold-text text-xl sm:text-2xl font-black mb-1 relative">💎 Prémiový výběr na míru</p>
+                <p class="text-slate-300 text-sm mb-4 max-w-md mx-auto relative">Přihlas se a vyber si oblíbené kategorie — ukážeme ti ty nejlepší <strong class="text-amber-300">TOP</strong> nabídky přesně podle tvého vkusu.</p>
+                <button onclick="navigate('login')" class="vip-btn relative">Přihlásit se →</button></div>`;
+            return;
+        }
+        // Načti oblíbené kategorie (z cache, jinak doplň jednorázovým fetchem)
+        let favs = window._privateProfileCache?.data?.fav_categories;
+        if (favs === undefined || favs === null) {
+            try {
+                const token = await _ensureValidToken();
+                if (token) {
+                    const r = await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id + '&select=fav_categories',
+                        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token } });
+                    const j = await r.json();
+                    favs = (Array.isArray(j) && j[0]) ? (j[0].fav_categories || []) : [];
+                    if (window._privateProfileCache?.data) window._privateProfileCache.data.fav_categories = favs;
+                }
+            } catch(e) { favs = []; }
+        }
+        favs = favs || [];
+        el = document.getElementById('vip-showcase'); if (!el) return; // mohlo se mezitím odnavigovat
+        // Žádné oblíbené kategorie → výzva k výběru
+        if (!Array.isArray(favs) || !favs.length) {
+            el.innerHTML = `<div class="vip-band rounded-[2rem] p-6 sm:p-8 text-center mt-2 fade-in"><div class="vip-shine-wrap"><span class="vip-shine"></span></div>
+                <p class="gold-text text-xl sm:text-2xl font-black mb-1 relative">💎 Vytvoř si prémiový výběr</p>
+                <p class="text-slate-300 text-sm mb-4 max-w-md mx-auto relative">Vyber si oblíbené kategorie a my ti sem budeme servírovat ty nejlepší <strong class="text-amber-300">TOP</strong> inzeráty z nich.</p>
+                <button onclick="navigate('profil/provas')" class="vip-btn relative">Vybrat kategorie →</button></div>`;
+            return;
+        }
+        if (!window.dataLoaded) { el.innerHTML = _vipSkeleton(); setTimeout(window._renderVipShowcase, 500); return; }
+        const items = _vipMatchedItems(favs);
+        if (!items.length) {
+            el.innerHTML = `<div class="vip-band rounded-[2rem] p-6 sm:p-8 mt-2 fade-in flex items-center justify-between gap-4 flex-wrap"><div class="relative">
+                <p class="gold-text text-lg font-black">💎 Tvůj prémiový výběr</p>
+                <p class="text-slate-300 text-sm mt-0.5">Právě teď nejsou ve tvých kategoriích žádné TOP inzeráty. Jakmile se objeví, uvidíš je tady. ✨</p></div>
+                <button onclick="navigate('profil/provas')" class="vip-chip relative">⚙️ Upravit výběr</button></div>`;
+            return;
+        }
+        el.innerHTML = `
+        <div class="vip-band rounded-[2rem] p-5 sm:p-7 mt-2 fade-in">
+            <div class="vip-shine-wrap"><span class="vip-shine"></span></div>
+            <div class="flex items-center justify-between gap-3 mb-4 relative">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2"><span class="text-2xl">💎</span><h2 class="gold-text text-xl sm:text-2xl font-black tracking-tight">Vybráno pro vás</h2></div>
+                    <p class="text-slate-300 text-xs sm:text-sm mt-0.5">Prémiové <strong class="text-amber-300">TOP</strong> nabídky z vašich oblíbených kategorií</p>
+                </div>
+                <button onclick="navigate('profil/provas')" class="vip-chip shrink-0">⚙️ Upravit</button>
+            </div>
+            <div class="vip-scroll flex gap-4 overflow-x-auto pb-2 relative">${items.map(window.renderVipCard).join('')}</div>
+        </div>`;
+    };
+
+    // ── Picker oblíbených kategorií (profil → Pro vás) ──────────────
+    window._favCatState = window._favCatState || [];
+    window._favCatDirty = false;
+
+    window._renderFavPicker = function() {
+        const wrap = document.getElementById('favcat-picker');
+        if (!wrap) return;
+        const st = window._favCatState || [];
+        const hasWhole = (cat) => st.some(f => f.cat === cat && !f.sub);
+        const hasSub   = (cat, sub) => st.some(f => f.cat === cat && f.sub === sub);
+        const anyOf    = (cat) => st.some(f => f.cat === cat);
+        wrap.innerHTML = KATEGORIE.map(k => {
+            const whole = hasWhole(k.name);
+            const subsHtml = (k.sub || []).map(s => {
+                const on = whole || hasSub(k.name, s);
+                return `<button onclick="window._toggleFavSub('${esc(k.name)}','${esc(s)}')" class="text-xs font-bold px-2.5 py-1 rounded-full border transition-colors ${on?'bg-amber-100 text-amber-800 border-amber-300':'bg-white text-gray-500 border-gray-200 hover:border-amber-300'}">${s}</button>`;
+            }).join('');
+            return `<div class="border ${anyOf(k.name)?'border-amber-300 bg-amber-50/50':'border-gray-100'} rounded-2xl p-4 transition-colors">
+                <div class="flex items-center justify-between gap-3 ${(k.sub&&k.sub.length)?'mb-2':''}">
+                    <div class="flex items-center gap-2 min-w-0"><span class="text-xl shrink-0">${k.icon}</span><span class="font-extrabold text-gray-800 truncate">${k.name}</span></div>
+                    <button onclick="window._toggleFavCat('${esc(k.name)}')" class="text-xs font-bold px-3 py-1.5 rounded-full border transition-colors shrink-0 ${whole?'bg-amber-400 text-amber-950 border-amber-400':'bg-white text-amber-600 border-amber-300 hover:bg-amber-50'}">${whole?'✓ Celá kategorie':'+ Celá kategorie'}</button>
+                </div>
+                ${(k.sub&&k.sub.length)?`<div class="flex flex-wrap gap-1.5 ${whole?'opacity-50 pointer-events-none':''}">${subsHtml}</div>`:''}
+            </div>`;
+        }).join('');
+        const cnt = document.getElementById('favcat-count');
+        if (cnt) { const n = st.length; cnt.textContent = n ? (n + ' ' + (n===1?'položka':(n>=2&&n<=4?'položky':'položek')) + ' vybráno') : 'Zatím nic nevybráno'; }
+    };
+
+    window._toggleFavCat = function(cat) {
+        let st = window._favCatState || [];
+        if (st.some(f => f.cat === cat && !f.sub)) st = st.filter(f => !(f.cat === cat && !f.sub));
+        else { st = st.filter(f => f.cat !== cat); st.push({ cat: cat, sub: null }); }
+        window._favCatState = st; window._favCatDirty = true; window._renderFavPicker();
+    };
+    window._toggleFavSub = function(cat, sub) {
+        let st = window._favCatState || [];
+        if (st.some(f => f.cat === cat && !f.sub)) return; // celá kategorie zvolena → podkategorie zamčené
+        if (st.some(f => f.cat === cat && f.sub === sub)) st = st.filter(f => !(f.cat === cat && f.sub === sub));
+        else st.push({ cat: cat, sub: sub });
+        window._favCatState = st; window._favCatDirty = true; window._renderFavPicker();
+    };
+
+    window.saveFavCategories = async function() {
+        if (!window.currentUser) { showToast('Pro uložení se přihlas.', 'warning'); return; }
+        const token = await _ensureValidToken();
+        if (!token) return;
+        const favs = window._favCatState || [];
+        try {
+            const r = await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id,
+                { method: 'PATCH', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                  body: JSON.stringify({ fav_categories: favs }) });
+            if (!(r.ok || r.status === 204)) throw new Error('status ' + r.status);
+            if (window._privateProfileCache?.data) window._privateProfileCache.data = { ...window._privateProfileCache.data, fav_categories: favs };
+            else if (window._privateProfileCache) window._privateProfileCache.data = { fav_categories: favs };
+            window._favCatDirty = false;
+            showToast('💎 Výběr uložen — na úvodní stránce uvidíš svůj prémiový feed.', 'success', 4000);
+            window._renderFavPreview && window._renderFavPreview();
+        } catch(e) { showToast('Chyba uložení: ' + e.message, 'error'); }
+    };
+
+    window._renderFavPreview = function() {
+        const el = document.getElementById('favcat-preview');
+        if (!el) return;
+        const favs = window._favCatState || [];
+        if (!favs.length) { el.innerHTML = `<p class="text-sm text-gray-400 bg-gray-50 rounded-2xl p-5 text-center">Vyber kategorie výše — tady se objeví živý náhled tvého prémiového výběru.</p>`; return; }
+        if (!window.dataLoaded) { el.innerHTML = _vipSkeleton(); setTimeout(window._renderFavPreview, 500); return; }
+        const items = _vipMatchedItems(favs);
+        if (!items.length) { el.innerHTML = `<div class="vip-band rounded-2xl p-6 text-center"><p class="text-slate-300 text-sm">Ve vybraných kategoriích teď nejsou žádné TOP inzeráty. Jakmile někdo zaplatí TOPování, objeví se tu. ✨</p></div>`; return; }
+        el.innerHTML = `<div class="vip-band rounded-2xl p-4"><div class="vip-scroll flex gap-4 overflow-x-auto pb-2">${items.map(window.renderVipCard).join('')}</div></div>`;
+    };
+
     // Rozbor konečné ceny + výhody escrow (po kliknutí na cenu v kartě)
     window.showPriceBreakdown = function(e, itemId) {
         if (e) e.stopPropagation();
@@ -3869,6 +4063,11 @@
                 if (window._profilesMap) window._profilesMap[uid] = { ...(window._profilesMap[uid]||{}), ...data };
                 const hash = window.location.hash.replace('#','');
                 if ((hash.split('/')[1] || 'inzeraty') === 'kyc') _applyKycToDOM(data);
+                if ((hash.split('/')[1] || 'inzeraty') === 'provas' && !window._favCatDirty) {
+                    window._favCatState = JSON.parse(JSON.stringify(data.fav_categories || []));
+                    window._renderFavPicker && window._renderFavPicker();
+                    window._renderFavPreview && window._renderFavPreview();
+                }
             }
 
             const tx = Array.isArray(txArr) ? txArr : [];
@@ -3897,6 +4096,30 @@
     };
 
     window.renderProfileTabContent = function(tab) {
+        if (tab === 'provas') {
+            window._favCatState = JSON.parse(JSON.stringify(window._privateProfileCache?.data?.fav_categories || []));
+            window._favCatDirty = false;
+            setTimeout(function(){ window._renderFavPicker && window._renderFavPicker(); window._renderFavPreview && window._renderFavPreview(); }, 0);
+            return `
+            <div class="fade-in">
+                <div class="vip-band rounded-[1.75rem] p-5 sm:p-7 mb-5">
+                    <div class="vip-shine-wrap"><span class="vip-shine"></span></div>
+                    <div class="relative">
+                        <h3 class="gold-text text-xl sm:text-2xl font-black flex items-center gap-2">💎 Prémiový výběr na míru</h3>
+                        <p class="text-slate-300 text-sm mt-1.5 max-w-2xl">Vyber si oblíbené kategorie a podkategorie. Na úvodní stránce ti pak naservírujeme luxusní výběr <strong class="text-amber-300">TOP</strong> inzerátů přesně z nich — ať se placené zviditelnění prodejcům vyplatí a ty vidíš jen to nejlepší.</p>
+                    </div>
+                </div>
+                <div id="favcat-picker" class="flex flex-col gap-3"></div>
+                <div class="flex items-center justify-between gap-3 mt-5 flex-wrap">
+                    <p id="favcat-count" class="text-xs text-gray-400 font-bold"></p>
+                    <button onclick="window.saveFavCategories()" class="bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-amber-950 font-black px-6 py-3 rounded-2xl shadow-lg transition-all">💾 Uložit výběr</button>
+                </div>
+                <div class="mt-8">
+                    <h4 class="font-extrabold text-gray-700 mb-3 flex items-center gap-2">✨ Náhled tvého prémiového výběru</h4>
+                    <div id="favcat-preview"></div>
+                </div>
+            </div>`;
+        }
         if (tab === 'kyc') {
             setTimeout(function() {
                 window.updatePushBtn && window.updatePushBtn();
@@ -4322,7 +4545,9 @@
     // ŠABLONY STRÁNEK
     // ──────────────────────────────────────────────────────────────
     const views = {
-        home: () => `
+        home: () => {
+        setTimeout(function(){ window._renderVipShowcase && window._renderVipShowcase(); }, 0);
+        return `
         <div class="grid grid-cols-2 gap-3 w-full fade-in mb-2">
             <div onclick="navigate('aukce','Vše')" class="card-lift relative h-[120px] sm:h-[150px] rounded-2xl overflow-hidden shadow-md cursor-pointer group">
                 <div class="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image:url('book.png')"></div>
@@ -4340,7 +4565,9 @@
                     <h2 class="text-sm sm:text-lg font-extrabold text-white drop-shadow-md leading-tight">Kup hned bez čekání</h2>
                 </div>
             </div>
-        </div>`,
+        </div>
+        <div id="vip-showcase" class="w-full fade-in"></div>`;
+        },
 
         kontakt: () => {
             const isLoggedIn = !!window.currentUser;
@@ -5011,6 +5238,7 @@
                             <button id="tab-btn-objednavky" onclick="navigate('profil/objednavky')" class="${tab('objednavky')} relative">Objednávky 📦<span id="objednavky-alert-dot" class="unread-dot hidden" style="background:#f97316" title="Čekají objednávky k odeslání">!</span></button>
                             <button id="tab-btn-kyc"       onclick="navigate('profil/kyc')"        class="${tab('kyc')} relative">KYC</button>
                             <button id="tab-btn-oblibene"  onclick="navigate('profil/oblibene')"   class="${tab('oblibene')} relative">Oblíbené ❤️</button>
+                            <button id="tab-btn-provas"    onclick="navigate('profil/provas')"     class="${tab('provas')} relative">💎 Pro vás</button>
                             <button id="tab-btn-hodnoceni" onclick="navigate('profil/hodnoceni')"  class="${tab('hodnoceni')} relative">⭐ Hodnocení</button>
                             <button onclick="navigate('profil/zpravy')"    class="${tab('zpravy')} relative" id="tab-btn-zpravy">Zprávy 💬<span id="zpravy-unread-dot" class="unread-dot hidden"></span></button>
                             <button onclick="navigate('profil/aktivity')"  class="${tab('aktivity')} relative" id="tab-btn-aktivity">🔔 Aktivity<span id="aktivity-unread-dot" class="unread-dot hidden"></span></button>
