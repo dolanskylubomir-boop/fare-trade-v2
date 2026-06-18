@@ -8451,6 +8451,11 @@
                     </div>
                     ${photoGrid(shipPhotos, '📦 Fotky zásilky od prodejce')}
                     ${photoGrid(evPhotos, '📷 Důkazy kupujícího')}
+                    ${o.return_status ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 text-xs">
+                        <p class="font-bold text-amber-800">↩️ Vratka zboží — ${({label_ready:'štítek vydán, čeká na odeslání kupujícím',shipped:'na cestě k prodejci',received:'PŘIJATA / limit — připraveno k výplatě',refunded:'vyplaceno ✓'})[o.return_status]||o.return_status}</p>
+                        <p class="text-amber-700 mt-0.5">Podací č. <span class="font-mono">${esc(o.return_tracking||'—')}</span> · k výplatě <strong>${Number(o.refund_amount||0).toLocaleString('cs-CZ')} Kč</strong></p>
+                        ${o.return_status==='received' ? `<button onclick="adminPayoutReturn('${o.order_id}')" class="mt-2 bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors">💸 Vyplatit kupujícímu ${Number(o.refund_amount||0).toLocaleString('cs-CZ')} Kč</button>` : ''}
+                    </div>` : ''}
                     <div class="flex gap-2 flex-wrap pt-2 border-t border-red-100 mt-2">
                         <button onclick="adminResolveDispute('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}','refund_buyer',false,false)" class="bg-sky-500 hover:bg-sky-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">↩️ Vrátit kupujícímu</button>
                         <button onclick="adminStartReturn('${o.order_id}','${o.buyer_id}','${o.seller_id}','${o.dispute_id}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors whitespace-nowrap">↩️📦 Vrátit + vratka zboží</button>
@@ -9199,6 +9204,21 @@
             if (!r.ok) throw new Error(await r.text());
             const res = await r.json().catch(() => null);
             showToast('↩️ Vratka spuštěna — podací č. ' + (res && res.tracking || '') + ', refund ' + (res && res.refund || 0) + ' Kč po přijetí.', 'success', 6000);
+            window._checkAdminBadge();
+            setTimeout(() => window._loadAdminTab('spory'), 600);
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    // Admin: ruční výplata kupujícímu po přijaté vratce
+    window.adminPayoutReturn = async function(orderId) {
+        if (!confirm('Vyplatit kupujícímu vrácenou částku do peněženky?\nTímto se spor uzavře ve prospěch kupujícího.')) return;
+        const token = await _ensureValidToken();
+        const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_payout_return`, { method: 'POST', headers: hdrs, body: JSON.stringify({ p_order_id: orderId }) });
+            if (!r.ok) throw new Error(await r.text());
+            const res = await r.json().catch(() => null);
+            showToast('💸 Vyplaceno ' + (res && res.refunded || 0) + ' Kč kupujícímu do peněženky.', 'success', 5000);
             window._checkAdminBadge();
             setTimeout(() => window._loadAdminTab('spory'), 600);
         } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
