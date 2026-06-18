@@ -4015,6 +4015,7 @@
                     <button onclick="window._loadAdminTab('inzeraty')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 transition-colors">📋 Inzeráty</button>
                     <button onclick="window._loadAdminTab('ban')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200 transition-colors">🚫 Ruční BAN</button>
                     <button onclick="window._loadAdminTab('podpora')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors">💬 Podpora<span id="admin-badge-podpora" class="${(window._adminCounts&&window._adminCounts.podpora>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-sky-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.podpora>0)?(window._adminCounts.podpora>99?'99+':window._adminCounts.podpora):''}</span></button>
+                    <button onclick="window._loadAdminTab('compliance')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors">🛡️ Compliance<span id="admin-badge-compliance" class="${(window._adminCounts&&window._adminCounts.compliance>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-indigo-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.compliance>0)?(window._adminCounts.compliance>99?'99+':window._adminCounts.compliance):''}</span></button>
                 </div>
                 <div id="admin-content"><div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin"></div></div></div>
             </div>`;
@@ -7954,7 +7955,360 @@
                     </div>
                 </div>`;
             }
+            else if (tab === 'compliance') {
+                container.innerHTML = `<div class="fade-in">
+                    <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-4">
+                        <p class="text-sm font-bold text-indigo-900">🛡️ AML / Compliance</p>
+                        <p class="text-xs text-indigo-700 mt-1">Monitoring praní špinavých peněz, sankční/PEP screening, audit log a reporty (DAC7, STR/FAÚ). Veškerá detekce běží na serveru — tady jen čteš a rozhoduješ.</p>
+                    </div>
+                    <div id="compliance-subbar" class="flex gap-2 mb-4 flex-wrap"></div>
+                    <div id="compliance-content"><div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-gray-200 border-t-indigo-500 rounded-full animate-spin"></div></div></div>
+                </div>`;
+                setTimeout(() => window._loadComplianceTab(window._complianceSub || 'dashboard'), 0);
+            }
         } catch(e) { container.innerHTML = '<p class="text-red-500 text-center py-8">Chyba načítání: ' + esc(e.message) + '</p>'; }
+    };
+
+    // ──────────────────────────────────────────────────────────────
+    // AML / COMPLIANCE  (Profil → Admin → 🛡️ Compliance)
+    // Backend: aml-compliance.sql  ·  vše chráněno _is_compliance()
+    // ──────────────────────────────────────────────────────────────
+    window._complianceRpc = async function(fn, body) {
+        const token = await _ensureValidToken();
+        const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: hdrs, body: JSON.stringify(body || {}) });
+        if (!r.ok) { let t = ''; try { t = await r.text(); } catch(e) {} throw new Error(fn + ' (' + r.status + ') ' + t); }
+        const txt = await r.text();           // void RPC → 204/prázdné tělo
+        return txt ? JSON.parse(txt) : null;
+    };
+
+    window._downloadBlob = function(content, mime, filename) {
+        const blob = new Blob(['﻿' + content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+        document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    window._downloadCsv = function(rows, filename) {
+        const csv = rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',')).join('\n');
+        window._downloadBlob(csv, 'text/csv;charset=utf-8;', filename);
+    };
+
+    window._loadComplianceTab = async function(sub) {
+        sub = sub || 'dashboard';
+        window._complianceSub = sub;
+        const bar = document.getElementById('compliance-subbar');
+        const content = document.getElementById('compliance-content');
+        if (!content) return;
+        const subs = [['dashboard','📊 Přehled'],['alerty','🚩 AML alerty'],['cases','📁 Případy'],['audit','📜 Audit log'],['screening','🔍 Screening'],['reporty','📑 Reporty'],['config','⚙️ Nastavení']];
+        if (bar) bar.innerHTML = subs.map(s => `<button onclick="window._loadComplianceTab('${s[0]}')" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${sub===s[0]?'bg-indigo-600 text-white border-indigo-600':'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'}">${s[1]}</button>`).join('');
+        content.innerHTML = '<div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-gray-200 border-t-indigo-500 rounded-full animate-spin"></div></div>';
+        try {
+            if (sub === 'dashboard') {
+                const d = await window._complianceRpc('get_aml_dashboard');
+                const card = (label, val, color, hint) => `<div class="border border-gray-100 rounded-2xl p-4 bg-white"><p class="text-3xl font-black ${color}">${val != null ? val : 0}</p><p class="text-xs font-bold text-gray-600 mt-1">${label}</p>${hint ? `<p class="text-[11px] text-gray-400 mt-0.5">${hint}</p>` : ''}</div>`;
+                content.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    ${card('Otevřené alerty', d.alerts_open, d.alerts_open>0?'text-red-600':'text-gray-700', 'čekají na posouzení')}
+                    ${card('Z toho vysoké', d.alerts_high, d.alerts_high>0?'text-red-600':'text-gray-700', 'high severity')}
+                    ${card('V řešení', d.alerts_review, 'text-amber-600')}
+                    ${card('Nahlášeno FAÚ', d.alerts_reported, 'text-indigo-700', 'STR / SAR')}
+                    ${card('Sankční shody', d.sanctioned, d.sanctioned>0?'text-red-600':'text-gray-700')}
+                    ${card('PEP', d.pep, 'text-amber-600', 'politicky exp. osoby')}
+                    ${card('Vysoké riziko', d.high_risk, d.high_risk>0?'text-red-600':'text-gray-700', 'rizikoví klienti')}
+                    ${card('Audit záznamů dnes', d.audit_today, 'text-gray-700')}
+                    ${card('DAC7 subjekty', d.dac7_subjects, 'text-blue-700', 'u / přes limit')}
+                </div>
+                <p class="text-xs text-gray-400 mt-4">Tip: v „🚩 AML alerty" posoudíš upozornění, „📜 Audit log" ukáže kompletní auditní stopu změn.</p>`;
+            }
+            else if (sub === 'alerty') {
+                const f = window._amlAlertFilter || 'open';
+                const rows = await window._complianceRpc('get_aml_alerts', { p_status: f === 'all' ? null : f });
+                const ruleLabel = { large_order:'Velký jednorázový obchod', velocity:'Vysoký obrat v krátkém čase', structuring:'Strukturování (smurfing)', multi_account:'Vícenásobné účty (sdílený kontakt)', sanctioned_party:'Sankcionovaný účastník obchodu', sanctions_hit:'Shoda se sankčním seznamem', pep_hit:'Politicky exponovaná osoba (PEP)', wallet_large_move:'Velký pohyb peněženky' };
+                const sevCls = s => s==='high'?'bg-red-100 text-red-700':s==='medium'?'bg-amber-100 text-amber-700':'bg-gray-100 text-gray-600';
+                const stLabel = { open:'Otevřený', in_review:'V řešení', cleared:'Uzavřen (čistý)', reported:'Nahlášen FAÚ' };
+                const fbtn = (k,l) => `<button onclick="window._amlAlertFilter='${k}';window._loadComplianceTab('alerty')" class="px-3 py-1.5 rounded-lg text-xs font-bold border ${f===k?'bg-gray-800 text-white border-gray-800':'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}">${l}</button>`;
+                const filterBar = `<div class="flex gap-2 mb-4 flex-wrap">${fbtn('open','Otevřené')}${fbtn('in_review','V řešení')}${fbtn('reported','Nahlášené')}${fbtn('all','Vše')}</div>`;
+                if (!Array.isArray(rows) || !rows.length) { content.innerHTML = filterBar + '<p class="text-gray-400 text-center py-8">Žádné alerty v této kategorii. ✓</p>'; return; }
+                content.innerHTML = filterBar + rows.map(a => {
+                    const det = (a.detail && typeof a.detail === 'object') ? Object.entries(a.detail).map(([k,v]) => `<span class="inline-block bg-gray-50 border border-gray-100 rounded-lg px-2 py-0.5 text-[11px] text-gray-600 mr-1 mb-1">${esc(k)}: <strong>${esc(typeof v==='object'?JSON.stringify(v):String(v))}</strong></span>`).join('') : '';
+                    return `<div class="border border-gray-100 rounded-2xl p-4 mb-3 fade-in bg-white">
+                        <div class="flex items-start justify-between gap-3 flex-wrap mb-2">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                    <span class="text-xs font-black uppercase px-2 py-0.5 rounded-full ${sevCls(a.severity)}">${a.severity}</span>
+                                    <span class="text-xs font-bold text-gray-700">${esc(ruleLabel[a.rule_code] || a.rule_code)}</span>
+                                    <span class="text-[11px] text-gray-400">skóre ${a.score}</span>
+                                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold">${stLabel[a.status]||a.status}</span>
+                                </div>
+                                <p class="text-sm font-bold text-gray-800">${esc(a.user_name||'—')} <span class="text-xs text-gray-400 font-normal">${esc(a.email||'')}</span></p>
+                                <p class="text-[11px] text-gray-400 font-mono">${a.user_id?a.user_id.substring(0,8):'—'}${a.order_id?(' · obj. '+a.order_id.substring(0,8)):''} · ${new Date(a.created_at).toLocaleString('cs-CZ')}${a.risk_level?(' · riziko '+a.risk_level+' ('+(a.risk_score||0)+')'):''}</p>
+                            </div>
+                        </div>
+                        <div class="mb-2">${det}</div>
+                        <div class="flex gap-2 flex-wrap pt-2 border-t border-gray-100">
+                            ${a.status==='open' ? `<button onclick="window._amlResolve(${a.id},'in_review')" class="bg-amber-50 hover:bg-amber-500 hover:text-white border border-amber-200 text-amber-700 font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">🔎 Vzít do řešení</button>` : ''}
+                            ${a.status!=='cleared' ? `<button onclick="window._amlResolve(${a.id},'cleared')" class="bg-green-50 hover:bg-green-500 hover:text-white border border-green-200 text-green-700 font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">✓ Uzavřít (čistý)</button>` : ''}
+                            ${a.status!=='reported' ? `<button onclick="window._amlResolve(${a.id},'reported')" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">🚨 Nahlásit FAÚ</button>` : ''}
+                            ${a.user_id ? `<button onclick="window._amlExportStr('${a.user_id}')" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">📤 STR podklad</button>` : ''}
+                            ${a.user_id ? `<button onclick="window._amlScreen('${a.user_id}')" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">🔍 Screening</button>` : ''}
+                            ${a.user_id ? `<button onclick="window._amlCreateCase('${a.user_id}')" class="bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">📁 Případ</button>` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+            else if (sub === 'audit') {
+                window._auditOffset = window._auditOffset || 0;
+                const ent = window._auditEntity || '';
+                const srch = window._auditSearch || '';
+                const rows = await window._complianceRpc('get_audit_log', { p_limit: 100, p_offset: window._auditOffset, p_entity: ent || null, p_search: srch || null });
+                window._auditRows = Array.isArray(rows) ? rows : [];
+                const entities = ['','profiles','objednavky','disputes','wallet_transactions','transactions','top_payments','aml_alerts','aml_reports'];
+                const opts = entities.map(e => `<option value="${e}" ${e===ent?'selected':''}>${e||'— všechny entity —'}</option>`).join('');
+                const head = `<div class="flex gap-2 mb-4 flex-wrap items-center">
+                    <select id="audit-entity" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5">${opts}</select>
+                    <input id="audit-search" value="${esc(srch)}" placeholder="hledat akci / ID…" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 flex-1 min-w-[140px]">
+                    <button onclick="window._auditOffset=0;window._auditEntity=document.getElementById('audit-entity').value;window._auditSearch=document.getElementById('audit-search').value;window._loadComplianceTab('audit')" class="bg-gray-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Filtrovat</button>
+                    <button onclick="window._amlExportAuditCsv()" class="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">⬇ CSV</button>
+                    <button onclick="window._amlVerifyChain()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg">🔒 Ověřit řetězec</button>
+                </div>`;
+                if (!window._auditRows.length) { content.innerHTML = head + '<p class="text-gray-400 text-center py-8">Žádné záznamy. Spusť <span class="font-mono">aml-compliance.sql</span> a proveď nějakou akci.</p>'; return; }
+                const list = window._auditRows.map(r => `<div class="border border-gray-100 rounded-xl p-3 mb-2 bg-white text-xs">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <span class="font-mono text-gray-400">#${r.id} · ${new Date(r.created_at).toLocaleString('cs-CZ')}</span>
+                        <span class="font-bold text-indigo-700">${esc(r.action)}</span>
+                    </div>
+                    <p class="text-gray-600 mt-1">Aktér: <strong>${esc(r.actor_name||'systém')}</strong>${r.actor_role?(' ('+esc(r.actor_role)+')'):''} · ${esc(r.entity_type)} <span class="font-mono">${esc((r.entity_id||'').substring(0,12))}</span></p>
+                    ${(r.before||r.after) ? `<details class="mt-1"><summary class="cursor-pointer text-gray-400 hover:text-gray-600">detaily</summary><pre class="bg-gray-50 rounded-lg p-2 mt-1 overflow-x-auto text-[10px] text-gray-600">${esc(JSON.stringify({ before:r.before, after:r.after, meta:r.meta }, null, 2))}</pre></details>` : ''}
+                </div>`).join('');
+                const pager = `<div class="flex justify-between items-center mt-3">
+                    ${window._auditOffset===0 ? '<span></span>' : `<button onclick="window._auditOffset=Math.max(0,window._auditOffset-100);window._loadComplianceTab('audit')" class="text-gray-600 text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100">← Novější</button>`}
+                    <span class="text-[11px] text-gray-400">záznamy ${window._auditOffset+1}–${window._auditOffset+window._auditRows.length}</span>
+                    ${window._auditRows.length < 100 ? '<span></span>' : `<button onclick="window._auditOffset=window._auditOffset+100;window._loadComplianceTab('audit')" class="text-gray-600 text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100">Starší →</button>`}
+                </div>`;
+                content.innerHTML = head + list + pager;
+            }
+            else if (sub === 'screening') {
+                const rows = await window._complianceRpc('get_aml_screening_recent');
+                const info = `<div class="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-4">
+                    <p class="text-xs text-amber-800">Sankční (EU/OFAC/UN) a PEP screening. <strong>Mock poskytovatel (test)</strong> — porovnává jméno proti tabulce <span class="font-mono">sanctions_cache</span>. Spustí se automaticky při ověření klienta; ručně lze níže. Později nahradíme reálným poskytovatelem (Edge Function).</p>
+                    <div class="flex gap-2 mt-3 flex-wrap">
+                        <input id="screen-uid" placeholder="UUID klienta…" class="text-xs border border-amber-200 rounded-lg px-2 py-1.5 flex-1 min-w-[180px]">
+                        <button onclick="window._amlScreen(document.getElementById('screen-uid').value.trim())" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">🔍 Spustit screening</button>
+                    </div>
+                </div>`;
+                if (!Array.isArray(rows) || !rows.length) { content.innerHTML = info + '<p class="text-gray-400 text-center py-8">Zatím žádné výsledky screeningu.</p>'; return; }
+                content.innerHTML = info + rows.map(s => `<div class="border ${s.hit?'border-red-200 bg-red-50/40':'border-gray-100 bg-white'} rounded-xl p-3 mb-2 text-xs flex items-center gap-3 flex-wrap">
+                    <span class="font-bold px-2 py-0.5 rounded-full ${s.type==='sanctions'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-700'}">${s.type==='sanctions'?'Sankce':'PEP'}</span>
+                    <span class="${s.hit?'text-red-700 font-black':'text-green-700 font-bold'}">${s.hit?'⚠️ SHODA':'✓ bez shody'}</span>
+                    <span class="font-bold text-gray-800">${esc(s.user_name||'—')}</span>
+                    <span class="font-mono text-gray-400">${s.user_id?s.user_id.substring(0,8):''}</span>
+                    <span class="text-gray-400 ml-auto">${new Date(s.checked_at).toLocaleString('cs-CZ')}</span>
+                    ${(s.hit && Array.isArray(s.match) && s.match.length) ? `<div class="w-full mt-1 text-[11px] text-red-700">${s.match.map(m=>esc((m.list||'')+': '+(m.name||''))).join(' · ')}</div>` : ''}
+                </div>`).join('');
+            }
+            else if (sub === 'reporty') {
+                const reps = await window._complianceRpc('get_aml_reports').catch(() => []);
+                const typeLabel = { dac7:'🇪🇺 DAC7', str:'🚨 STR/FAÚ', internal:'📊 Interní' };
+                const list = (Array.isArray(reps) && reps.length) ? reps.map(r => `<div class="border border-gray-100 rounded-xl p-3 mb-2 bg-white text-xs flex items-center gap-3 flex-wrap">
+                    <span class="font-bold">${typeLabel[r.type]||esc(r.type)}</span>
+                    <span class="text-gray-500">období ${esc(r.period||'—')}</span>
+                    ${r.subject_id?`<span class="font-mono text-gray-400">${r.subject_id.substring(0,8)}</span>`:''}
+                    <span class="text-gray-400 ml-auto">${new Date(r.created_at).toLocaleString('cs-CZ')} · ${esc(r.generated_by_name||'—')}</span>
+                </div>`).join('') : '<p class="text-gray-400 text-center py-6">Zatím žádné vygenerované reporty.</p>';
+                content.innerHTML = `<div class="grid md:grid-cols-2 gap-3 mb-5">
+                    <div class="border border-blue-100 bg-blue-50/40 rounded-2xl p-4">
+                        <p class="font-bold text-blue-900 text-sm mb-1">🇪🇺 DAC7 (EU 2021/514)</p>
+                        <p class="text-xs text-blue-700 mb-3">Roční přehled prodejců u/přes limit pro Finanční správu.</p>
+                        <div class="flex gap-2 flex-wrap">
+                            <button onclick="window._amlExportDac7('xml')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg">⬇ XML</button>
+                            <button onclick="window._amlExportDac7('csv')" class="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">⬇ CSV</button>
+                        </div>
+                    </div>
+                    <div class="border border-red-100 bg-red-50/40 rounded-2xl p-4">
+                        <p class="font-bold text-red-900 text-sm mb-1">🚨 STR / SAR (FAÚ)</p>
+                        <p class="text-xs text-red-700">Oznámení podezřelého obchodu se generuje ke konkrétnímu klientovi v záložce <strong>🚩 AML alerty</strong> → tlačítko <strong>📤 STR podklad</strong> (a stav alertu nastav na „Nahlásit FAÚ").</p>
+                    </div>
+                </div>
+                <h4 class="font-bold text-gray-700 text-sm mb-2">Evidence vygenerovaných reportů</h4>
+                ${list}`;
+            }
+            else if (sub === 'cases') {
+                if (window._amlCaseId) {
+                    const c = await window._complianceRpc('get_aml_case', { p_id: window._amlCaseId });
+                    const cs = (c && c.case) ? c.case : {};
+                    const alerts = (c && Array.isArray(c.alerts)) ? c.alerts : [];
+                    const stOpts = ['open','investigating','reported','closed'];
+                    const stLbl = { open:'Otevřený', investigating:'Vyšetřuje se', reported:'Nahlášen FAÚ', closed:'Uzavřen' };
+                    content.innerHTML = `<button onclick="window._amlCaseId=null;window._loadComplianceTab('cases')" class="text-xs text-gray-500 hover:text-gray-800 font-bold mb-3">← zpět na případy</button>
+                        <div class="border border-gray-100 rounded-2xl p-4 bg-white mb-4">
+                            <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+                                <h4 class="font-extrabold text-gray-800">${esc(cs.title||('Případ #'+window._amlCaseId))}</h4>
+                                <span class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold">${stLbl[cs.status]||cs.status||''}</span>
+                            </div>
+                            <p class="text-sm text-gray-700">${esc(cs.user_name||'—')} <span class="text-xs text-gray-400 font-mono">${cs.user_id?cs.user_id.substring(0,8):''}</span></p>
+                            <p class="text-[11px] text-gray-400">riziko ${esc(cs.risk_level||'—')} (${cs.risk_score||0})${cs.is_sanctioned?' · ⚠️ SANKCE':''}${cs.is_pep?' · PEP':''}</p>
+                            <div class="flex gap-2 flex-wrap mt-3 pt-3 border-t border-gray-100">
+                                <select id="case-status" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5">${stOpts.map(s=>`<option value="${s}" ${s===cs.status?'selected':''}>${stLbl[s]}</option>`).join('')}</select>
+                                <button onclick="window._amlUpdateCase(${window._amlCaseId})" class="bg-gray-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Uložit stav</button>
+                                ${cs.user_id?`<button onclick="window._amlExportStr('${cs.user_id}')" class="bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold px-3 py-1.5 rounded-lg">📤 STR podklad</button>`:''}
+                            </div>
+                        </div>
+                        <h5 class="font-bold text-gray-600 text-xs uppercase mb-2">Alerty v případu (${alerts.length})</h5>
+                        ${alerts.length ? alerts.map(a=>`<div class="border border-gray-100 rounded-xl p-3 mb-2 bg-white text-xs"><span class="font-bold text-gray-700">${esc(a.rule)}</span> · <span class="${a.severity==='high'?'text-red-600':'text-amber-600'} font-bold">${a.severity}</span> · skóre ${a.score} · <span class="text-gray-400">${a.status}</span> · ${new Date(a.created_at).toLocaleString('cs-CZ')}</div>`).join('') : '<p class="text-gray-400 text-xs">Žádné navázané alerty.</p>'}`;
+                    return;
+                }
+                const rows = await window._complianceRpc('get_aml_cases', { p_status: null });
+                if (!Array.isArray(rows) || !rows.length) { content.innerHTML = '<p class="text-gray-400 text-center py-8">Žádné případy. Založ je v „🚩 AML alerty" tlačítkem „📁 Případ".</p>'; return; }
+                const stLbl = { open:'Otevřený', investigating:'Vyšetřuje se', reported:'Nahlášen FAÚ', closed:'Uzavřen' };
+                content.innerHTML = rows.map(c=>`<div onclick="window._amlCaseId=${c.id};window._loadComplianceTab('cases')" class="border border-gray-100 rounded-2xl p-4 mb-2 bg-white cursor-pointer hover:border-indigo-200 transition-colors flex items-center gap-3 flex-wrap">
+                    <span class="font-mono text-gray-400 text-xs">#${c.id}</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-gray-800 text-sm truncate">${esc(c.title||'Případ')}</p>
+                        <p class="text-xs text-gray-400">${esc(c.user_name||'—')} · ${c.alert_count} alertů · riziko ${esc(c.risk_level||'—')}</p>
+                    </div>
+                    <span class="text-[11px] px-2 py-0.5 rounded-full font-bold ${c.max_severity==='high'?'bg-red-100 text-red-700':c.max_severity==='medium'?'bg-amber-100 text-amber-700':'bg-gray-100 text-gray-600'}">${c.max_severity||'—'}</span>
+                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold">${stLbl[c.status]||c.status}</span>
+                    <span class="text-[11px] text-gray-400">${new Date(c.created_at).toLocaleDateString('cs-CZ')}</span>
+                </div>`).join('');
+            }
+            else if (sub === 'config') {
+                const rows = await window._complianceRpc('get_aml_config');
+                const info = `<div class="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
+                    <p class="text-xs text-gray-600">Prahy detekce — změna se projeví okamžitě (server-side) a audituje se.</p>
+                    <button onclick="window._amlRescreen()" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">🔁 Spustit rescreening</button>
+                </div>`;
+                if (!Array.isArray(rows) || !rows.length) { content.innerHTML = info + '<p class="text-gray-400 text-center py-8">Žádná konfigurace. Spuštěn aml-compliance.sql?</p>'; return; }
+                content.innerHTML = info + rows.map(c=>`<div class="border border-gray-100 rounded-xl p-3 mb-2 bg-white flex items-center gap-3 flex-wrap">
+                    <div class="flex-1 min-w-0"><p class="font-mono text-xs font-bold text-gray-700">${esc(c.key)}</p><p class="text-[11px] text-gray-400">${esc(c.descr||'')}</p></div>
+                    <input id="cfg-${c.key}" type="number" step="any" value="${c.value}" class="w-28 text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-right font-mono">
+                    <button onclick="window._amlSetConfig('${c.key}')" class="bg-gray-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Uložit</button>
+                </div>`).join('');
+            }
+        } catch(e) { content.innerHTML = '<p class="text-red-500 text-center py-8">Chyba: ' + esc(e.message) + '<br><span class="text-xs text-gray-400">Spustil jsi aml-compliance.sql (+ phase5) v Supabase?</span></p>'; }
+    };
+
+    window._amlResolve = async function(id, status) {
+        let note = null;
+        if (status === 'cleared' || status === 'reported') {
+            note = prompt(status === 'reported' ? 'Poznámka k nahlášení FAÚ (STR):' : 'Poznámka k uzavření alertu:', '');
+            if (note === null) return;
+        }
+        try {
+            await window._complianceRpc('resolve_aml_alert', { p_id: id, p_status: status, p_note: note });
+            showToast('Alert aktualizován.', 'success');
+            if (window._checkAdminBadge) window._checkAdminBadge();
+            window._loadComplianceTab('alerty');
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window._amlScreen = async function(userId) {
+        if (!userId) { showToast('Zadej UUID klienta.', 'warning'); return; }
+        try {
+            const res = await window._complianceRpc('run_aml_screening', { p_user: userId });
+            if (res && res.error) { showToast('Screening: ' + res.error, 'warning'); return; }
+            const hits = [];
+            if (res && res.sanctions) hits.push('SANKCE');
+            if (res && res.pep) hits.push('PEP');
+            showToast(hits.length ? ('⚠️ Shoda: ' + hits.join(', ')) : ('✓ Bez shody' + (res && res.name ? (' (' + res.name + ')') : '')), hits.length ? 'warning' : 'success', 5000);
+            if (window._checkAdminBadge) window._checkAdminBadge();
+            window._loadComplianceTab(window._complianceSub || 'screening');
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window._amlExportStr = async function(userId) {
+        if (!userId) return;
+        try {
+            const c = await window._complianceRpc('get_str_case', { p_user: userId });
+            window._downloadBlob(JSON.stringify(c, null, 2), 'application/json;charset=utf-8', 'STR-podklad-' + String(userId).substring(0, 8) + '.json');
+            await window._complianceRpc('log_aml_report', { p_type: 'str', p_period: String(new Date().getFullYear()), p_subject: userId, p_summary: { alerts: (c && c.alerts ? c.alerts.length : 0) } });
+            showToast('📤 STR podklad vygenerován a zaevidován.', 'success');
+            if (window._checkAdminBadge) window._checkAdminBadge();
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window._amlExportAuditCsv = function() {
+        const rows = window._auditRows;
+        if (!rows || !rows.length) { showToast('Nejprve načti audit log.', 'warning'); return; }
+        const head = ['ID', 'Čas', 'Aktér', 'Role', 'Akce', 'Entita', 'Entity ID'];
+        const data = rows.map(r => [r.id, r.created_at, r.actor_name || '', r.actor_role || '', r.action, r.entity_type, r.entity_id || '']);
+        window._downloadCsv([head].concat(data), 'audit-log.csv');
+    };
+
+    window._amlExportDac7 = async function(format) {
+        try {
+            const rows = await window._complianceRpc('get_dac7_report');
+            if (!Array.isArray(rows) || !rows.length) { showToast('Žádní prodejci u limitu DAC7.', 'warning'); return; }
+            const year = (rows[0] && rows[0].report_year) ? rows[0].report_year : new Date().getFullYear();
+            if (format === 'xml') {
+                const x = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const body = rows.map(s => `  <Seller>
+    <Id>${x(s.seller_id)}</Id>
+    <Name>${x(s.display_name || s.first_name || '')}</Name>
+    <Email>${x(s.email || '')}</Email>
+    <TIN>${x(s.birth_number || '')}</TIN>
+    <Address>${x(s.full_address || '')}</Address>
+    <Consideration currency="CZK">${Number(s.annual_sold_czk || 0)}</Consideration>
+    <NumberOfActivities>${Number(s.annual_sold_count || 0)}</NumberOfActivities>
+  </Seller>`).join('\n');
+                const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<!-- DAC7 (EU 2021/514) zjednoduseny export (test). Nahradit oficialnim DPI XML schematem Financni spravy. -->\n<DAC7Report period="${year}" generatedAt="${new Date().toISOString()}" sellers="${rows.length}">\n${body}\n</DAC7Report>`;
+                window._downloadBlob(xml, 'application/xml;charset=utf-8', 'DAC7-' + year + '.xml');
+            } else {
+                const csv = [['ID', 'Jméno', 'Email', 'Rodné číslo', 'Adresa', 'Status', 'Prodeje (Kč)', 'Počet', 'Rok']].concat(rows.map(s => [s.seller_id, s.display_name || s.first_name || '', s.email || '', s.birth_number || '', s.full_address || '', s.dac7_status, s.annual_sold_czk, s.annual_sold_count, s.report_year]));
+                window._downloadCsv(csv, 'DAC7-' + year + '.csv');
+            }
+            await window._complianceRpc('log_aml_report', { p_type: 'dac7', p_period: String(year), p_summary: { count: rows.length, format } });
+            showToast('🇪🇺 DAC7 ' + format.toUpperCase() + ' vygenerován a zaevidován.', 'success');
+            if (window._complianceSub === 'reporty') window._loadComplianceTab('reporty');
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window._amlCreateCase = async function(userId) {
+        if (!userId) return;
+        try {
+            const id = await window._complianceRpc('create_aml_case', { p_user: userId, p_title: null });
+            showToast('📁 Případ #' + id + ' založen z otevřených alertů klienta.', 'success');
+            window._amlCaseId = id;
+            window._loadComplianceTab('cases');
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window._amlUpdateCase = async function(id) {
+        const sel = document.getElementById('case-status');
+        if (!sel) return;
+        const note = prompt('Poznámka k případu (volitelné):', '');
+        try {
+            await window._complianceRpc('update_aml_case', { p_id: id, p_status: sel.value, p_note: note });
+            showToast('Případ aktualizován.', 'success');
+            if (window._checkAdminBadge) window._checkAdminBadge();
+            window._loadComplianceTab('cases');
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window._amlVerifyChain = async function() {
+        try {
+            const r = await window._complianceRpc('verify_audit_chain', {});
+            if (r && r.ok) showToast('🔒 Řetězec v pořádku — ověřeno ' + r.checked + ' záznamů.', 'success', 5000);
+            else showToast('⚠️ Narušená integrita audit logu u #' + (r ? r.broken_id : '?') + ' (' + (r ? r.reason : '') + ')! Ověřeno ' + (r ? r.checked : 0) + '.', 'error', 9000);
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window._amlSetConfig = async function(key) {
+        const el = document.getElementById('cfg-' + key);
+        if (!el) return;
+        const val = parseFloat(el.value);
+        if (isNaN(val)) { showToast('Neplatná hodnota.', 'warning'); return; }
+        try {
+            await window._complianceRpc('set_aml_config', { p_key: key, p_value: val });
+            showToast('Práh „' + key + '" uložen: ' + val, 'success');
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    window._amlRescreen = async function() {
+        try {
+            const n = await window._complianceRpc('run_aml_rescreen', {});
+            showToast('🔁 Rescreening hotov — prověřeno ' + n + ' klientů.', 'success', 5000);
+            if (window._checkAdminBadge) window._checkAdminBadge();
+        } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
     };
 
     window.adminUpdateTicket = async function(ticketId, status) {
@@ -8322,22 +8676,25 @@
         if (!token) return;
         const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
         try {
-            const [r1, r2, r3] = await Promise.all([
+            const [r1, r2, r3, r4] = await Promise.all([
                 fetch(SUPABASE_URL + '/rest/v1/rpc/get_pending_kyc',      { method: 'POST', headers: hdrs, body: '{}' }),
                 fetch(SUPABASE_URL + '/rest/v1/rpc/get_disputed_orders',   { method: 'POST', headers: hdrs, body: '{}' }),
-                fetch(SUPABASE_URL + '/rest/v1/support_tickets?status=eq.open&select=id', { headers: hdrs })
+                fetch(SUPABASE_URL + '/rest/v1/support_tickets?status=eq.open&select=id', { headers: hdrs }),
+                fetch(SUPABASE_URL + '/rest/v1/rpc/get_aml_dashboard',     { method: 'POST', headers: hdrs, body: '{}' })
             ]);
-            const [kyc, disputes, tickets] = await Promise.all([
+            const [kyc, disputes, tickets, aml] = await Promise.all([
                 r1.ok ? r1.json().catch(function() { return []; }) : Promise.resolve([]),
                 r2.ok ? r2.json().catch(function() { return []; }) : Promise.resolve([]),
-                r3.ok ? r3.json().catch(function() { return []; }) : Promise.resolve([])
+                r3.ok ? r3.json().catch(function() { return []; }) : Promise.resolve([]),
+                r4.ok ? r4.json().catch(function() { return {}; }) : Promise.resolve({})
             ]);
             const counts = {
-                kyc:     Array.isArray(kyc)     ? kyc.length     : 0,
-                spory:   Array.isArray(disputes) ? disputes.length : 0,
-                podpora: Array.isArray(tickets)  ? tickets.length  : 0
+                kyc:        Array.isArray(kyc)      ? kyc.length      : 0,
+                spory:      Array.isArray(disputes) ? disputes.length : 0,
+                podpora:    Array.isArray(tickets)  ? tickets.length  : 0,
+                compliance: (aml && typeof aml.alerts_open === 'number') ? aml.alerts_open : 0
             };
-            const total = counts.kyc + counts.spory + counts.podpora;
+            const total = counts.kyc + counts.spory + counts.podpora + counts.compliance;
             window._adminBadgeCount = total;
             window._adminCounts     = counts;
             // Helper: update badge element
@@ -8351,6 +8708,7 @@
             upd('admin-badge-kyc',     counts.kyc);
             upd('admin-badge-spory',   counts.spory);
             upd('admin-badge-podpora', counts.podpora);
+            upd('admin-badge-compliance', counts.compliance);
         } catch(e) { /* silent */ }
     };
 
