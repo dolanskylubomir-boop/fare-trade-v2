@@ -6128,6 +6128,21 @@
     let _disputeOrderId = null;
     let _disputePhotos  = [null, null, null];
 
+    // České popisky důvodů sporu (kódy z obou výběrů důvodů)
+    window._disputeReasonCz = function(code) {
+        const M = {
+            wrong_item:        'Přišlo jiné zboží',
+            damaged:           'Zboží přišlo poškozené',
+            not_arrived:       'Zásilka nedorazila',
+            incomplete:        'Zásilka přišla nekompletní',
+            not_as_described:  'Neodpovídá popisu v inzerátu',
+            missing_parts:     'Chybí příslušenství / části',
+            condition_mismatch:'Stav neodpovídá popisu',
+            other:             'Jiný problém'
+        };
+        return M[code] || code || '—';
+    };
+
     window.openDisputeModal = function(orderId) {
         _disputeOrderId = orderId;
         _disputePhotos  = [null, null, null];
@@ -6849,7 +6864,7 @@
 
             ${dispute ? `<h3 class="text-xs font-bold text-red-400 uppercase tracking-wider mb-2">⚖️ Detail sporu</h3>
             <div class="bg-red-50 border border-red-100 rounded-2xl p-4 mb-5 text-sm">
-                <p class="font-bold text-red-700 mb-1">${esc(dispute.reason||'—')}</p>
+                <p class="font-bold text-red-700 mb-1">${esc(window._disputeReasonCz(dispute.reason))}</p>
                 <p class="text-gray-700">${esc(dispute.description||'—')}</p>
                 ${evPhotos.length?`<div class="flex gap-2 flex-wrap mt-3">${evPhotos.map(u=>`<a href="${u}" target="_blank"><img src="${u}" class="w-14 h-14 rounded-xl object-cover border border-red-200 cursor-zoom-in"></a>`).join('')}</div>`:''}
             </div>`:''}
@@ -8239,7 +8254,7 @@
                         <span class="font-extrabold text-base text-red-600 shrink-0 whitespace-nowrap">${Number(o.total).toLocaleString('cs-CZ')} Kč</span>
                     </div>
                     <div class="bg-white rounded-xl p-3 mb-3 border border-red-100">
-                        <p class="text-xs font-bold text-red-700 mb-1">⚖️ Důvod: ${esc(reasonLabel[o.dispute_reason] || o.dispute_reason || '—')}</p>
+                        <p class="text-xs font-bold text-red-700 mb-1">⚖️ Důvod: ${esc(window._disputeReasonCz(o.dispute_reason))}</p>
                         <p class="text-sm text-gray-700">${esc(o.dispute_description || '—')}</p>
                     </div>
                     ${photoGrid(shipPhotos, '📦 Fotky zásilky od prodejce')}
