@@ -4258,8 +4258,14 @@
         }
         if (tab === 'kyc') {
             setTimeout(function() {
-                window.updatePushBtn && window.updatePushBtn();
-                _loadVacationState();
+                if (window._isSellerVerified()) {
+                    window.updatePushBtn && window.updatePushBtn();
+                    _loadVacationState();
+                } else {
+                    // Light účet (neověřený kupující) — push notifikace a prázdninový režim se neukazují
+                    const _pb = document.getElementById('kyc-push-box'); if (_pb) _pb.classList.add('hidden');
+                    const _vb = document.getElementById('kyc-vacation-box'); if (_vb) _vb.classList.add('hidden');
+                }
                 if (window._privateProfileCache?.data) _applyKycToDOM(window._privateProfileCache.data);
             }, 150);
             return `
@@ -4268,7 +4274,7 @@
                 <span id="kyc-status-badge" class="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider">Načítám…</span>
             </div>
             <div id="kyc-rejection-box" class="hidden bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 fade-in"></div>
-            <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4 mb-5 flex items-center justify-between gap-3 fade-in">
+            <div id="kyc-push-box" class="bg-sky-50 border border-sky-200 rounded-2xl p-4 mb-5 flex items-center justify-between gap-3 fade-in">
                 <div><p class="font-bold text-sky-800 text-sm">🔔 Push notifikace</p><p class="text-xs text-sky-600 mt-0.5">Dostávej oznámení i při zavřené aplikaci.</p></div>
                 <div class="flex items-center gap-2 shrink-0">
                     <button id="push-toggle-btn" onclick="manualSubscribePush()" class="bg-sky-500 hover:bg-sky-600 active:scale-95 text-white font-bold text-sm px-4 py-2 rounded-xl transition-all">Zapnout</button>
@@ -4287,7 +4293,7 @@
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span>Skutečné osobní údaje jsou bezpečně šifrovány. Zákazníci uvidí pouze Vaše Zobrazované jméno.</span>
             </div>
-            <div class="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 fade-in">
+            <div id="kyc-vacation-box" class="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 fade-in">
                 <div class="flex items-center justify-between gap-3">
                     <div>
                         <p class="font-bold text-amber-800 text-sm">🏖️ Prázdninový režim</p>
@@ -4586,15 +4592,57 @@
         }
     };
 
+    // Pole pro přihlášení/založení účtu v checkoutu.
+    // Host (nepřihlášený): e-mail + heslo → vznikne light účet (objednávky/KYC/hodnocení).
+    // Přihlášený: jen předvyplněný (readonly) e-mail.
+    function _checkoutAuthFields(pfx) {
+        const cls = 'w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white';
+        if (window.currentUser && !window._isAnonBuyer) {
+            return `<input id="${pfx}-email" type="email" value="${window.currentUser.email || ''}" readonly class="w-full px-4 py-3 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-500 cursor-not-allowed" autocomplete="email">`;
+        }
+        return `
+                            <input id="${pfx}-email" type="email" required placeholder="E-mail * (vznikne účet pro sledování objednávky)" maxlength="120" class="${cls}" autocomplete="email">
+                            <input id="${pfx}-password" type="password" required placeholder="Heslo k účtu * (min. 8 znaků)" minlength="8" maxlength="72" class="${cls}" autocomplete="new-password">
+                            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex gap-2 items-start">
+                                <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span>Vytvoříme vám <strong>účet</strong> (e-mail + heslo), abyste mohli sledovat objednávku, <strong>potvrdit doručení</strong> a případně <strong>otevřít spor</strong> — i z jiného zařízení. Pro prodej a aukce stačí později ověření přes <strong>BankID</strong>.</span>
+                            </div>`;
+    }
+
+    // Založí "light" účet kupujícího z checkout formuláře (nebo přihlásí existující).
+    async function _createBuyerAccount(email, password) {
+        if (!supabaseClient) { showToast('Systém je dočasně nedostupný, zkuste to znovu.','error'); return false; }
+        try {
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (!error && data?.session && data?.user) { window.currentUser = data.user; window._isAnonBuyer = false; return true; }
+            // E-mail už existuje (error) NEBO je zapnuté potvrzení e-mailu (bez session) → zkus přihlásit
+            const si = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (si.data?.session && si.data?.user) { window.currentUser = si.data.user; window._isAnonBuyer = false; return true; }
+            if (error && /registered|already|exist/i.test(error.message || '')) {
+                showToast('Tento e-mail už má účet — zadejte správné heslo, nebo se přihlaste.','warning',6000);
+            } else if (!error && data?.user && !data?.session) {
+                showToast('Účet vznikl, ale je potřeba potvrdit e-mail. Po potvrzení se přihlaste a dokončete nákup.','warning',7000);
+            } else {
+                showToast('Účet se nepodařilo vytvořit: ' + (error?.message || si.error?.message || 'neznámá chyba'),'error');
+            }
+            return false;
+        } catch(e) { showToast('Chyba účtu: ' + e.message,'error'); return false; }
+    }
+
     // Po vyplnění adresy + dopravy → platební brána (QR / karta / FIO test, případně peněženka).
-    // Objednávka se vytvoří až po úspěšné platbě (host se nemusí registrovat).
-    window.startFixedPayment = function(kind, ref) {
+    // Neregistrovaný kupující → z formuláře založíme light účet (kvůli sporu / potvrzení doručení).
+    window.startFixedPayment = async function(kind, ref) {
         const pfx = kind === 'cart' ? 'co' : 'phn';
         const g = id => (document.getElementById(pfx + '-' + id)?.value || '').trim();
         const name=g('name'), street=g('street'), city=g('city'), zip=g('zip'), phone=g('phone'), email=g('email');
+        const password = document.getElementById(pfx + '-password')?.value || '';
         if (!name||!street||!city||!zip||!phone) { showToast('Vyplňte všechna povinná pole adresy.','warning'); return; }
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Zadejte platný e-mail nebo pole nechte prázdné.','warning'); return; }
         if (!_checkoutCarrier) { showToast('Vyberte způsob doručení.','warning'); return; }
+        if (!window.currentUser || window._isAnonBuyer) {
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Zadejte platný e-mail — slouží jako přihlášení k vašemu účtu.','warning'); return; }
+            if (password.length < 8) { showToast('Zadejte heslo k účtu (min. 8 znaků).','warning'); return; }
+            if (!(await _createBuyerAccount(email, password))) return;
+        }
         let sub, items, sellerId;
         if (kind === 'cart') {
             const grp = window.Cart.get()[ref];
@@ -5330,7 +5378,8 @@
         </div>`,
 
         profil: (activeTab) => {
-            if (!activeTab) activeTab = 'inzeraty';
+            const verified = window._isSellerVerified();
+            if (!activeTab) activeTab = verified ? 'inzeraty' : 'objednavky';
             setTimeout(() => { loadProfileData(activeTab); }, 0);
             const tab = t => t===activeTab
                 ? 'profile-tab px-3.5 py-4 font-bold text-sky-500 border-b-2 border-sky-500 bg-sky-50/50 whitespace-nowrap text-sm outline-none transition-all'
@@ -5359,26 +5408,26 @@
                     <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Prodáno</span><span id="profile-earned" class="text-xl font-black text-green-600">0 Kč</span></div>
                     <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Nakoupeno</span><span id="profile-spent" class="text-xl font-black text-pink-600">0 Kč</span></div>
                 </div>
-                <div class="flex flex-wrap gap-3 mb-4">
+                ${verified ? `<div class="flex flex-wrap gap-3 mb-4">
                     <button onclick="navigate('penezenka')" class="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-2xl px-4 py-2.5 transition-colors">
                         <span class="text-lg">💰</span>
                         <div class="text-left"><p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Peněženka</p><p class="text-sm font-black text-emerald-700" id="profile-wallet-balance">0 Kč</p></div>
                     </button>
-                </div>
+                </div>` : ''}
                 <div id="dac7-banner"></div>
                 <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 overflow-hidden">
                     <div class="flex border-b border-gray-100">
                         <div class="flex overflow-x-auto scrollbar-hide flex-1 min-w-0">
-                            <button id="tab-btn-inzeraty"  onclick="navigate('profil/inzeraty')"   class="${tab('inzeraty')} relative">Inzeráty</button>
-                            <button id="tab-btn-penezenka" onclick="navigate('penezenka')" class="${tab('penezenka')} relative">💰 Peněženka</button>
-                            <button id="tab-btn-transakce" onclick="navigate('profil/transakce')"  class="${tab('transakce')} relative">Transakce</button>
+                            ${verified ? `<button id="tab-btn-inzeraty"  onclick="navigate('profil/inzeraty')"   class="${tab('inzeraty')} relative">Inzeráty</button>` : ''}
+                            ${verified ? `<button id="tab-btn-penezenka" onclick="navigate('penezenka')" class="${tab('penezenka')} relative">💰 Peněženka</button>` : ''}
+                            ${verified ? `<button id="tab-btn-transakce" onclick="navigate('profil/transakce')"  class="${tab('transakce')} relative">Transakce</button>` : ''}
                             <button id="tab-btn-objednavky" onclick="navigate('profil/objednavky')" class="${tab('objednavky')} relative">Objednávky 📦<span id="objednavky-alert-dot" class="unread-dot hidden" style="background:#f97316" title="Čekají objednávky k odeslání">!</span></button>
                             <button id="tab-btn-kyc"       onclick="navigate('profil/kyc')"        class="${tab('kyc')} relative">KYC</button>
-                            <button id="tab-btn-oblibene"  onclick="navigate('profil/oblibene')"   class="${tab('oblibene')} relative">Oblíbené ❤️</button>
-                            <button id="tab-btn-provas"    onclick="navigate('profil/provas')"     class="${tab('provas')} relative">💎 Pro vás</button>
+                            ${verified ? `<button id="tab-btn-oblibene"  onclick="navigate('profil/oblibene')"   class="${tab('oblibene')} relative">Oblíbené ❤️</button>` : ''}
+                            ${verified ? `<button id="tab-btn-provas"    onclick="navigate('profil/provas')"     class="${tab('provas')} relative">💎 Pro vás</button>` : ''}
                             <button id="tab-btn-hodnoceni" onclick="navigate('profil/hodnoceni')"  class="${tab('hodnoceni')} relative">⭐ Hodnocení</button>
-                            <button onclick="navigate('profil/zpravy')"    class="${tab('zpravy')} relative" id="tab-btn-zpravy">Zprávy 💬<span id="zpravy-unread-dot" class="unread-dot hidden"></span></button>
-                            <button onclick="navigate('profil/aktivity')"  class="${tab('aktivity')} relative" id="tab-btn-aktivity">🔔 Aktivity<span id="aktivity-unread-dot" class="unread-dot hidden"></span></button>
+                            ${verified ? `<button onclick="navigate('profil/zpravy')"    class="${tab('zpravy')} relative" id="tab-btn-zpravy">Zprávy 💬<span id="zpravy-unread-dot" class="unread-dot hidden"></span></button>` : ''}
+                            ${verified ? `<button onclick="navigate('profil/aktivity')"  class="${tab('aktivity')} relative" id="tab-btn-aktivity">🔔 Aktivity<span id="aktivity-unread-dot" class="unread-dot hidden"></span></button>` : ''}
                         </div>
                         ${window._userRole === 'admin' ? `<button onclick="navigate('profil/admin')" class="${tab('admin')} shrink-0 border-l border-gray-100 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-extrabold">⚙️ Admin<span id="admin-activity-badge" class="${(window._adminBadgeCount||0) > 0 ? '' : 'hidden'} ml-1 min-w-[16px] h-4 rounded-full bg-red-600 text-white text-[9px] font-black inline-flex items-center justify-center px-1 shadow">${(window._adminBadgeCount||0) > 0 ? ((window._adminBadgeCount > 99 ? '99+' : window._adminBadgeCount)) : ''}</span></button>` : ''}
                     </div>
@@ -6391,7 +6440,7 @@
                                 <input id="co-zip"  type="text" placeholder="PSČ *"   class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white" maxlength="6" autocomplete="postal-code" inputmode="numeric" oninput="formatPSC(this); if(this.value.replace(/\s/g,'').length===5) _zipLookup(this, document.getElementById('co-city'))">
                             </div>
                             <input id="co-phone" type="tel" placeholder="Telefon *"                class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white" autocomplete="tel">
-                            <input id="co-email" type="email" placeholder="E-mail pro potvrzení objednávky (nepovinné)" value="${window.currentUser?.email || ''}" maxlength="120" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white" autocomplete="email">
+                            ${_checkoutAuthFields('co')}
                         </div>
                     </div>
                     <div class="bg-gray-50 rounded-3xl p-5">
@@ -6504,7 +6553,7 @@
                                 <input id="phn-zip"  type="text" placeholder="PSČ *"   class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white" maxlength="6" autocomplete="postal-code">
                             </div>
                             <input id="phn-phone" type="tel" placeholder="Telefon *" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white" autocomplete="tel">
-                            <input id="phn-email" type="email" placeholder="E-mail pro potvrzení objednávky (nepovinné)" value="${window.currentUser?.email || ''}" maxlength="120" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white" autocomplete="email">
+                            ${_checkoutAuthFields('phn')}
                         </div>
                     </div>
                     <div class="bg-gray-50 rounded-3xl p-5">
@@ -9397,6 +9446,7 @@
         if (now - _lastBidTime < 1500) { showToast('Příliš rychle. Počkejte chvíli.', 'warning'); return; }
 
         if (!window.currentUser) { showToast('Pro příhoz se musíte přihlásit.', 'warning'); navigate('login'); return; }
+        if (!window._isSellerVerified()) { showToast('Pro účast v aukcích je nutné ověření přes BankID (Profil → KYC).', 'warning'); navigate('kyc'); return; }
         increment = parseInt(increment, 10);
         if (!Number.isFinite(increment) || increment <= 0) return showToast('Neplatná částka příhozu.', 'warning');
         _lastBidTime = now;
