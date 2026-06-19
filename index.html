@@ -5882,7 +5882,7 @@
                     <h3 class="text-base font-bold text-gray-800 mb-4">Přeprava a rozměry</h3>
                     <div class="grid grid-cols-2 gap-4 mb-5">
                         <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Váha (kg)</label><input type="number" step="0.1" id="ad-weight" placeholder="1.5" oninput="window._updateShipHint()" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
-                        <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Rozměry (cm)</label><input type="text" id="ad-dimensions" placeholder="D x Š x V" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
+                        <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Rozměry (cm)</label><input type="text" id="ad-dimensions" placeholder="D x Š x V" oninput="window._updateShipHint()" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
                     </div>
                     <label class="text-xs font-bold text-gray-500 pl-1 mb-2 block">Nabízené způsoby dopravy</label>
                     <div class="flex flex-wrap gap-2">
@@ -6179,13 +6179,28 @@
         { id:'dpd',        name:'DPD',        price:109, tierKey:'DPD',        desc:'Adresa nebo DPD Pickup Box', icon:'🚛' },
     ];
 
-    // Hmotnostní ceník dopravců (orientační pásma „do X kg = cena Kč").
+    // Hmotnostní + rozměrový ceník dopravců (orientační pásma „do X kg = cena Kč";
+    // maxLongestCm = nejdelší strana, maxSumCm = součet D+Š+V).
     const SHIPPING_TIERS = {
-        'Zásilkovna':     { maxKg: 5,        tiers: [[1,79],[2,89],[5,109]] },
-        'PPL':            { maxKg: 50,       tiers: [[2,99],[5,129],[10,159],[20,219],[50,329]] },
-        'DPD':            { maxKg: 50,       tiers: [[2,109],[5,139],[10,169],[20,229],[50,339]] },
-        'Česká pošta':    { maxKg: 10,       tiers: [[1,89],[2,109],[5,139],[10,179]] },
-        'Osobní předání': { maxKg: Infinity, tiers: [[Infinity,0]] }
+        'Zásilkovna':     { maxKg: 5,        maxLongestCm: 70,       maxSumCm: 120,      tiers: [[1,79],[2,89],[5,109]] },
+        'PPL':            { maxKg: 50,       maxLongestCm: 200,      maxSumCm: 300,      tiers: [[2,99],[5,129],[10,159],[20,219],[50,329]] },
+        'DPD':            { maxKg: 50,       maxLongestCm: 175,      maxSumCm: 300,      tiers: [[2,109],[5,139],[10,169],[20,229],[50,339]] },
+        'Česká pošta':    { maxKg: 10,       maxLongestCm: 120,      maxSumCm: 200,      tiers: [[1,89],[2,109],[5,139],[10,179]] },
+        'Osobní předání': { maxKg: Infinity, maxLongestCm: Infinity, maxSumCm: Infinity, tiers: [[Infinity,0]] }
+    };
+    // Vejde se zboží do rozměrových limitů dopravce? (rozměr nezadán → neomezujeme)
+    window._dimsFit = function(method, dimsStr) {
+        const t = SHIPPING_TIERS[method];
+        if (!t) return true;
+        const nums = String(dimsStr || '').match(/\d+(?:[.,]\d+)?/g);
+        if (!nums || !nums.length) return true;
+        const dims = nums.map(n => parseFloat(n.replace(',', '.'))).filter(x => x > 0);
+        if (!dims.length) return true;
+        const longest = Math.max.apply(null, dims);
+        const sum = dims.reduce(function(s, x){ return s + x; }, 0);
+        if (t.maxLongestCm !== Infinity && longest > t.maxLongestCm) return false;
+        if (t.maxSumCm !== Infinity && sum > t.maxSumCm) return false;
+        return true;
     };
     // Cena dopravy pro danou hmotnost; null = nevejde se do limitu dopravce.
     window._shipPriceFor = function(method, kg) {
@@ -6229,17 +6244,22 @@
         if (!hintEl) return;
         const wkg = parseFloat((document.getElementById('ad-weight') || {}).value) || 0;
         if (wkg <= 0) { hintEl.innerHTML = ''; return; }
+        const dimsStr = (document.getElementById('ad-dimensions') || {}).value || '';
         const checked = Array.from(document.querySelectorAll('input[name="shipping"]:checked')).map(el => el.value);
         const methods = checked.length ? checked : ['Zásilkovna','PPL','Česká pošta','Osobní předání'];
-        const rows = methods.map(m => ({ m, price: window._shipPriceFor(m, wkg) }));
-        const fit  = rows.filter(x => x.price !== null);
-        const over = rows.filter(x => x.price === null);
-        const paid = fit.filter(r => r.price > 0).sort((a,b) => a.price - b.price);
+        const rows = methods.map(m => {
+            const price = window._shipPriceFor(m, wkg);
+            return { m, price, fitsW: price !== null, fitsD: window._dimsFit(m, dimsStr) };
+        });
+        const ok  = rows.filter(r => r.fitsW && r.fitsD);
+        const bad = rows.filter(r => !(r.fitsW && r.fitsD));
+        const paid = ok.filter(r => r.price > 0).sort((a,b) => a.price - b.price);
+        const dimsNote = dimsStr.trim() ? ' / rozměru ' + esc(dimsStr.trim()) : '';
         hintEl.innerHTML = '<div class="bg-sky-50 border border-sky-100 rounded-xl px-3 py-2.5 text-xs text-sky-800 leading-relaxed">'
-            + '💡 <strong>Doprava pro ' + wkg + ' kg</strong> (orientačně dle ceníku):<div class="flex flex-wrap gap-2 mt-1.5">'
-            + fit.map(r => '<span class="bg-white border border-sky-200 rounded-lg px-2 py-1">' + esc(r.m) + ' · <strong>' + r.price + ' Kč</strong></span>').join('')
-            + over.map(r => '<span class="bg-white border border-amber-200 text-amber-700 rounded-lg px-2 py-1">' + esc(r.m) + ' · nad limit ⚠️</span>').join('')
-            + '</div>' + (paid.length ? '<p class="mt-1.5">Nejlevnější doručení: <strong>' + esc(paid[0].m) + ' ' + paid[0].price + ' Kč</strong>.</p>' : '')
+            + '💡 <strong>Doprava pro ' + wkg + ' kg</strong>' + dimsNote + ' (orientačně dle ceníku):<div class="flex flex-wrap gap-2 mt-1.5">'
+            + ok.map(r => '<span class="bg-white border border-sky-200 rounded-lg px-2 py-1">' + esc(r.m) + ' · <strong>' + r.price + ' Kč</strong></span>').join('')
+            + bad.map(r => '<span class="bg-white border border-amber-200 text-amber-700 rounded-lg px-2 py-1">' + esc(r.m) + ' · ' + (!r.fitsW ? 'nad limit váhy' : 'nadrozměr') + ' ⚠️</span>').join('')
+            + '</div>' + (paid.length ? '<p class="mt-1.5">Nejlevnější vhodné doručení: <strong>' + esc(paid[0].m) + ' ' + paid[0].price + ' Kč</strong>.</p>' : '<p class="mt-1.5 text-amber-700">Pro tyto parametry není mezi vybranými vhodný dopravce — zvolte jiný nebo osobní předání.</p>')
             + '</div>';
     };
     function _trackingUrl(carrier, num) {
