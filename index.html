@@ -3179,21 +3179,8 @@
             if (Array.isArray(d.shipping) && d.shipping.length) {
                 document.querySelectorAll('input[name="shipping"]').forEach(el => { el.checked = d.shipping.includes(el.value); });
             }
-            // Doporučení dopravy + cena dle hmotnosti (ceník po pásmech)
-            const wkg = Number(d.weight_kg) || 0;
-            const hintEl = document.getElementById('ai-ship-hint');
-            if (hintEl && wkg > 0) {
-                const methods = (Array.isArray(d.shipping) && d.shipping.length) ? d.shipping : ['Zásilkovna','PPL','Česká pošta','Osobní předání'];
-                const rows = methods.map(m => ({ m, price: window._shipPriceFor(m, wkg) })).filter(x => x.price !== null);
-                if (rows.length) {
-                    const paid = rows.filter(r => r.price > 0).sort((a,b) => a.price - b.price);
-                    hintEl.innerHTML = '<div class="bg-sky-50 border border-sky-100 rounded-xl px-3 py-2.5 text-xs text-sky-800 leading-relaxed">'
-                        + '💡 <strong>Doprava pro odhad ~' + wkg + ' kg</strong> (orientačně dle ceníku):<div class="flex flex-wrap gap-2 mt-1.5">'
-                        + rows.map(r => '<span class="bg-white border border-sky-200 rounded-lg px-2 py-1">' + esc(r.m) + ' · <strong>' + r.price + ' Kč</strong></span>').join('')
-                        + '</div>' + (paid.length ? '<p class="mt-1.5">Nejlevnější doručení: <strong>' + esc(paid[0].m) + ' ' + paid[0].price + ' Kč</strong>.</p>' : '')
-                        + '</div>';
-                } else { hintEl.innerHTML = ''; }
-            }
+            // Doporučení dopravy + cena dle hmotnosti (stejný výpočet jako u ruční změny)
+            window._updateShipHint && window._updateShipHint();
             if (btnText) btnText.innerText = 'Hotovo! (Upravte si text)';
         } catch(e) {
             console.warn('[AI generate-listing] výjimka:', e);
@@ -5894,12 +5881,12 @@
                 <div class="border-t border-gray-100 pt-6">
                     <h3 class="text-base font-bold text-gray-800 mb-4">Přeprava a rozměry</h3>
                     <div class="grid grid-cols-2 gap-4 mb-5">
-                        <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Váha (kg)</label><input type="number" step="0.1" id="ad-weight" placeholder="1.5" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
+                        <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Váha (kg)</label><input type="number" step="0.1" id="ad-weight" placeholder="1.5" oninput="window._updateShipHint()" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
                         <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Rozměry (cm)</label><input type="text" id="ad-dimensions" placeholder="D x Š x V" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
                     </div>
                     <label class="text-xs font-bold text-gray-500 pl-1 mb-2 block">Nabízené způsoby dopravy</label>
                     <div class="flex flex-wrap gap-2">
-                        ${['Zásilkovna','PPL','Česká pošta','Osobní předání'].map(m=>`<label class="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"><input type="checkbox" name="shipping" value="${m}" class="w-4 h-4 text-sky-500 rounded focus:ring-sky-400" checked><span class="text-xs font-semibold text-gray-700">${m}</span></label>`).join('')}
+                        ${['Zásilkovna','PPL','Česká pošta','Osobní předání'].map(m=>`<label class="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"><input type="checkbox" name="shipping" value="${m}" onchange="window._updateShipHint()" class="w-4 h-4 text-sky-500 rounded focus:ring-sky-400" checked><span class="text-xs font-semibold text-gray-700">${m}</span></label>`).join('')}
                     </div>
                     <div id="ai-ship-hint" class="mt-2"></div>
                 </div>
@@ -6233,6 +6220,27 @@
         accent = accent || 'amber';
         return DOPRAVCI.map(function(d){ const pr = window._carrierPrice(d, weightKg);
             return `<label class="flex items-center gap-3 p-3 rounded-xl border-2 border-gray-100 cursor-pointer hover:border-${accent}-300 transition-colors has-[:checked]:border-${accent}-400 has-[:checked]:bg-${accent}-50"><input type="radio" name="phn-carrier" value="${d.id}" onchange="selectCarrier('${d.id}',${pr})" class="accent-${accent}-500"><span class="text-lg">${d.icon}</span><span class="flex-1 text-sm font-medium">${d.name}</span><span class="text-sm font-bold text-gray-700">${pr > 0 ? pr.toLocaleString('cs-CZ') + ' Kč' : 'Zdarma'}</span></label>`; }).join('');
+    };
+
+    // Živý přepočet cen dopravy ve formuláři inzerátu podle zadané váhy
+    // a zaškrtnutých způsobů dopravy (volá AI i ruční změna pole).
+    window._updateShipHint = function() {
+        const hintEl = document.getElementById('ai-ship-hint');
+        if (!hintEl) return;
+        const wkg = parseFloat((document.getElementById('ad-weight') || {}).value) || 0;
+        if (wkg <= 0) { hintEl.innerHTML = ''; return; }
+        const checked = Array.from(document.querySelectorAll('input[name="shipping"]:checked')).map(el => el.value);
+        const methods = checked.length ? checked : ['Zásilkovna','PPL','Česká pošta','Osobní předání'];
+        const rows = methods.map(m => ({ m, price: window._shipPriceFor(m, wkg) }));
+        const fit  = rows.filter(x => x.price !== null);
+        const over = rows.filter(x => x.price === null);
+        const paid = fit.filter(r => r.price > 0).sort((a,b) => a.price - b.price);
+        hintEl.innerHTML = '<div class="bg-sky-50 border border-sky-100 rounded-xl px-3 py-2.5 text-xs text-sky-800 leading-relaxed">'
+            + '💡 <strong>Doprava pro ' + wkg + ' kg</strong> (orientačně dle ceníku):<div class="flex flex-wrap gap-2 mt-1.5">'
+            + fit.map(r => '<span class="bg-white border border-sky-200 rounded-lg px-2 py-1">' + esc(r.m) + ' · <strong>' + r.price + ' Kč</strong></span>').join('')
+            + over.map(r => '<span class="bg-white border border-amber-200 text-amber-700 rounded-lg px-2 py-1">' + esc(r.m) + ' · nad limit ⚠️</span>').join('')
+            + '</div>' + (paid.length ? '<p class="mt-1.5">Nejlevnější doručení: <strong>' + esc(paid[0].m) + ' ' + paid[0].price + ' Kč</strong>.</p>' : '')
+            + '</div>';
     };
     function _trackingUrl(carrier, num) {
         if (!num) return null;
