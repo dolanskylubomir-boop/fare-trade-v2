@@ -2239,7 +2239,7 @@
         dispute_admin:  '🚨', auction_won:'🏆', new_review:'⭐', seller_reply:'💬',
         dac7_warning:   '⚠️', dac7_blocked:'🔒', dac7_verified:'✅',
         listing_deactivated:'🚫', listing_reactivated:'✅',
-        support_reply:'💬',
+        support_reply:'💬', news:'📢', account_banned:'🚫', nonpayment:'⏰', nonpayment_warning:'⚠️', ban_notice:'⚠️', order_cancelled:'❌',
         default:'🔔'
     };
 
@@ -4556,6 +4556,7 @@
                     <button onclick="window._loadAdminTab('podpora')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors">💬 Podpora<span id="admin-badge-podpora" class="${(window._adminCounts&&window._adminCounts.podpora>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-sky-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.podpora>0)?(window._adminCounts.podpora>99?'99+':window._adminCounts.podpora):''}</span></button>
                     <button onclick="window._loadAdminTab('compliance')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors">🛡️ Compliance<span id="admin-badge-compliance" class="${(window._adminCounts&&window._adminCounts.compliance>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-indigo-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.compliance>0)?(window._adminCounts.compliance>99?'99+':window._adminCounts.compliance):''}</span></button>
                     <button onclick="window._loadAdminTab('log')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-colors">📜 Log</button>
+                    <button onclick="window._loadAdminTab('news')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200 transition-colors">📢 News</button>
                 </div>
                 <div id="admin-content"><div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin"></div></div></div>
             </div>`;
@@ -8864,6 +8865,28 @@
                     </div>
                 </div>`;
             }
+            else if (tab === 'news') {
+                container.innerHTML = `<div class="max-w-lg fade-in">
+                    <h3 class="font-bold text-gray-800 mb-1">📢 Novinka / zpráva uživatelům</h3>
+                    <p class="text-xs text-gray-400 mb-4">Doručí se jako notifikace (Aktivity + push). Zabanované účty se přeskočí.</p>
+                    <div class="flex flex-col gap-3">
+                        <div><label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Nadpis</label><input id="news-title" type="text" maxlength="120" placeholder="Např. Plánovaná údržba v neděli" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-violet-400 bg-white text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Text zprávy</label><textarea id="news-body" rows="4" maxlength="1000" placeholder="Obsah zprávy…" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-violet-400 bg-white text-sm resize-none"></textarea></div>
+                        <div class="flex flex-col gap-2">
+                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-700"><input type="radio" name="news-target" value="all" checked onchange="window._newsTargetChanged()" class="accent-violet-500"> Všem uživatelům</label>
+                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-700"><input type="radio" name="news-target" value="select" onchange="window._newsTargetChanged()" class="accent-violet-500"> Vybrat konkrétní uživatele</label>
+                        </div>
+                        <div id="news-userpick" class="hidden flex-col gap-2 border border-gray-100 rounded-2xl p-3">
+                            <input id="news-search" type="text" placeholder="Hledat jméno…" oninput="window._renderNewsUsers()" class="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-violet-400">
+                            <div class="flex items-center justify-between text-xs text-gray-400"><span id="news-selcount">0 vybráno</span><button type="button" onclick="window._newsClearSel()" class="text-violet-600 font-bold">Zrušit výběr</button></div>
+                            <div id="news-userlist" class="max-h-60 overflow-y-auto flex flex-col gap-1">Načítám…</div>
+                        </div>
+                        <button onclick="window._adminSendNews()" id="news-send-btn" class="bg-violet-500 hover:bg-violet-600 text-white font-bold py-3 rounded-xl transition-colors">📢 Odeslat</button>
+                    </div>
+                </div>`;
+                window._newsSel = new Set();
+                window._newsUsers = null;
+            }
             else if (tab === 'podpora') {
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/support_tickets?order=created_at.desc&limit=100`, { headers: hdrs });
                 const rows = await r.json();
@@ -8989,7 +9012,7 @@
                     'aukce.update':'Úprava aukce', 'aukce.delete':'Smazání aukce', 'aukce.insert':'Nová aukce',
                     'support_tickets.update':'Odpověď / úprava ticketu podpory', 'support_tickets.insert':'Nový ticket podpory',
                     'reviews.update':'Moderace hodnocení', 'reviews.delete':'Smazání hodnocení', 'reviews.insert':'Nové hodnocení',
-                    'messages.insert':'Zpráva od administrátora',
+                    'messages.insert':'Zpráva od administrátora', 'news.broadcast':'Hromadná zpráva uživatelům',
                     'aml.resolve':'Vyřešení AML alertu', 'aml.case_create':'Založení AML případu', 'aml.case_update':'Úprava AML případu',
                     'aml.screen':'Screening klienta (AML)', 'aml.str_view':'Zobrazení STR podkladu', 'aml.config_set':'Změna AML prahu',
                     'report.generate':'Vygenerování reportu'
@@ -9041,6 +9064,7 @@
                     if (act === 'support_tickets.insert') return '🎫 Nový ticket podpory' + (af.subject?(' — '+af.subject):'');
                     if (act.indexOf('reviews.') === 0) return '⭐ Moderace hodnocení';
                     if (act === 'messages.insert') return '✉️ Odeslal zprávu uživateli';
+                    if (act === 'news.broadcast') return '📢 Rozeslal novinku „' + (af.title||'') + '" — ' + (af.recipients||0) + ' příjemců' + (af.targeted ? ' (vybraní)' : ' (všichni)');
                     return ALABEL[act] || act;
                 };
                 const fAction = window._logFilterAction || '';
@@ -9736,6 +9760,88 @@
             const re = document.getElementById('admin-ban-reason'); if (re) re.value = '';
             const bx = document.getElementById('admin-ban-orders'); if (bx) bx.innerHTML = '';
         } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
+    };
+
+    // ── NEWS — hromadná zpráva uživatelům ──────────────────────────
+    window._newsTargetChanged = function() {
+        const sel = document.querySelector('input[name="news-target"]:checked')?.value === 'select';
+        const box = document.getElementById('news-userpick');
+        if (box) { box.classList.toggle('hidden', !sel); box.classList.toggle('flex', sel); }
+        if (sel && !window._newsUsers) window._loadNewsUsers();
+    };
+
+    window._loadNewsUsers = async function() {
+        const list = document.getElementById('news-userlist');
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,display_name&order=display_name.asc&limit=2000`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
+            });
+            window._newsUsers = r.ok ? (await r.json()) : [];
+        } catch(e) { window._newsUsers = []; }
+        window._renderNewsUsers();
+    };
+
+    window._renderNewsUsers = function() {
+        const list = document.getElementById('news-userlist');
+        if (!list) return;
+        const q = (document.getElementById('news-search')?.value || '').trim().toLowerCase();
+        const sel = window._newsSel || (window._newsSel = new Set());
+        const users = (window._newsUsers || []).filter(u => {
+            const n = (u.display_name || '').toLowerCase();
+            return !q || n.includes(q) || u.id.toLowerCase().includes(q);
+        }).slice(0, 300);
+        if (!users.length) { list.innerHTML = '<p class="text-xs text-gray-400 py-2 text-center">Nikdo nenalezen.</p>'; return; }
+        list.innerHTML = users.map(u => {
+            const name = esc((u.display_name || '').trim() || ('Uživatel ' + u.id.substring(0,8)));
+            const on = sel.has(u.id);
+            return `<label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
+                <input type="checkbox" ${on?'checked':''} onchange="window._toggleNewsUser('${u.id}')" class="accent-violet-500">
+                <span class="truncate">${name}</span><span class="text-[10px] text-gray-300 font-mono ml-auto shrink-0">${u.id.substring(0,8)}</span>
+            </label>`;
+        }).join('');
+    };
+
+    window._toggleNewsUser = function(id) {
+        const sel = window._newsSel || (window._newsSel = new Set());
+        if (sel.has(id)) sel.delete(id); else sel.add(id);
+        const c = document.getElementById('news-selcount'); if (c) c.textContent = sel.size + ' vybráno';
+    };
+
+    window._newsClearSel = function() {
+        window._newsSel = new Set();
+        const c = document.getElementById('news-selcount'); if (c) c.textContent = '0 vybráno';
+        window._renderNewsUsers();
+    };
+
+    window._adminSendNews = async function() {
+        const title = (document.getElementById('news-title')?.value || '').trim();
+        const body  = (document.getElementById('news-body')?.value  || '').trim();
+        if (!title || !body) { showToast('Vyplňte nadpis i text.', 'warning'); return; }
+        const targetSel = document.querySelector('input[name="news-target"]:checked')?.value === 'select';
+        let ids = null;
+        if (targetSel) {
+            ids = Array.from(window._newsSel || []);
+            if (!ids.length) { showToast('Vyberte aspoň jednoho uživatele, nebo zvolte „Všem".', 'warning'); return; }
+        }
+        if (!confirm(targetSel ? `Odeslat zprávu ${ids.length} vybraným uživatelům?` : 'Odeslat zprávu VŠEM uživatelům?')) return;
+        const btn = document.getElementById('news-send-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Odesílám…'; }
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_broadcast`, {
+                method: 'POST',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ p_title: title, p_body: body, p_user_ids: ids })
+            });
+            if (!r.ok) throw new Error(await r.text());
+            const cnt = await r.json();
+            showToast('📢 Zpráva odeslána ' + (Number(cnt)||0) + ' uživatelům.', 'success', 5000);
+            const t = document.getElementById('news-title'); if (t) t.value = '';
+            const b = document.getElementById('news-body');  if (b) b.value = '';
+            window._newsClearSel();
+        } catch(e) { showToast('Chyba odeslání: ' + (e.message||''), 'error'); }
+        finally { if (btn) { btn.disabled = false; btn.textContent = '📢 Odeslat'; } }
     };
 
     window.adminShowListingDetail = function(itemId) {
