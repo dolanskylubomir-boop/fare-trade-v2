@@ -5416,6 +5416,53 @@
         } catch(e) { showToast('Chyba spojení.','error'); if (btn) { btn.disabled=false; btn.textContent='🚫 Deaktivovat a informovat prodejce'; } }
     };
 
+    // Admin: správa zakázaných slov (auto-moderace)
+    window._loadBlocklist = async function() {
+        const box = document.getElementById('blocklist-mgr');
+        if (!box) return;
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/moderation_blocklist?select=id,word&order=word.asc`, { headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}` } });
+            const words = await r.json().catch(()=>[]);
+            const list = Array.isArray(words) ? words : [];
+            box.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                    <h4 class="font-extrabold text-amber-800 text-sm flex items-center gap-2">🛡️ Zakázaná slova (auto-moderace) — ${list.length}</h4>
+                </div>
+                <p class="text-xs text-gray-500 mb-3">Nový inzerát s některým z těchto slov v názvu či popisu se nezveřejní a čeká na schválení. Shoda je na hranici slova (ne podřetězec).</p>
+                <div class="flex gap-2 mb-3">
+                    <input id="blocklist-input" type="text" maxlength="40" placeholder="přidat slovo…" onkeydown="if(event.key==='Enter')addBlocklistWord()" class="flex-1 px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:border-amber-400 bg-white">
+                    <button onclick="addBlocklistWord()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors">+ Přidat</button>
+                </div>
+                <div class="flex flex-wrap gap-1.5">${list.length ? list.map(w => `<span class="inline-flex items-center gap-1 bg-white border border-amber-200 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">${esc(w.word)}<button onclick="removeBlocklistWord('${w.id}')" class="text-amber-400 hover:text-red-500 ml-0.5" title="Odebrat">✕</button></span>`).join('') : '<span class="text-xs text-gray-400 italic">Zatím žádná slova.</span>'}</div>
+            </div>`;
+        } catch(e) { box.innerHTML = ''; }
+    };
+    window.addBlocklistWord = async function() {
+        const inp = document.getElementById('blocklist-input');
+        const word = (inp?.value || '').trim().toLowerCase();
+        if (!word) { showToast('Zadejte slovo.','warning'); return; }
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/moderation_blocklist`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
+                body: JSON.stringify({ word })
+            });
+            if (r.ok) { showToast('Slovo přidáno.','success'); _loadBlocklist(); }
+            else if (r.status === 409) { showToast('Toto slovo už v seznamu je.','warning'); }
+            else { const t = await r.text(); showToast(t.includes('moderation_blocklist')&&t.includes('does not exist') ? 'Není nasazeno auto-moderation.sql.' : 'Přidání se nezdařilo.','error'); }
+        } catch(e) { showToast('Chyba spojení.','error'); }
+    };
+    window.removeBlocklistWord = async function(id) {
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/moderation_blocklist?id=eq.${id}`, {
+                method:'DELETE', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Prefer':'return=minimal' }
+            });
+            if (r.ok) { _loadBlocklist(); } else showToast('Odebrání se nezdařilo.','error');
+        } catch(e) { showToast('Chyba spojení.','error'); }
+    };
+
     function _refreshOfferLists() {
         if (document.getElementById('prodejce-obj-content') && typeof loadProdejceObjednavky==='function') loadProdejceObjednavky();
         if (document.getElementById('moje-obj-content') && typeof loadMojeObjednavky==='function') loadMojeObjednavky();
@@ -9713,12 +9760,14 @@
                 </div>`).join('');
             }
             else if (tab === 'reports') {
+                const blockMgr = '<div id="blocklist-mgr" class="mb-6"></div>';
+                setTimeout(() => { if (window._loadBlocklist) window._loadBlocklist(); }, 0);
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_open_reports`, { method: 'POST', headers: hdrs, body: '{}' });
                 const rows = await r.json();
-                if (!r.ok) { container.innerHTML = `<p class="text-red-500 text-center py-8 text-sm">Chyba načítání nahlášení: ${esc((rows && (rows.message||rows.hint)) || JSON.stringify(rows))}</p>`; return; }
-                if (!Array.isArray(rows) || !rows.length) { container.innerHTML = '<p class="text-gray-400 text-center py-8">Žádná otevřená nahlášení. ✓</p>'; return; }
+                if (!r.ok) { container.innerHTML = blockMgr + `<p class="text-red-500 text-center py-8 text-sm">Chyba načítání nahlášení: ${esc((rows && (rows.message||rows.hint)) || JSON.stringify(rows))}</p>`; return; }
+                if (!Array.isArray(rows) || !rows.length) { container.innerHTML = blockMgr + '<p class="text-gray-400 text-center py-8">Žádná otevřená nahlášení. ✓</p>'; return; }
                 const RL = { spam:'Spam / hromadný inzerát', prohibited:'Zakázané zboží', fake:'Padělek / nepravdivé', scam:'Podvod', inappropriate:'Nevhodný obsah', offensive:'Urážlivé chování', other:'Jiné', auto_moderation:'⏳ Auto-moderace — čeká na schválení' };
-                container.innerHTML = rows.map(o => {
+                container.innerHTML = blockMgr + rows.map(o => {
                     const isListing = o.target_type === 'listing';
                     const openBtn = isListing
                         ? `<button onclick="navigate('${o.item_type==='aukce'?'aukce-detail':'pevna-cena-detail'}/${o.target_id}')" class="bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 font-bold px-3 py-2 rounded-xl text-xs transition-colors">🔗 Otevřít inzerát</button>`
