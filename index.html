@@ -3154,7 +3154,7 @@
 
         try {
             const token = await _ensureValidToken();
-            const r = await fetch(SUPABASE_URL + '/functions/v1/generate-listing', {
+            const r = await fetch(SUPABASE_URL + '/functions/v1/dynamic-api', {
                 method: 'POST',
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + (token || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, category, condition, brand })
