@@ -3581,7 +3581,7 @@
 
     function _vipMatchedItems(favs) {
         return [...dataAukce, ...dataPevnaCena]
-            .filter(i => i && i.is_top && _favCatMatch(i, favs))
+            .filter(i => i && i.is_top && (!window.currentUser || i.seller_id !== window.currentUser.id) && _favCatMatch(i, favs))
             .sort((a,b) => (b.top_paid_kc||0)-(a.top_paid_kc||0) || (b.created_at||0)-(a.created_at||0))
             .slice(0, 16);
     }
@@ -3841,7 +3841,7 @@
 
     // ── Spotlight "Stories" prémiových TOP inzerátů (úvodní stránka) ──
     function _vipStoryItems() {
-        let all = [...dataAukce, ...dataPevnaCena].filter(i => i && i.is_top);
+        let all = [...dataAukce, ...dataPevnaCena].filter(i => i && i.is_top && (!window.currentUser || i.seller_id !== window.currentUser.id));
         const favs = window._privateProfileCache?.data?.fav_categories;
         if (Array.isArray(favs) && favs.length) {
             const matched = all.filter(i => _favCatMatch(i, favs));
