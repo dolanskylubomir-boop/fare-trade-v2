@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://mpioazyvtgcpxjrhbflp.supabase.co wss://mpioazyvtgcpxjrhbflp.supabase.co https://api.mapy.cz https://nominatim.openstreetmap.org https://www.fio.cz https://cdn.jsdelivr.net https://unpkg.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-src 'none'; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://mpioazyvtgcpxjrhbflp.supabase.co wss://mpioazyvtgcpxjrhbflp.supabase.co https://api.mapy.cz https://nominatim.openstreetmap.org https://www.fio.cz https://cdn.jsdelivr.net https://unpkg.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="description" content="FairTrade Tržiště – moderní a bezpečné aukční a inzertní prostředí s ověřenými prodejci a escrow ochranou plateb.">
     <meta name="theme-color" content="#0ea5e9">
@@ -22,7 +22,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -229,6 +229,7 @@
                 </button>
                 <div class="w-px h-5 bg-gray-200 mx-1"></div>
                 <button onclick="navigate('jak-to-funguje')" class="px-3 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wider text-xs">Jak to funguje</button>
+                <button onclick="navigate('bezpecnost')" class="px-3 py-2 text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wider text-xs font-bold flex items-center gap-1">🛡️ Bezpečnost</button>
                 <button onclick="navigate('kontakt')" class="px-3 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wider text-xs">Kontakt</button>
                 <button onclick="navigate('vop')" class="px-3 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wider text-xs">VOP</button>
             </nav>
@@ -410,6 +411,16 @@
                     <div class="min-w-0">
                         <p class="font-bold text-gray-800 text-sm">Jak to funguje</p>
                         <p class="text-xs text-gray-400">Escrow, bezpečnost, celý proces</p>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-300 ml-auto shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
+                <button class="mob-nav-item w-full text-left" onclick="_sheetClose(); navigate('bezpecnost')">
+                    <span class="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="font-bold text-gray-800 text-sm">Bezpečnost</p>
+                        <p class="text-xs text-gray-400">Jak vás chráníme + tipy proti podvodům</p>
                     </div>
                     <svg class="w-4 h-4 text-gray-300 ml-auto shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </button>
@@ -773,6 +784,7 @@
             </div>
             <div class="p-5">
                 <p class="text-xs text-gray-400 mb-2 leading-relaxed">Vaše zpráva bude doručena prodejci. <span class="text-red-500 font-bold">Sdílení kontaktních údajů (telefon, e-mail, sociální sítě) je zakázáno a bude zablokováno.</span></p>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-3 flex items-start gap-2"><span class="text-emerald-500 text-sm shrink-0">🛡️</span><p class="text-[11px] text-emerald-800 leading-snug"><strong>Plaťte výhradně přes platformu.</strong> Kdo chce platbu bokem (na účet, Revolut, dobírkou „mimo", zálohu předem) obchází ochranu a téměř jistě jde o podvod. <button type="button" onclick="navigate('bezpecnost')" class="underline font-bold">Bezpečnostní tipy</button></p></div>
                 <div class="flex flex-wrap gap-1.5 mb-3">
                     <button type="button" onclick="useQuickReply('Je ještě dostupné?')" class="text-xs bg-gray-100 hover:bg-sky-100 hover:text-sky-700 text-gray-600 font-medium px-3 py-1.5 rounded-full transition-colors">Je ještě dostupné?</button>
                     <button type="button" onclick="useQuickReply('Posíláte Zásilkovnou?')" class="text-xs bg-gray-100 hover:bg-sky-100 hover:text-sky-700 text-gray-600 font-medium px-3 py-1.5 rounded-full transition-colors">Posíláte Zásilkovnou?</button>
@@ -983,6 +995,14 @@
         return false;
     }
 
+    // Měkká detekce pokusu o platbu mimo platformu. NEblokuje (na rozdíl od
+    // _censorCheck) — jen varuje odesílatele, aby se nenechal zlákat na domluvu
+    // bokem. Chrání i naivního uživatele před vlastní chybou.
+    window._paymentScamHint = function(text) {
+        var t = (text || '').toLowerCase();
+        return /(revolut|pay\s?pal|monzo|wise\b|iban|na\s+ú?čet|na\s+u?cet|číslo\s+ú?čtu|cislo\s+u?ctu|převod\w*\s+předem|prevod\w*\s+predem|zaplať?\s+předem|zaplat\s+predem|zálohu?\s+předem|zalohu?\s+predem|platb\w*\s+bokem|mimo\s+(aplikac|platform|systém|system)|dárkov\w*\s+kart|darkov\w*\s+kart|google\s?play\s+kart|paysafe|steam\s+kart)/i.test(t);
+    };
+
     window.showMessageModal = function(itemId, sellerId, itemTitle, itemType) {
         if (!window.currentUser) { showToast('Pro odeslání zprávy se musíte přihlásit.', 'warning'); navigate('login'); return; }
         if (window.currentUser.id === sellerId) { showToast('Nemůžete psát zprávu sami sobě.', 'warning'); return; }
@@ -1049,6 +1069,7 @@
         if (!text) { showErr('Zpráva nesmí být prázdná.'); return; }
         if (text.length < 2) { showErr('Zpráva je příliš krátká.'); return; }
         if (_censorCheck(text)) { showErr('Zpráva obsahuje zakázaný obsah (kontaktní údaje).'); return; }
+        if (window._paymentScamHint(text) && !confirm('⚠️ Vaše zpráva vypadá jako domluva na platbu mimo platformu.\n\nJen platba PŘES platformu je krytá escrow ochranou. Domluva bokem = bez ochrany a častý způsob podvodu.\n\nOpravdu chcete zprávu přesto odeslat?')) return;
         if (btn) { btn.disabled = true; btn.textContent = 'Odesílám…'; }
         try {
             const token = await _ensureValidToken();
@@ -2619,6 +2640,7 @@
             const btn = document.getElementById('btn-register-top');
             if (session?.user) {
                 window.currentUser = session.user;
+                window._resetIdle && window._resetIdle();
                 if (btn) { btn.innerText='Můj Profil'; btn.setAttribute('onclick',"navigate('profil')"); }
 
                 if (event === 'PASSWORD_RECOVERY') {
@@ -2663,6 +2685,45 @@
             window._applyCartVisibility && window._applyCartVisibility();
         });
     }
+
+    // ── Bezpečnost relace ──────────────────────────────────────────────
+    //  • Auto-odhlášení po 30 min nečinnosti (chrání nezamčený cizí počítač).
+    //  • Po návratu na záložku ověří, že relace stále existuje (odhlášení/
+    //    odvolání v jiné záložce, smazání/podvržení tokenu) → vynutí re-login.
+    (function _setupSessionSecurity() {
+        const IDLE_MS = 30 * 60 * 1000;
+        let _idleTimer = null;
+        function _resetIdle() {
+            if (_idleTimer) clearTimeout(_idleTimer);
+            if (!window.currentUser) return;
+            _idleTimer = setTimeout(() => {
+                if (!window.currentUser) return;
+                try { showToast('🔒 Z bezpečnostních důvodů jsme vás po 30 minutách nečinnosti odhlásili.', 'warning', 7000); } catch(e){}
+                try { window.handleLogout(); } catch(e){}
+            }, IDLE_MS);
+        }
+        window._resetIdle = _resetIdle;
+        ['click','keydown','mousemove','touchstart','scroll'].forEach(ev =>
+            window.addEventListener(ev, _resetIdle, { passive: true }));
+
+        function _hasStoredSession() {
+            try {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.includes('auth-token')) {
+                        const d = JSON.parse(localStorage.getItem(k) || 'null');
+                        if (d?.access_token) return true;
+                    }
+                }
+            } catch(e) { return true; } // při chybě raději neodhlašuj
+            return false;
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible' || !window.currentUser) return;
+            if (!_hasStoredSession()) { try { _forceLocalLogout(); } catch(e){} }
+            else _resetIdle();
+        });
+    })();
 
     window.loginWithProvider = async function(providerName) {
         if (!supabaseClient) return alert('Supabase není nakonfigurován!');
@@ -2881,8 +2942,7 @@
                 city: 'Praha', zip_code: '11000',
                 kyc_full_address: 'Václavské náměstí 1/846, 110 00 Praha',
                 bank_account: '123456/0100',
-                kyc_status: 'verified', is_verified: true, fio_verified: true,
-                wallet_balance: newBal
+                kyc_status: 'verified', is_verified: true, fio_verified: true
             };
             if (avatarUrl) profileData.avatar_url = avatarUrl;
             const token = await _ensureValidToken();
@@ -2891,6 +2951,9 @@
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
                 body: JSON.stringify(profileData)
             });
+            // 65 Kč zpět do peněženky přes RPC — wallet_balance se z klienta
+            // nesmí psát přímo (chrání ho bezpečnostní trigger).
+            await _refundToWallet(BANKID_FEE, 'Vrácení vstupního poplatku BankID');
             // Lokální stav (UI hned reflektuje ověření i zůstatek bez čekání na DB/RLS)
             window._kycStatus = 'verified';
             if (window._privateProfileCache?.data) Object.assign(window._privateProfileCache.data, profileData);
@@ -4547,7 +4610,7 @@
 
         if (tab === 'zpravy') {
             setTimeout(function() { loadZpravyTab(); }, 0);
-            return `<div class="flex items-center justify-between mb-6 fade-in"><h3 class="text-xl font-bold text-gray-800">Zprávy</h3><span class="text-xs text-gray-400 font-semibold flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>Živé</span></div><div id="zpravy-content" class="text-gray-400 text-center py-10">⌛ Načítám zprávy…</div>`;
+            return `<div class="flex items-center justify-between mb-3 fade-in"><h3 class="text-xl font-bold text-gray-800">Zprávy</h3><span class="text-xs text-gray-400 font-semibold flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>Živé</span></div><div class="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-5 flex items-start gap-2 fade-in"><span class="text-emerald-500 text-sm shrink-0">🛡️</span><p class="text-[11px] text-emerald-800 leading-snug">Domlouvejte a <strong>plaťte jen přes platformu</strong> — jen tak vás chrání escrow. Kdo chce platbu bokem (účet, Revolut, záloha předem), je podvodník. <button type="button" onclick="navigate('bezpecnost')" class="underline font-bold">Více</button></p></div><div id="zpravy-content" class="text-gray-400 text-center py-10">⌛ Načítám zprávy…</div>`;
         }
 
         if (tab === 'oblibene') {
@@ -4951,6 +5014,99 @@
                 </div>
             </div>`;
         },
+
+        bezpecnost: () => `
+        <div class="w-full max-w-4xl mx-auto fade-in mb-10">
+            <button onclick="navigate('home')" class="mb-6 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2">← Zpět</button>
+
+            <!-- Hero -->
+            <div class="bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 rounded-[2rem] p-8 md:p-14 text-white mb-8 shadow-2xl relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 w-64 h-64 bg-white/10 rounded-full pointer-events-none"></div>
+                <div class="absolute -bottom-16 -left-8 w-48 h-48 bg-white/5 rounded-full pointer-events-none"></div>
+                <div class="relative z-10">
+                    <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-sm font-bold mb-5">🛡️ Centrum bezpečnosti</div>
+                    <h2 class="text-3xl md:text-5xl font-extrabold mb-4 leading-tight">Vaše bezpečí<br>je na prvním místě</h2>
+                    <p class="text-emerald-50 text-base md:text-lg max-w-2xl leading-relaxed">Stavíme tržiště, kde podvodníci nemají šanci. Peníze drží escrow, prodejci se ověřují přes BankID a vaše data chráníme moderním zabezpečením. Tady najdete, jak vás chráníme — a jak poznáte a nahlásíte podvodníka.</p>
+                </div>
+            </div>
+
+            <!-- Jak vás chráníme -->
+            <h3 class="text-xl font-extrabold text-gray-800 mb-4 px-1">Jak vás chráníme</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+                ${[
+                    ['🔒','Escrow ochrana plateb','Peníze prodejci uvolníme až poté, co potvrdíte přijetí zboží. Když něco nesedí, otevřete spor a peníze se vrací k vám.'],
+                    ['🪪','Ověření přes BankID','Každý prodejce prokazuje totožnost bankovní identitou. Žádná anonymita — za každým prodejem je skutečný, dohledatelný člověk.'],
+                    ['⚡','Okamžitý ban podvodníků','Jediné porušení pravidel znamená trvalý zákaz přístupu. Podvodník se nevrátí pod novým jménem — totožnost je ověřená.'],
+                    ['🔐','Šifrované spojení a relace','Veškerá komunikace běží přes HTTPS. Po 30 minutách nečinnosti vás automaticky odhlásíme, aby k účtu nikdo nedostal přístup z cizího zařízení.'],
+                    ['🧱','Ochrana proti podvržení obsahu','Striktní bezpečnostní politika (CSP) blokuje cizí skripty a vkládání škodlivého kódu. Nikdo vám do stránky nic nepodstrčí.'],
+                    ['🗄️','Přístup jen k vlastním datům','Server hlídá, že každý vidí a mění výhradně svoje údaje, inzeráty a objednávky — i kdyby se někdo pokusil obejít aplikaci.'],
+                ].map(([icon,title,desc]) => `
+                <div class="bg-white rounded-2xl p-5 shadow-md border border-gray-100 flex gap-4">
+                    <div class="text-3xl shrink-0">${icon}</div>
+                    <div><p class="font-extrabold text-gray-800 text-sm mb-1">${title}</p><p class="text-xs text-gray-500 leading-relaxed">${desc}</p></div>
+                </div>`).join('')}
+            </div>
+
+            <!-- Zlatá pravidla -->
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-[2rem] p-6 md:p-8 mb-10">
+                <h3 class="text-xl font-extrabold text-amber-900 mb-2 flex items-center gap-2">🥇 Zlatá pravidla proti podvodníkům</h3>
+                <p class="text-sm text-amber-800 mb-5">Dodržujte je a podvodník na vás nemá. Pět vět, které vás ochrání:</p>
+                <div class="flex flex-col gap-3">
+                    ${[
+                        ['Plaťte VÝHRADNĚ přes platformu','Nikdy neposílejte peníze na účet, přes Revolut, dobírku „mimo" nebo dárkové karty. Jen platba v aplikaci je krytá escrow ochranou. Mimo platformu = bez ochrany.'],
+                        ['Komunikujte jen v chatu aplikace','Prodejce, který vás hned tlačí na WhatsApp, e-mail nebo telefon, se nejčastěji snaží obejít ochranu. Veďte domluvu tady — máme záznam pro případný spor.'],
+                        ['Heslo a kartu nikomu nesdělujte','My ani podpora vás NIKDY nepožádáme o heslo, kód z SMS, ani číslo karty. Kdokoli, kdo o ně žádá, je podvodník.'],
+                        ['Ověřujte odkazy','Přihlašujte se jen na téhle stránce. Nezadávejte údaje do odkazů z e-mailů či SMS, které vám někdo pošle.'],
+                        ['Nedůvěřujte „příliš výhodným" nabídkám','Nový účet, cena hluboko pod trhem a spěch („zaplať hned, jinak to prodám jinému") jsou klasické znaky podvodu.'],
+                    ].map(([t,d],i) => `
+                    <div class="bg-white rounded-2xl p-4 flex gap-3 items-start">
+                        <span class="w-7 h-7 rounded-full bg-amber-400 text-amber-950 font-black text-sm flex items-center justify-center shrink-0">${i+1}</span>
+                        <div><p class="font-bold text-gray-800 text-sm mb-0.5">${t}</p><p class="text-xs text-gray-500 leading-relaxed">${d}</p></div>
+                    </div>`).join('')}
+                </div>
+            </div>
+
+            <!-- Varovné signály -->
+            <h3 class="text-xl font-extrabold text-gray-800 mb-4 px-1">🚩 Varovné signály — kdy zpozornět</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
+                ${[
+                    'Chce platit nebo domluvit obchod mimo platformu',
+                    'Žádá o heslo, kód z SMS, PIN nebo číslo karty',
+                    'Tlačí na rychlost a vyvolává časový tlak',
+                    'Posílá odkaz na „platbu" nebo „ověření" mimo aplikaci',
+                    'Cena je nereálně nízká oproti trhu',
+                    'Účet je nový, bez hodnocení a bez ověření',
+                ].map(s => `
+                <div class="bg-red-50 border border-red-100 rounded-2xl p-4 flex gap-3 items-center">
+                    <span class="text-red-500 text-lg shrink-0">⚠️</span><p class="text-sm text-red-800 font-semibold leading-snug">${s}</p>
+                </div>`).join('')}
+            </div>
+
+            <!-- Co nikdy neuděláme + nahlášení -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
+                    <p class="font-extrabold text-emerald-900 mb-3 flex items-center gap-2">✅ Co od vás NIKDY nechceme</p>
+                    <ul class="text-sm text-emerald-900/80 flex flex-col gap-2">
+                        <li>• Heslo k účtu nebo kód z SMS</li>
+                        <li>• Číslo platební karty mimo zabezpečenou platbu</li>
+                        <li>• Platbu na soukromý účet „pro jistotu"</li>
+                        <li>• Přihlášení přes odkaz zaslaný v e-mailu či zprávě</li>
+                    </ul>
+                </div>
+                <div class="bg-white border border-gray-100 rounded-2xl p-6 shadow-md">
+                    <p class="font-extrabold text-gray-800 mb-2 flex items-center gap-2">🛟 Narazili jste na podvodníka?</p>
+                    <p class="text-sm text-gray-500 leading-relaxed mb-4">Nahlaste to a my účet okamžitě prošetříme a případně trvale zablokujeme. Pokud jste už zaplatili přes platformu, otevřete spor u objednávky — peníze drží escrow.</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="navigate('kontakt')" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 px-5 rounded-xl text-sm transition-colors">Nahlásit podvod</button>
+                        ${window.currentUser ? `<button onclick="navigate('profil/objednavky')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-5 rounded-xl text-sm transition-colors">Moje objednávky</button>` : ''}
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <p class="text-xs text-gray-400">Více o procesu a ochraně najdete v sekci <button onclick="navigate('jak-to-funguje')" class="text-sky-500 font-bold underline">Jak to funguje</button> a v <button onclick="navigate('vop')" class="text-sky-500 font-bold underline">obchodních podmínkách</button>.</p>
+            </div>
+        </div>`,
 
         'jak-to-funguje': () => `
         <div class="w-full max-w-4xl mx-auto fade-in mb-10">
@@ -7745,6 +7901,7 @@
         if (!text) { showToast('Napište text odpovědi.', 'warning'); return; }
         if (text.length < 2) { showToast('Odpověď je příliš krátká.', 'warning'); return; }
         if (_censorCheck(text)) { showToast('Odpověď obsahuje zakázaný obsah (kontaktní údaje).', 'warning'); return; }
+        if (window._paymentScamHint(text) && !confirm('⚠️ Vaše zpráva vypadá jako domluva na platbu mimo platformu.\n\nJen platba PŘES platformu je krytá escrow ochranou. Domluva bokem = bez ochrany a častý způsob podvodu.\n\nOpravdu chcete zprávu přesto odeslat?')) return;
         const token = await _ensureValidToken();
         if (!token) { showToast('Chyba ověření.', 'warning'); return; }
         try {
