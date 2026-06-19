@@ -2495,12 +2495,20 @@
         try {
             // publicClient NIKDY nečeká na JWT refresh — zaručeně rychlé načtení
             const db = publicClient || supabaseClient;
-            const [r1, r2, r3, r4] = await Promise.all([
+            const _PROFILE_COLS_BASE = 'id,first_name,last_name,display_name,is_verified,rating,rating_count,total_sold_count,avatar_url';
+            let [r1, r2, r3, r4] = await Promise.all([
                 db.from('aukce').select('*').eq('status','aktivní').order('is_top', { ascending:false }),
                 db.from('pevna_cena').select('*').eq('status','aktivní').order('is_top', { ascending:false }),
-                db.from('profiles').select('id,first_name,last_name,display_name,is_verified,rating,rating_count,total_sold_count,satisfaction_pct,avg_ship_hours,avatar_url'),
+                db.from('profiles').select(_PROFILE_COLS_BASE + ',satisfaction_pct,avg_ship_hours'),
                 db.from('bids').select('auction_id,amount')
             ]);
+
+            // Pojistka: kdyby reputační sloupce v DB ještě nebyly (reputation-badges.sql
+            // nenasazen), dotaz výše selže — načteme profily bez nich, ať se nerozbijí prodejci.
+            if (r3.error || !r3.data) {
+                const rb = await db.from('profiles').select(_PROFILE_COLS_BASE);
+                if (rb.data) r3 = rb;
+            }
 
             const profilesMap = {};
             if (r3.data) r3.data.forEach(p => { profilesMap[p.id] = p; });
