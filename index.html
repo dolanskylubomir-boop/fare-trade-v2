@@ -9662,6 +9662,7 @@
             else if (tab === 'reports') {
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_open_reports`, { method: 'POST', headers: hdrs, body: '{}' });
                 const rows = await r.json();
+                if (!r.ok) { container.innerHTML = `<p class="text-red-500 text-center py-8 text-sm">Chyba načítání nahlášení: ${esc((rows && (rows.message||rows.hint)) || JSON.stringify(rows))}</p>`; return; }
                 if (!Array.isArray(rows) || !rows.length) { container.innerHTML = '<p class="text-gray-400 text-center py-8">Žádná otevřená nahlášení. ✓</p>'; return; }
                 const RL = { spam:'Spam / hromadný inzerát', prohibited:'Zakázané zboží', fake:'Padělek / nepravdivé', scam:'Podvod', inappropriate:'Nevhodný obsah', offensive:'Urážlivé chování', other:'Jiné', auto_moderation:'⏳ Auto-moderace — čeká na schválení' };
                 container.innerHTML = rows.map(o => {
