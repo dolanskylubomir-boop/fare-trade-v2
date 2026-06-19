@@ -8306,8 +8306,12 @@
                 loadZpravyTab();
             } else {
                 const err = await r.json().catch(() => ({}));
-                const msg = err?.message?.includes('not_participant') ? 'Nemáte oprávnění smazat tuto konverzaci.' : 'Chyba smazání.';
-                showToast(msg, 'warning');
+                let msg;
+                if (err?.message?.includes('not_participant')) msg = 'Nemáte oprávnění smazat tuto konverzaci.';
+                else if (r.status === 404) msg = 'Funkce delete_thread není v Supabase nasazená — spusť delete-thread.sql.';
+                else msg = 'Chyba smazání: ' + (err?.message || err?.hint || ('HTTP ' + r.status));
+                console.warn('[delete_thread] selhalo:', r.status, err);
+                showToast(msg, 'warning', 8000);
             }
         } catch(e) {
             showToast('Chyba: ' + e.message, 'warning');
