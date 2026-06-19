@@ -3757,7 +3757,7 @@
             ['💰','Virtuální peněženka','Kredit, vratky a 65 Kč zpět za ověření — využijete na zviditelnění.'],
             ['💎','Prémiový výběr na míru','Oblíbené kategorie + luxusní feed TOP nabídek jen pro vás.'],
             ['🚀','Zviditelnění s garancí dosahu','Dostaňte inzerát nahoru — garantujeme dosah, jinak vracíme kredit.'],
-            ['🪪','Ověřený odznak (BankID)','Zlatá pečeť důvěry — kupující i prodejci vám víc věří.'],
+            ['🪪','Ověřený odznak (BankID)','Zlatá pečeť důvěry — prodáte rychleji a za lepší cenu. Ověření za vás splní DAC7 (neřešíte limit 50 000 Kč / 30 prodejů) a chrání vás před podvodníky. Vstupních 65 Kč se vrací do peněženky.'],
             ['🔒','Escrow ochrana','Peníze v bezpečí až do potvrzení doručení; spor vyřešíme do 48 h.'],
             ['❤️','Oblíbené a hodnocení','Ukládejte si nabídky a budujte veřejnou reputaci.']
         ];
@@ -3782,7 +3782,7 @@
                     <div><p class="font-extrabold text-gray-800 text-sm">${b[1]}</p><p class="text-xs text-gray-500 leading-relaxed mt-0.5">${b[2]}</p></div>
                 </div>`).join('')}
                 <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-800 flex items-start gap-2">
-                    <span class="shrink-0">💡</span><span>Nakupovat můžete i jako host. <strong>Plný účet</strong> (ověření přes BankID) odemkne prodej, aukce a všechny výhody výše — a vstupní poplatek 65 Kč se vám vrátí do peněženky.</span>
+                    <span class="shrink-0">💡</span><span>Nakupovat můžete i jako host. <strong>Plný účet</strong> (ověření přes BankID) odemkne prodej, aukce a všechny výhody výše. Vstupní poplatek <strong>65 Kč se vám vrátí do peněženky</strong>; navíc získáte ověřený odznak důvěry, jste chránění a ověření za vás <strong>splní DAC7</strong> — sami pak neřešíte limit prodejů.</span>
                 </div>
             </div>
             <div class="p-5 border-t border-gray-100 shrink-0 flex flex-col gap-2">
@@ -5115,7 +5115,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
                 ${[
                     ['🔒','Escrow ochrana plateb','Peníze prodejci uvolníme až poté, co potvrdíte přijetí zboží. Když něco nesedí, otevřete spor a peníze se vrací k vám.'],
-                    ['🪪','Ověření přes BankID','Každý prodejce prokazuje totožnost bankovní identitou. Žádná anonymita — za každým prodejem je skutečný, dohledatelný člověk.'],
+                    ['🪪','Ověření přes BankID','Každý prodejce prokazuje totožnost bankovní identitou. Žádná anonymita — za každým prodejem je skutečný, dohledatelný člověk. Ověření zároveň splní DAC7 (prodejce neřeší limit prodejů); vstupních 65 Kč se vrací do peněženky.'],
                     ['⚡','Okamžitý ban podvodníků','Jediné porušení pravidel znamená trvalý zákaz přístupu. Podvodník se nevrátí pod novým jménem — totožnost je ověřená.'],
                     ['🔐','Šifrované spojení a relace','Veškerá komunikace běží přes HTTPS. Po 30 minutách nečinnosti vás automaticky odhlásíme, aby k účtu nikdo nedostal přístup z cizího zařízení.'],
                     ['🧱','Ochrana proti podvržení obsahu','Striktní bezpečnostní politika (CSP) blokuje cizí skripty a vkládání škodlivého kódu. Nikdo vám do stránky nic nepodstrčí.'],
@@ -5212,7 +5212,7 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 ${[
                     ['🔒','Escrow ochrana','Peníze uvolněny až po potvrzení přijetí zboží kupujícím'],
-                    ['🪪','Ověření přes BankID','Každý prodejce ověřuje totožnost bankovní identitou — žádná anonymita'],
+                    ['🪪','Ověření přes BankID','Žádná anonymita — víc důvěry, rychlejší prodej. Splní DAC7 (neřešíte limit prodejů); 65 Kč se vrací do peněženky'],
                     ['⚡','Ban za podvod','Jediné porušení pravidel = trvalý zákaz přístupu'],
                     ['🔔','Realtime notifikace','Okamžité upozornění na každou aktivitu ve vašem účtu'],
                 ].map(([icon,title,desc]) => `
@@ -5391,7 +5391,7 @@
                         ['Co když zboží nedorazí nebo je poškozené?','Neklikejte na Doručeno. Otevřete spor přímo v aplikaci — vyberte důvod, přiložte min. 2 fotky přijatého zboží. Platba zůstává v escrow po celou dobu šetření.'],
                         ['Jak fungují aukce — jsem vítěz, co teď?','Po skončení aukce se v sekci Moje objednávky zobrazí výzva k platbě. Zaplatíte přes escrow a prodejce zásilku odešle standardně. Pokud nezaplatíte do 48 hodin, může prodejce nabídnout zboží dalšímu zájemci.'],
                         ['Co je DAC7 a týká se mě?','DAC7 je EU směrnice o hlášení příjmů prodávajících digitálním platformám. Pokud v jednom kalendářním roce prodáte za více než 50 000 Kč nebo uzavřete více než 30 transakcí, platforma je povinna nahlásit vaše příjmy finančnímu úřadu. Aplikace vás upozorní automaticky ještě před dosažením limitu.'],
-                        ['Jak probíhá ověření totožnosti (BankID)?','V sekci Profil → KYC se ověříte jediným klikem přes BankID (bankovní identita) — okamžitě, bez nahrávání dokladů. Vyžaduje to EU směrnice DAC7. Vstupní poplatek 65 Kč vám vrátíme do virtuální peněženky (využijete ho např. na zviditelnění inzerátu). Nakupovat můžete i bez ověření (účet vznikne u pokladny); pro prodej a účast v aukcích je ověření přes BankID nutné.'],
+                        ['Jak probíhá ověření totožnosti (BankID)?','V sekci Profil → KYC se ověříte jediným klikem přes BankID (bankovní identita) — okamžitě, bez nahrávání dokladů. Vyžaduje to EU směrnice DAC7. Vstupní poplatek 65 Kč je za ověření přes BankID a po ověření vám ho vrátíme do peněženky (využijete např. na zviditelnění). Co tím získáte: jste chránění, máte odznak důvěry (prodáte rychleji a za lepší cenu), platforma je bez anonymních podvodníků a ověření za vás splní DAC7 — sami pak neřešíte překročení limitu 50 000 Kč / 30 prodejů. Nakupovat můžete i bez ověření (účet vznikne u pokladny); pro prodej a účast v aukcích je ověření přes BankID nutné.'],
                         ['Mohu prodat cokoliv?','Zákon je zákon — zakázány jsou zbraně, drogy, živá zvířata (CITES), padělky, kradené zboží a obsah porušující autorská práva. Admin může inzerát kdykoli deaktivovat, pokud porušuje pravidla — prodejce obdrží notifikaci s důvodem. Vše ostatní legální je vítáno.'],
                         ['Jak kontaktuji podporu?','Přihlaste se a přejděte na stránku Kontakt (odkaz v menu). Váš e-mail a jméno se předvyplní automaticky. Napište dotaz, vyberte téma a odešlete. Odpověď admina přijde jako notifikace přímo do vašich Aktivit.'],
                     ].map(([q,a])=>`
@@ -5459,7 +5459,7 @@
                 <section>
                     <h3 class="text-base font-extrabold text-gray-800 mb-2 pb-2 border-b border-gray-100">4. Ověření totožnosti (BankID), DAC7 a AML</h3>
                     <p class="mb-2">Pro prodej a účast v aukcích je vyžadováno ověření totožnosti prostřednictvím <strong>BankID</strong> (bankovní identita). Ověření je okamžité a nevyžaduje nahrávání dokladů — totožnost potvrzuje banka Uživatele. Provozovatel touto cestou získává a zpracovává zejména jméno, příjmení, datum narození a adresu; pro výplatu výnosů Uživatel uvede číslo bankovního účtu.</p>
-                    <p class="mb-2">Vstupní ověření je zpoplatněno částkou <strong>65 Kč</strong>, kterou Provozovatel po úspěšném ověření vrací Uživateli do jeho virtuální <strong>peněženky</strong>.</p>
+                    <p class="mb-2">Vstupní ověření je zpoplatněno částkou <strong>65 Kč</strong>, kterou Provozovatel po úspěšném ověření vrací Uživateli do jeho virtuální <strong>peněženky</strong>. Poplatek hradí samotné ověření totožnosti přes BankID; ověření zároveň plní zákonnou identifikaci dle <strong>DAC7</strong>, takže Uživatel sám neřeší hlášení ani sledování limitu prodejů, a zvyšuje důvěru a bezpečnost na platformě.</p>
                     <p class="mb-2">Ověření je vyžadováno též z titulu povinností Provozovatele dle směrnice EU 2021/514 (<strong>DAC7</strong>) a zákona č. 253/2008 Sb. o opatřeních proti legalizaci výnosů z trestné činnosti (<strong>AML</strong>). Provozovatel v nezbytném rozsahu provádí kontrolu klienta, sankční a PEP prověření a monitoring podezřelých obchodů. Podezřelé obchody je povinen oznámit Finančnímu analytickému úřadu (FAÚ); o takovém oznámení není oprávněn Uživatele informovat.</p>
                     <p>Platforma si vyhrazuje právo omezit nebo zablokovat účet bez dokončeného ověření. Údaje z ověření jsou zpracovávány výhradně pro účely identifikace, plnění zákonných povinností a bezpečnosti Tržiště.</p>
                 </section>
@@ -5700,7 +5700,17 @@
                 <!-- Poplatek 65 Kč -->
                 <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5 flex items-start gap-3">
                     <span class="text-2xl shrink-0">💰</span>
-                    <p class="text-sm text-amber-800 leading-relaxed">Vstupní registrace přes BankID je zpoplatněna jednorázově <strong>65 Kč</strong>. Tuto částku vám ale <strong>po úspěšném ověření vrátíme zpět do vaší virtuální peněženky</strong> — využijete ji např. na TOPování inzerátů, prodlužování nebo další služby. Fakticky vás tak ověření nestojí nic navíc, jen potvrzuje, že jste skutečná osoba.</p>
+                    <div class="text-sm text-amber-800 leading-relaxed">
+                        <p class="mb-2"><strong>Proč 65 Kč?</strong> Je to jednorázový poplatek za ověření vaší totožnosti přes BankID — a <strong>po úspěšném ověření vám ho vrátíme zpět do peněženky</strong> (využijete na TOPování, prodlužování i další služby). Fakticky vás ověření nestojí nic navíc.</p>
+                        <p class="font-bold mb-1">Co tím získáváte:</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li><strong>Bezpečí</strong> — obchodujete s prověřeným člověkem, ne s anonymem.</li>
+                            <li><strong>Splníte zákon (DAC7)</strong> — ověření za vás vyřeší povinnou identifikaci, takže <strong>sami neřešíte překročení limitu 50 000 Kč / 30 prodejů</strong> ani hlášení.</li>
+                            <li><strong>Odznak důvěry</strong> — ověřený účet má vyšší důvěru, prodáte rychleji a za lepší cenu.</li>
+                            <li><strong>Ochrana před podvodníky</strong> — falešné a anonymní účty se na platformu nedostanou.</li>
+                            <li><strong>Plný přístup</strong> — odemkne prodej, aukce, peněženku, escrow i prémiový výběr.</li>
+                        </ul>
+                    </div>
                 </div>
 
                 <!-- Varování pro dříve zabanované -->
@@ -5726,7 +5736,7 @@
                     </button>
                     <div>
                         <h3 class="font-extrabold text-lg text-gray-800">Platba za ověření — 65 Kč</h3>
-                        <p class="text-sm text-gray-500">Po ověření se 65 Kč vrátí do vaší peněženky.</p>
+                        <p class="text-sm text-gray-500">Po ověření se 65 Kč vrátí do vaší peněženky. Je to za ověření přes BankID — pro vaše bezpečí a splnění DAC7 (sami pak neřešíte limit prodejů).</p>
                     </div>
                 </div>
                 <div id="bankid-pay-body"></div>
@@ -5805,7 +5815,7 @@
                 <div class="text-6xl mb-4">🪪</div>
                 <h2 class="text-2xl font-extrabold text-sky-700 mb-3">Pro prodej je nutné ověření</h2>
                 <p class="text-gray-600 mb-2">Abyste mohli vkládat inzeráty, musíte jednorázově ověřit svou totožnost přes <strong>BankID</strong> — vyžaduje to EU direktiva DAC7 (2021/514) a chrání to celé tržiště.</p>
-                <p class="text-gray-500 text-sm mb-6">Poplatek <strong>65 Kč</strong> vám po ověření vrátíme do peněženky. Kupující ověření nepotřebují.</p>
+                <p class="text-gray-500 text-sm mb-6">Poplatek <strong>65 Kč</strong> je za ověření totožnosti přes BankID a <strong>po ověření vám ho vrátíme do peněženky</strong> — chrání vás i kupující, dává vám odznak důvěry a <strong>splní DAC7</strong>, takže sami neřešíte překročení limitu prodejů. Kupující ověření nepotřebují.</p>
                 <button onclick="navigate('kyc')" class="bg-[#003d6b] hover:bg-[#002b4d] text-white font-extrabold px-8 py-3 rounded-2xl transition-colors inline-flex items-center gap-2"><span class="bg-white text-[#003d6b] font-black text-xs px-2 py-0.5 rounded">BankID</span>Ověřit přes BankID →</button>
                 <button onclick="navigate('home')" class="ml-3 text-gray-500 hover:text-gray-700 font-bold px-4 py-3">← Zpět</button>
             </div>`;
