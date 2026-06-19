@@ -4538,8 +4538,8 @@
                 </div>
             </div>
             <div id="obj-filter-bar" class="flex flex-wrap gap-1.5 mb-5"></div>
-            <div class="mb-2"><p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">📦 Příchozí — prodejce</p><div id="profil-seller-obj-content" class="text-gray-400 text-center py-4 text-sm">⌛ Načítám…</div></div>
-            <div class="border-t border-gray-100 pt-4 mt-2"><p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">🛍️ Moje nákupy — kupující</p><div id="profil-obj-content" class="text-gray-400 text-center py-4 text-sm">⌛ Načítám…</div></div>`;
+            ${window._accordion('obj_seller_sec', '📦 Příchozí — prodejce', '<div id="profil-seller-obj-content" class="text-gray-400 text-center py-4 text-sm">⌛ Načítám…</div>', { closedDefault:true })}
+            ${window._accordion('obj_buyer_sec', '🛍️ Moje nákupy — kupující', '<div id="profil-obj-content" class="text-gray-400 text-center py-4 text-sm">⌛ Načítám…</div>', { closedDefault:true })}`;
         }
 
         if (tab === 'admin') {
@@ -4596,8 +4596,9 @@
                 </div>`;
             };
             let html = style;
-            if (myBuys.length)  { const _sb=window._pageShown.tx_buy||10;  html+=`<h4 class="font-bold text-pink-600 mb-3 uppercase tracking-wider text-sm">Moje nákupy (${myBuys.length})</h4>`; myBuys.slice(0,_sb).forEach(tx=>html+=renderTx(tx,false)); html+=window._moreBtn('tx_buy', myBuys.length, "_reRenderTab('transakce')"); }
-            if (mySales.length) { const _ss=window._pageShown.tx_sell||10; html+=`<h4 class="font-bold text-sky-600 mb-3 mt-6 uppercase tracking-wider text-sm">Moje prodeje (${mySales.length})</h4>`; mySales.slice(0,_ss).forEach(tx=>html+=renderTx(tx,true)); html+=window._moreBtn('tx_sell', mySales.length, "_reRenderTab('transakce')"); }
+            if (myBuys.length)  { const _sb=window._pageShown.tx_buy||10;  let b=''; myBuys.slice(0,_sb).forEach(tx=>b+=renderTx(tx,false)); b+=window._moreBtn('tx_buy', myBuys.length, "_reRenderTab('transakce')"); html+=window._accordion('tx_buy_sec', `<span class="text-pink-600 uppercase tracking-wider">Moje nákupy (${myBuys.length})</span>`, b, { closedDefault:true }); }
+            if (mySales.length) { const _ss=window._pageShown.tx_sell||10; let b=''; mySales.slice(0,_ss).forEach(tx=>b+=renderTx(tx,true));  b+=window._moreBtn('tx_sell', mySales.length, "_reRenderTab('transakce')"); html+=window._accordion('tx_sell_sec', `<span class="text-sky-600 uppercase tracking-wider">Moje prodeje (${mySales.length})</span>`, b, { closedDefault:true }); }
+            if (!myBuys.length && !mySales.length) html += '<p class="text-gray-400 text-center py-10 fade-in">Zatím žádné transakce.</p>';
             return html;
         }
 
@@ -4680,20 +4681,21 @@
                 return `Končí za ${Math.ceil(diff/86400000)} dní`;
             };
 
-            let html = `<div class="flex items-center justify-between mb-5 fade-in"><h3 class="text-xl font-bold text-gray-800">Moje aktivní nabídky (${myAds.length})</h3><button onclick="navigate('novy-inzerat')" class="bg-sky-100 text-sky-600 hover:bg-sky-200 font-bold py-2 px-4 rounded-xl text-sm transition-colors">+ Nový</button></div>`;
+            let html = '';
             if (window._vacationMode) html += `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 text-sm text-amber-800 fade-in">🏖️ <strong>Prázdninový režim je zapnutý</strong> — vaše inzeráty jsou dočasně skryté a jejich platnost je <strong>pozastavená</strong>. Vypnete ho v záložce <strong>KYC</strong> a inzeráty se obnoví.</div>`;
 
+            let activeBody = '';
             if (!myAds.length) {
-                html += `<p class="text-gray-500 py-4 text-center fade-in">Zatím nemáte žádné aktivní inzeráty.</p>`;
+                activeBody += `<p class="text-gray-500 py-4 text-center fade-in">Zatím nemáte žádné aktivní inzeráty.</p>`;
             } else {
                 const _iShown = window._pageShown.inzeraty || 10;
-                html += `<div class="flex flex-col gap-3 mb-8">`;
+                activeBody += `<div class="flex flex-col gap-3 mb-8">`;
                 myAds.slice(0, _iShown).forEach(item => {
                     const isAukce = item.type === 'aukce';
                     const isPending = item.db_status === 'ceka_na_platbu';
                     const topInfo = item.is_top && item.top_expires_at ? `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ml-2">⭐ TOP do ${new Date(item.top_expires_at).toLocaleDateString('cs-CZ')}</span>` : '';
                     const createdStr = item.created_at ? new Date(item.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric',year:'numeric'}) : '';
-                    html += `<div class="flex items-center gap-3 p-3.5 border ${isPending?'border-yellow-200 bg-yellow-50/50 opacity-70':'border-gray-100 bg-white'} rounded-2xl ${isPending?'':'hover:shadow-md'} transition-shadow group relative overflow-hidden">
+                    activeBody += `<div class="flex items-center gap-3 p-3.5 border ${isPending?'border-yellow-200 bg-yellow-50/50 opacity-70':'border-gray-100 bg-white'} rounded-2xl ${isPending?'':'hover:shadow-md'} transition-shadow group relative overflow-hidden">
                         ${isPending?`<div class="absolute top-2 right-2 z-10"><span class="bg-yellow-400 text-yellow-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">⏳ Čeká na platbu</span></div>`:''}
                         <div onclick="${isPending?'':'navigate(\''+( isAukce?'aukce-detail':'pevna-cena-detail')+'/'+item.id+'\')'}" class="flex items-center gap-3 flex-grow ${isPending?'pointer-events-none':'cursor-pointer'} min-w-0">
                             <div class="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 ${isPending?'grayscale':''}" ><img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" class="w-full h-full object-cover ${isPending?'':'group-hover:scale-110'} transition-transform"></div>
@@ -4723,20 +4725,21 @@
                         </div>
                     </div>`;
                 });
-                html += '</div>' + window._moreBtn('inzeraty', myAds.length, "_reRenderTab('inzeraty')");
+                activeBody += '</div>' + window._moreBtn('inzeraty', myAds.length, "_reRenderTab('inzeraty')");
             }
+            html += window._accordion('inz_active_sec', `Moje aktivní nabídky (${myAds.length})`, activeBody, { closedDefault:true, actionHtml: `<button onclick="navigate('novy-inzerat')" class="bg-sky-100 text-sky-600 hover:bg-sky-200 font-bold py-2 px-4 rounded-xl text-sm transition-colors shrink-0">+ Nový</button>` });
 
             html += `<div id="seller-pending-section" class="mt-2"></div>`;
             html += `<div id="seller-archive-section" class="mt-2"></div>`;
 
-            html += `<div class="flex items-center justify-between mt-6 mb-5 fade-in border-t border-gray-100 pt-6"><h3 class="text-xl font-bold text-gray-800">Aukce, kde přihazuji (${myBids.length})</h3></div>`;
+            let bidsBody = '';
             if (!myBids.length) {
-                html += `<p class="text-gray-500 py-4 text-center fade-in">Zatím nepřihazujete v žádné aukci.</p>`;
+                bidsBody += `<p class="text-gray-500 py-4 text-center fade-in">Zatím nepřihazujete v žádné aukci.</p>`;
             } else {
-                html += '<div class="flex flex-col gap-3">';
+                bidsBody += '<div class="flex flex-col gap-3">';
                 myBids.forEach(item => {
                     const winning = item.last_bidder_id === window.currentUser.id;
-                    html += `<div onclick="navigate('aukce-detail/${item.id}')" class="flex items-center gap-3 p-3.5 border ${winning?'border-sky-100 bg-sky-50/40':'border-red-100 bg-red-50/40'} rounded-2xl hover:shadow-md transition-shadow cursor-pointer fade-in group relative overflow-hidden">
+                    bidsBody += `<div onclick="navigate('aukce-detail/${item.id}')" class="flex items-center gap-3 p-3.5 border ${winning?'border-sky-100 bg-sky-50/40':'border-red-100 bg-red-50/40'} rounded-2xl hover:shadow-md transition-shadow cursor-pointer fade-in group relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1 h-full ${winning?'bg-sky-400':'bg-red-500'}"></div>
                         <div class="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0"><img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" class="w-full h-full object-cover group-hover:scale-110 transition-transform"></div>
                         <div class="flex-grow min-w-0">
@@ -4746,8 +4749,9 @@
                         <div class="text-right shrink-0"><div class="font-bold text-base text-gray-800">${item.price.toLocaleString('cs-CZ')} Kč</div></div>
                     </div>`;
                 });
-                html += '</div>';
+                bidsBody += '</div>';
             }
+            html += `<div class="mt-4"></div>` + window._accordion('inz_bids_sec', `Aukce, kde přihazuji (${myBids.length})`, bidsBody, { closedDefault:true });
             return html;
         }
         return '';
@@ -7572,6 +7576,32 @@
     window._reRenderTab = function(tab) {
         const c = document.getElementById('profile-tab-content');
         if (c) c.innerHTML = window.renderProfileTabContent(tab);
+    };
+
+    // Rozbalovací sekce (accordion). Stav se drží v window._collapsed[key].
+    window._collapsed = window._collapsed || {};
+    window._toggleSection = function(key) {
+        window._collapsed[key] = !window._collapsed[key];
+        const body = document.getElementById('sect-body-' + key);
+        const chev = document.getElementById('sect-chev-' + key);
+        if (body) body.classList.toggle('hidden', !!window._collapsed[key]);
+        if (chev) chev.style.transform = window._collapsed[key] ? '' : 'rotate(90deg)';
+    };
+    // key, titleHtml, bodyHtml, opts{ closedDefault, actionHtml }
+    window._accordion = function(key, titleHtml, bodyHtml, opts) {
+        opts = opts || {};
+        if (window._collapsed[key] === undefined) window._collapsed[key] = !!opts.closedDefault;
+        const collapsed = !!window._collapsed[key];
+        return `<div class="mb-3">
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="window._toggleSection('${key}')" class="flex-1 flex items-center justify-between gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-100 transition-colors text-left">
+                    <span class="font-bold text-sm">${titleHtml}</span>
+                    <svg id="sect-chev-${key}" class="w-4 h-4 text-gray-400 transition-transform shrink-0" style="${collapsed?'':'transform:rotate(90deg)'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                </button>
+                ${opts.actionHtml || ''}
+            </div>
+            <div id="sect-body-${key}" class="${collapsed?'hidden ':''}mt-3">${bodyHtml}</div>
+        </div>`;
     };
 
     // Rozpis vrácené částky: celá zaplacená částka − doprava vratky
