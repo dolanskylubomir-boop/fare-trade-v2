@@ -3131,22 +3131,45 @@
         preview.classList.remove('hidden');
     };
 
-    window.generateAIContent = function() {
-        const title = document.getElementById('ad-title')?.value || '';
+    window.generateAIContent = async function() {
+        const title = (document.getElementById('ad-title')?.value || '').trim();
         const btnText = document.getElementById('ai-btn-text');
         if (!title || title.length < 3) { showToast('Nejprve napište název zboží.','warning'); return; }
+        const category  = document.getElementById('ad-category')?.value  || '';
+        const condition = document.getElementById('ad-condition')?.value || '';
+        const brand     = document.getElementById('ad-brand')?.value     || '';
+        const descEl  = document.getElementById('ad-description');
+        const priceEl = document.getElementById('ad-price');
+        const startEl = document.getElementById('ad-starting-price');
         if (btnText) btnText.innerText = 'Analyzuji a generuji…';
-        setTimeout(() => {
+
+        // Záložní šablona (když AI funkce není nasazená nebo selže) — nikdy nezamrzne.
+        const _fallback = () => {
             const desc = `Prodávám: ${title}.\n\nPředmět byl pečlivě zkontrolován a je připraven k předání. Ideální příležitost získat prémiovou kvalitu za výhodnou cenu. Stav přesně odpovídá fotografiím. V případě dotazů neváhejte kontaktovat!`;
             const price = Math.floor(Math.random() * (12000 - 500) + 500);
-            const descEl = document.getElementById('ad-description');
-            const priceEl = document.getElementById('ad-price');
-            const startEl = document.getElementById('ad-starting-price');
             if (descEl) descEl.value = desc;
             if (priceEl) priceEl.value = price;
-            if (startEl) startEl.value = Math.floor(price * 0.3);
+            if (startEl && !startEl.value) startEl.value = Math.floor(price * 0.3);
+        };
+
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(SUPABASE_URL + '/functions/v1/generate-listing', {
+                method: 'POST',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + (token || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, category, condition, brand })
+            });
+            if (!r.ok) throw new Error('ef_' + r.status);
+            const d = await r.json();
+            if (!d || !d.description) throw new Error('empty');
+            if (descEl) descEl.value = d.description;
+            const p = Math.round(Number(d.price) || 0);
+            if (p > 0) { if (priceEl) priceEl.value = p; if (startEl) startEl.value = Math.floor(p * 0.3); }
             if (btnText) btnText.innerText = 'Hotovo! (Upravte si text)';
-        }, 1400);
+        } catch(e) {
+            _fallback();
+            if (btnText) btnText.innerText = 'Hotovo! (Upravte si text)';
+        }
     };
 
     // Resize image to max 1920px JPEG — always compress, Supabase bucket enforces the actual size limit
