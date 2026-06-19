@@ -5362,6 +5362,59 @@
             } else showToast('Schválení se nezdařilo.','error');
         } catch(e) { showToast('Chyba spojení.','error'); }
     };
+    // Admin: deaktivovat nahlášený inzerát + zpráva prodejci s důvodem
+    const _DEACT_REASONS = [['zakaz_zbozi','Zakázané nebo nelegální zboží'],['nepravdive_info','Nepravdivé informace / falzifikát'],['nevhodny_obsah','Nevhodný obsah nebo fotky'],['podvod','Podezření na podvod'],['duplicita','Duplicitní inzerát'],['spam','Spam / hromadné inzeráty'],['chybi_popis','Nedostatečný / zavádějící popis']];
+    window.reportDeactivateModal = function(reportId, targetId, itemType, label) {
+        window._closeOfferModal();
+        window._reportDeactCtx = { reportId, targetId, itemType };
+        const wrap = document.createElement('div');
+        wrap.id = 'price-offer-modal';
+        wrap.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm fade-in';
+        wrap.innerHTML = `<div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-6 md:p-7" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-extrabold text-pastel-text flex items-center gap-2">🚫 Deaktivovat inzerát</h3>
+                <button onclick="_closeOfferModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors">✕</button>
+            </div>
+            <p class="text-sm text-gray-500 mb-4 truncate">${esc(label||'')}</p>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Důvod deaktivace</label>
+            <select id="deact-reason-sel" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400 bg-white mb-3">
+                ${_DEACT_REASONS.map(r => `<option value="${r[0]}">${r[1]}</option>`).join('')}
+            </select>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Zpráva prodejci (volitelné)</label>
+            <textarea id="deact-note-area" rows="3" maxlength="500" placeholder="Upřesnění, co je špatně / co opravit…" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-red-400 bg-white resize-none mb-4"></textarea>
+            <p class="text-xs text-gray-400 mb-4">Prodejci přijde notifikace s důvodem i poznámkou. Nahlášení se uzavře jako vyřešené.</p>
+            <button onclick="submitReportDeactivate()" id="deact-send-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 rounded-2xl transition-colors">🚫 Deaktivovat a informovat prodejce</button>
+        </div>`;
+        wrap.onclick = window._closeOfferModal;
+        document.body.appendChild(wrap);
+        document.body.style.overflow = 'hidden';
+    };
+    window.submitReportDeactivate = async function() {
+        const ctx = window._reportDeactCtx; if (!ctx) return;
+        const reason = document.getElementById('deact-reason-sel')?.value || 'zakaz_zbozi';
+        const note = (document.getElementById('deact-note-area')?.value || '').trim();
+        const btn = document.getElementById('deact-send-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Pracuji…'; }
+        try {
+            const token = await _ensureValidToken();
+            const hdrs = { 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' };
+            const rd = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_deactivate_listing`, {
+                method:'POST', headers: hdrs,
+                body: JSON.stringify({ p_item_id: ctx.targetId, p_item_type: ctx.itemType, p_reason: reason, p_note: note || null })
+            });
+            if (!rd.ok) { const t = await rd.text(); showToast('Deaktivace selhala: ' + esc((()=>{try{return JSON.parse(t).message||t}catch(_){return t}})()),'error',6000); if (btn) { btn.disabled=false; btn.textContent='🚫 Deaktivovat a informovat prodejce'; } return; }
+            // uzavři nahlášení jako vyřešené
+            await fetch(`${SUPABASE_URL}/rest/v1/rpc/resolve_report`, {
+                method:'POST', headers: hdrs,
+                body: JSON.stringify({ p_id: ctx.reportId, p_action: 'resolve', p_admin_note: 'Inzerát deaktivován (' + reason + ')' })
+            });
+            window._closeOfferModal();
+            showToast('🚫 Inzerát deaktivován a prodejce informován.','success',5000);
+            window.dataLoaded = false; if (window.fetchDatabaseItems) window.fetchDatabaseItems();
+            if (window._loadAdminTab) window._loadAdminTab('reports');
+            if (window._checkAdminBadge) window._checkAdminBadge();
+        } catch(e) { showToast('Chyba spojení.','error'); if (btn) { btn.disabled=false; btn.textContent='🚫 Deaktivovat a informovat prodejce'; } }
+    };
 
     function _refreshOfferLists() {
         if (document.getElementById('prodejce-obj-content') && typeof loadProdejceObjednavky==='function') loadProdejceObjednavky();
@@ -9687,6 +9740,7 @@
                                 ? `<button onclick="approveModeratedListing('${o.id}')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">✅ Schválit a zveřejnit</button>
                                    <button onclick="resolveReport('${o.id}','dismiss')" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors">Ponechat skryté</button>`
                                 : `${openBtn}
+                                   ${isListing ? `<button onclick="reportDeactivateModal('${o.id}','${o.target_id}','${o.item_type||'pevna_cena'}',\`${(o.target_label||'').replace(/\`/g,'')}\`)" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors">🚫 Deaktivovat + zpráva</button>` : ''}
                                    <button onclick="resolveReport('${o.id}','resolve')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">✓ Vyřešeno</button>
                                    <button onclick="resolveReport('${o.id}','dismiss')" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors">Zamítnout</button>`}
                         </div>
