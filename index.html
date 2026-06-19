@@ -4103,6 +4103,7 @@
             walletEl.textContent = bal.toLocaleString('cs-CZ') + ' Kč';
             walletEl.className = 'text-sm font-black ' + (bal > 0 ? 'text-emerald-700' : 'text-gray-400');
         }
+        window._loadEscrowSummary && window._loadEscrowSummary();
     }
 
     function _renderDac7Banner() {
@@ -5677,6 +5678,10 @@
                         <span class="text-lg">💰</span>
                         <div class="text-left"><p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Peněženka</p><p class="text-sm font-black text-emerald-700" id="profile-wallet-balance">0 Kč</p></div>
                     </button>
+                    <button onclick="navigate('escrow')" class="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-2xl px-4 py-2.5 transition-colors">
+                        <span class="text-lg">🔒</span>
+                        <div class="text-left"><p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Escrow</p><p class="text-sm font-black text-indigo-700" id="profile-escrow-total">—</p></div>
+                    </button>
                 </div>` : ''}
                 <div id="dac7-banner"></div>
                 <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 overflow-hidden">
@@ -5684,6 +5689,7 @@
                         <div class="flex md:flex-wrap overflow-x-auto md:overflow-x-visible scrollbar-hide flex-1 min-w-0">
                             ${verified ? `<button id="tab-btn-inzeraty"  onclick="navigate('profil/inzeraty')"   class="${tab('inzeraty')} relative">Inzeráty</button>` : ''}
                             ${verified ? `<button id="tab-btn-penezenka" onclick="navigate('penezenka')" class="${tab('penezenka')} relative">💰 Peněženka</button>` : ''}
+                            ${verified ? `<button id="tab-btn-escrow" onclick="navigate('escrow')" class="${tab('escrow')} relative">🔒 Escrow</button>` : ''}
                             ${verified ? `<button id="tab-btn-transakce" onclick="navigate('profil/transakce')"  class="${tab('transakce')} relative">Transakce</button>` : ''}
                             <button id="tab-btn-objednavky" onclick="navigate('profil/objednavky')" class="${tab('objednavky')} relative">Objednávky 📦<span id="objednavky-alert-dot" class="unread-dot hidden" style="background:#f97316" title="Čekají objednávky k odeslání">!</span></button>
                             <button id="tab-btn-kyc"       onclick="navigate('profil/kyc')"        class="${tab('kyc')} relative">KYC</button>
@@ -6670,6 +6676,85 @@
                 <h3 class="font-bold text-gray-800 mb-3">Historie transakcí</h3>
                 <div id="pw-history"><div class="text-gray-400 text-sm text-center py-4">Načítám…</div></div>
             </div>
+        </div>`;
+    };
+
+    // ══════════════════════════════════════════════════════════════
+    // ESCROW — peníze z prodejů držené v úschově (uvolní se po doručení)
+    // ══════════════════════════════════════════════════════════════
+    const ESCROW_STATUSES = ['paid','shipped','dispute'];
+    const _escrowStatusInfo = {
+        paid:    { label:'Zaplaceno · čeká odeslání', cls:'bg-amber-100 text-amber-700' },
+        shipped: { label:'Odesláno · čeká potvrzení', cls:'bg-sky-100 text-sky-700' },
+        dispute: { label:'Ve sporu',                  cls:'bg-red-100 text-red-700' }
+    };
+
+    window._loadEscrowSummary = async function() {
+        const el = document.getElementById('profile-escrow-total');
+        if (!el || !window.currentUser) return;
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?seller_id=eq.' + window.currentUser.id
+                + '&status=in.(' + ESCROW_STATUSES.join(',') + ')&select=total', {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
+            });
+            const rows = await r.json();
+            const sum = Array.isArray(rows) ? rows.reduce(function(s,o){ return s + (Number(o.total)||0); }, 0) : 0;
+            el.textContent = sum.toLocaleString('cs-CZ') + ' Kč';
+            el.className = 'text-sm font-black ' + (sum > 0 ? 'text-indigo-700' : 'text-gray-400');
+        } catch(e) {}
+    };
+
+    views['escrow'] = () => {
+        if (!window.currentUser) { navigate('login'); return ''; }
+        setTimeout(async function() {
+            const listEl = document.getElementById('escrow-list');
+            const totEl  = document.getElementById('escrow-total-big');
+            const cntEl  = document.getElementById('escrow-count');
+            try {
+                const token = await _ensureValidToken();
+                const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?seller_id=eq.' + window.currentUser.id
+                    + '&status=in.(' + ESCROW_STATUSES.join(',') + ')'
+                    + '&select=id,status,subtotal,platform_fee,shipping_fee,total,created_at,objednavka_polozky(title)&order=created_at.desc', {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
+                });
+                const list = await r.json();
+                const rows = Array.isArray(list) ? list : [];
+                const sum = rows.reduce(function(s,o){ return s + (Number(o.total)||0); }, 0);
+                if (totEl) totEl.textContent = sum.toLocaleString('cs-CZ') + ' Kč';
+                if (cntEl) cntEl.textContent = rows.length + ' ' + (rows.length === 1 ? 'platba' : (rows.length >= 2 && rows.length <= 4 ? 'platby' : 'plateb'));
+                if (listEl) listEl.innerHTML = rows.length ? rows.map(function(o){
+                    const si = _escrowStatusInfo[o.status] || { label:o.status, cls:'bg-gray-100 text-gray-500' };
+                    const titles = (o.objednavka_polozky || []).map(function(p){ return esc(p.title); }).join(', ') || 'Objednávka';
+                    const cena = Number(o.subtotal)||0, marze = Number(o.platform_fee)||0, doprava = Number(o.shipping_fee)||0, tot = Number(o.total)||0;
+                    return '<div class="border border-gray-100 rounded-2xl p-4 mb-3">'
+                        + '<div class="flex items-start justify-between gap-2 mb-2"><div class="min-w-0"><p class="font-mono text-[11px] text-gray-400">#' + o.id.substring(0,8).toUpperCase() + '</p><p class="font-bold text-sm text-gray-800 truncate">' + titles + '</p><p class="text-[11px] text-gray-400">' + new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'}) + '</p></div><span class="text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ' + si.cls + '">' + si.label + '</span></div>'
+                        + '<div class="bg-gray-50 rounded-xl p-3 flex flex-col gap-1 text-sm">'
+                        + '<div class="flex justify-between text-gray-500"><span>Cena zboží</span><span>' + cena.toLocaleString('cs-CZ') + ' Kč</span></div>'
+                        + '<div class="flex justify-between text-gray-500"><span>Marže (poplatek platformy)</span><span>' + marze.toLocaleString('cs-CZ') + ' Kč</span></div>'
+                        + '<div class="flex justify-between text-gray-500"><span>Doprava</span><span>' + doprava.toLocaleString('cs-CZ') + ' Kč</span></div>'
+                        + '<div class="flex justify-between font-extrabold text-indigo-700 border-t border-gray-200 pt-1.5 mt-0.5"><span>V escrow celkem</span><span>' + tot.toLocaleString('cs-CZ') + ' Kč</span></div>'
+                        + '</div>'
+                        + '<button onclick="navigate(\'objednavka-detail\',\'' + o.id + '\')" class="mt-2 text-xs text-sky-500 font-bold hover:text-sky-600">Detail objednávky →</button>'
+                        + '</div>';
+                }).join('') : '<p class="text-gray-400 text-sm text-center py-8">Žádné peníze v escrow. Jakmile někdo zaplatí váš inzerát, uvidíte částku tady. 🔒</p>';
+            } catch(e) {
+                if (listEl) listEl.innerHTML = '<p class="text-red-500 text-sm text-center py-8">Chyba načítání escrow.</p>';
+            }
+        }, 100);
+
+        return `<div class="w-full max-w-lg mx-auto bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
+            <button onclick="navigate('profil')" class="mb-5 text-indigo-500 font-bold hover:text-indigo-600 flex items-center gap-2">← Zpět na profil</button>
+            <div class="text-center mb-6">
+                <div class="text-5xl mb-3">🔒</div>
+                <h2 class="text-2xl font-extrabold text-pastel-text">Escrow</h2>
+                <p class="text-4xl font-black text-indigo-600 mt-2" id="escrow-total-big">—</p>
+                <p class="text-xs text-gray-400 mt-1">Peníze z prodejů držené v úschově · <span id="escrow-count">—</span></p>
+            </div>
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 mb-5 text-xs text-indigo-800 leading-relaxed">
+                🔒 Tyto peníze drží platforma v escrow, dokud kupující nepotvrdí doručení (nebo se automaticky uvolní 14 dní po odeslání). Vyplatí se vám <strong>cena + doprava</strong>; marže je poplatek platformy.
+            </div>
+            <div id="escrow-list"><div class="text-gray-400 text-sm text-center py-6">Načítám…</div></div>
         </div>`;
     };
 
