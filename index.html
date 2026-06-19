@@ -4749,6 +4749,7 @@
                     <button onclick="window._loadAdminTab('dac7')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors">🇪🇺 DAC7 report</button>
                     <button onclick="window._loadAdminTab('inzeraty')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 transition-colors">📋 Inzeráty</button>
                     <button onclick="window._loadAdminTab('reports')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors">🚩 Nahlášení<span id="admin-badge-reports" class="${(window._adminCounts&&window._adminCounts.reports>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-rose-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.reports>0)?(window._adminCounts.reports>99?'99+':window._adminCounts.reports):''}</span></button>
+                    <button onclick="window._loadAdminTab('blocklist')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">🛡️ Zakázaná slova</button>
                     <button onclick="window._loadAdminTab('ban')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200 transition-colors">🚫 Ruční BAN</button>
                     <button onclick="window._loadAdminTab('podpora')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors">💬 Podpora<span id="admin-badge-podpora" class="${(window._adminCounts&&window._adminCounts.podpora>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-sky-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.podpora>0)?(window._adminCounts.podpora>99?'99+':window._adminCounts.podpora):''}</span></button>
                     <button onclick="window._loadAdminTab('compliance')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors">🛡️ Compliance<span id="admin-badge-compliance" class="${(window._adminCounts&&window._adminCounts.compliance>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-indigo-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.compliance>0)?(window._adminCounts.compliance>99?'99+':window._adminCounts.compliance):''}</span></button>
@@ -9761,6 +9762,10 @@
                         <button onclick="adminRejectKYC('${p.id}',true)" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors">🚫 Falzum + BAN</button>
                     </div>
                 </div>`).join('');
+            }
+            else if (tab === 'blocklist') {
+                container.innerHTML = '<div id="blocklist-mgr"></div>';
+                setTimeout(() => { if (window._loadBlocklist) window._loadBlocklist(); }, 0);
             }
             else if (tab === 'reports') {
                 const blockMgr = '<div id="blocklist-mgr" class="mb-6"></div>';
