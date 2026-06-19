@@ -8455,9 +8455,21 @@
         if (idOrCategory !== null && vsechnyKategorie.includes(idOrCategory) && idOrCategory !== _currentCategory) {
             _currentSubcategory = null;
         }
-        window._formDirty = false; window.scrollTo({ top: 0, behavior: 'instant' });
+        window._formDirty = false;
+        // Přepínání záložek v rámci profilu → zachovej pozici (nepřeskakuj nahoru);
+        // jinak (přechod na jiný pohled) skroluj na začátek.
+        const _prevView = (window.location.hash || '').replace(/^#/, '').split('/')[0] || 'home';
+        const _keepScroll = viewName === 'profil' && _prevView === 'profil';
+        const _prevScroll = window.scrollY;
+        if (!_keepScroll) window.scrollTo({ top: 0, behavior: 'instant' });
         const app = document.getElementById('app');
         app.innerHTML = views[viewName](idOrCategory);
+        if (_keepScroll) {
+            const _restore = () => window.scrollTo({ top: _prevScroll, behavior: 'instant' });
+            _restore();
+            requestAnimationFrame(_restore);
+            setTimeout(_restore, 250);   // znovu po doplnění async obsahu (aby se výška dorovnala)
+        }
         const fullUrl = idOrCategory && !vsechnyKategorie.includes(idOrCategory) ? `${viewName}/${idOrCategory}` : viewName;
         if (fullUrl !== 'home') history.pushState({ view:fullUrl, param:idOrCategory }, '', '#'+fullUrl);
         else history.pushState({ view:'home' }, '', window.location.pathname);
