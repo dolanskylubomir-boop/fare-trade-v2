@@ -891,11 +891,11 @@
         ${[
             ['1. Provozovatel', 'Provozovatelem tržiště FairTrade je fyzická nebo právnická osoba zapsaná v obchodním či živnostenském rejstříku ČR. Kontakt: <strong>podpora@fairtrade-trziste.cz</strong>.'],
             ['2. Věk a způsobilost', 'Registrací uživatel potvrzuje, že je <strong>starší 18 let</strong> a plně svéprávnou osobou nebo oprávněným zástupcem právnické osoby. Nezletilé osoby nesmí tržiště používat.'],
-            ['3. KYC ověření', 'Pro aktivní prodej je vyžadováno ověření totožnosti. Uživatel je povinen poskytnout jméno, příjmení, datum narození, adresu a číslo bankovního účtu.'],
-            ['4. Inzerování a aukce', 'Popis a fotografie musí věrně zobrazovat stav zboží. Aukce je závazná – vítěz příhozu je povinen zboží zakoupit. Prodávající musí odeslat zboží do 5 pracovních dnů.'],
+            ['3. Účet a ověření', 'Nákup: light účet (e-mail + heslo, i z pokladny). Prodej a aukce: ověření přes <strong>BankID</strong> (vstupních 65 Kč se vrací do peněženky). Trvale zablokovaný uživatel se nesmí znovu registrovat.'],
+            ['4. Inzerování a aukce', 'Popis a fotografie musí věrně zobrazovat stav zboží. Inzerát za pevnou cenu je aktivní 30 dní; <strong>aukce trvá pevně 7 dní</strong> a nelze ji prodloužit. Aukce je závazná – vítěz musí zboží uhradit. Prodávající odesílá do 5 pracovních dnů.'],
             ['5. Zakázané zboží', 'Zakázáno inzerovat: střelné zbraně, drogy, padělky, kradené zboží, živá zvířata (CITES), léčiva bez oprávnění a obsah porušující práva třetích osob.'],
-            ['6. Poplatky', 'Kupující hradí: 5% provizi z ceny a 49 Kč escrow poplatek. TOP inzeráty: 29–299 Kč dle délky zvýraznění.'],
-            ['7. Escrow ochrana', 'Platba je držena v úschově do potvrzení přijetí zboží kupujícím. Pokud kupující nepotvrdí do 14 dní, platba se uvolní automaticky.'],
+            ['6. Poplatky', 'Escrow platba: 5% provize + 49 Kč. TOP inzeráty 29–299 Kč. Komunikujte a plaťte výhradně přes platformu — platba bokem není krytá escrow.'],
+            ['7. Escrow a rezervace', 'Platba je v úschově do potvrzení přijetí; po 14 dnech od odeslání se uvolní automaticky. Nákup rezervuje zboží na 2 hodiny — při nezaplacení se objednávka stornuje, peníze vrací a po <strong>3. nezaplacení následuje automatický BAN</strong>.'],
             ['8. Reklamace', 'Reklamaci je nutné uplatnit do 14 dní od přijetí. Stížnost lze řešit přes ČOI (coi.cz) nebo ODR (ec.europa.eu/consumers/odr).'],
             ['9. GDPR', 'Osobní údaje jsou zpracovávány dle GDPR a zák. 110/2019 Sb. Máte právo na přístup, opravu, výmaz a přenositelnost údajů. Stížnost u ÚOOÚ (uoou.cz).'],
             ['10. Rozhodné právo', 'VOP se řídí právem ČR (OZ č. 89/2012 Sb., zákon o ochraně spotřebitele č. 634/1992 Sb.). Spory řeší soudy ČR.'],
@@ -5075,6 +5075,7 @@
                     ['🔐','Šifrované spojení a relace','Veškerá komunikace běží přes HTTPS. Po 30 minutách nečinnosti vás automaticky odhlásíme, aby k účtu nikdo nedostal přístup z cizího zařízení.'],
                     ['🧱','Ochrana proti podvržení obsahu','Striktní bezpečnostní politika (CSP) blokuje cizí skripty a vkládání škodlivého kódu. Nikdo vám do stránky nic nepodstrčí.'],
                     ['🗄️','Přístup jen k vlastním datům','Server hlídá, že každý vidí a mění výhradně svoje údaje, inzeráty a objednávky — i kdyby se někdo pokusil obejít aplikaci.'],
+                    ['⏰','Férové rezervace a platby','Nezaplacená objednávka se po 2 hodinách automaticky zruší a zboží se vrátí do prodeje. Opakované nezaplacení vede k zablokování účtu — prodejcům tak neblokují frontu neplatiči.'],
                 ].map(([icon,title,desc]) => `
                 <div class="bg-white rounded-2xl p-5 shadow-md border border-gray-100 flex gap-4">
                     <div class="text-3xl shrink-0">${icon}</div>
@@ -5187,7 +5188,7 @@
                     ${[
                         ['sky','1','Účet zdarma (i jako host)','Kupovat můžete bez předchozí registrace — účet vám vytvoříme přímo u pokladny (e-mail + heslo), abyste mohli sledovat objednávku, potvrdit doručení a řešit spory i z jiného zařízení. Pro prodej a aukce se navíc jednorázově ověříte přes BankID.'],
                         ['indigo','2','Vložte inzerát s AI pomocníkem','Přidejte min. 1 fotku, popis a cenu. U použitého zboží uveďte vady — kupující s popsaným stavem souhlasí, čímž se minimalizují spory. Zabudovaný AI vám s popisem pomůže.'],
-                        ['violet','3','Kupující zaplatí přes escrow','Kupující odešle platbu — peníze nekončí u prodejce, ale jsou bezpečně uschovány FairTrade až do potvrzení doručení.'],
+                        ['violet','3','Kupující zaplatí přes escrow','Po kliknutí na „Koupit ihned" je zboží <strong>2 hodiny rezervováno</strong>. Kupující odešle platbu — peníze nekončí u prodejce, ale jsou bezpečně uschovány FairTrade až do potvrzení doručení. Nezaplatí-li do 2 h, objednávka se stornuje a zboží se vrátí do prodeje (opakované nezaplacení vede k zákazu účtu).'],
                         ['pink','4','Zdokumentujte a odešlete zásilku','Před odesláním nafotíte zásilku (obsah, balení, štítek) přímo v aplikaci. Fotky jsou uloženy jako důkaz. Poté zadáte číslo zásilky — kupující ji může sledovat online.'],
                         ['green','5','Kupující potvrdí nebo otevře spor','Dorazilo vše v pořádku? Kupující klikne Doručeno — peníze jsou okamžitě uvolněny. Problém? Otevře spor s fotodůkazy. Admin rozhodne do 48 hodin. Bez reakce kupujícího se platba uvolní automaticky po 14 dnech.'],
                         ['amber','6','Vzájemné hodnocení','Po dokončení si kupující a prodejce udělí hodnocení. Reputace je základ důvěry — a je veřejně viditelná na každém profilu.'],
@@ -5213,7 +5214,7 @@
                 </div>
                 <div class="flex flex-col gap-0">
                     ${[
-                        ['amber','1','Prodejce vyhlásí aukci','Nastaví vyvolávací cenu, délku trvání (7–20 dní) a popis zboží. Aukce je viditelná všem návštěvníkům.'],
+                        ['amber','1','Prodejce vyhlásí aukci','Nastaví vyvolávací cenu a popis zboží. <strong>Aukce trvá pevně 7 dní</strong> a její dobu nelze měnit ani prodloužit. Aukce je viditelná všem návštěvníkům.'],
                         ['orange','2','Zájemci přihazují v reálném čase','Každý příhoz okamžitě aktualizuje aktuální cenu. Přihazovat lze opakovaně — vždy jen o pevný krok. O každém přehozu dostanete realtime notifikaci.'],
                         ['rose','3','Prodejce může oslovit neúspěšné zájemce','Po skončení aukce má prodejce možnost odeslat nabídku druhému (nebo dalšímu) zájemci, pokud vítěz nepotvrdí platbu. Zájemce nabídku přijme nebo odmítne přímo v aplikaci.'],
                         ['green','4','Vítěz zaplatí a vše pokračuje standardně','Po přijetí nabídky zájemcem proběhne escrow platba a zásilka — shodně jako u pevné ceny. Stejná ochrana, stejné záruky.'],
@@ -5243,7 +5244,9 @@
                         ['📦','Sledování zásilky','Číslo zásilky zadané prodejcem je okamžitě dostupné v detailu objednávky s přímým odkazem na sledování.'],
                         ['⭐','Hodnocení a recenze','Po každé transakci obě strany hodnotí. Průměrné hodnocení a počet recenzí jsou veřejně viditelné — pomáhají bezpečně vybrat prodejce.'],
                         ['🪪','Ověření přes BankID','Prodejci ověří totožnost bankovní identitou (BankID) — okamžitě, dle EU směrnice DAC7. Vstupní poplatek 65 Kč vrátíme do peněženky. Bez ověření nelze prodávat ani přihazovat v aukcích.'],
-                        ['⚖️','Spory s admin rozhodčím','Problém s objednávkou? Otevřete spor přímo v aplikaci, nahrajte fotodůkazy. Admin případ objektivně rozhodne do 48 hodin.'],
+                        ['⚖️','Spory s admin rozhodčím','Problém s objednávkou? Otevřete spor přímo v aplikaci, nahrajte fotodůkazy. Admin případ objektivně rozhodne do 48 hodin. Při výhře kupujícího se vystaví předplacený štítek na vratku a vrací se cena + provize + původní doprava (mínus zpětná doprava).'],
+                        ['🏖️','Prázdninový režim','Odjíždíte? Zapnete režim a vaše inzeráty se dočasně skryjí a pozastaví se jejich platnost; na příchozí dotazy odpoví uložená automatická zpráva. Po vypnutí se vše obnoví.'],
+                        ['💰','Peněženka a přehled Escrow','Virtuální kredit (vratky, vrácených 65 Kč za ověření, úhrada TOPování) a živé přehledy — Escrow prodej (co vám po dokončení přijde) i Escrow nákup (co máte zaplacené v úschově).'],
                     ].map(([icon,title,desc]) => `
                     <div class="flex items-start gap-4 bg-gray-50 rounded-2xl p-4 border border-gray-100">
                         <span class="text-2xl shrink-0 mt-0.5">${icon}</span>
@@ -5372,7 +5375,7 @@
             <button onclick="navigate('home')" class="mb-6 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2">← Zpět</button>
             <div class="mb-8">
                 <h2 class="text-3xl md:text-4xl font-extrabold text-pastel-text mb-1">Všeobecné obchodní podmínky</h2>
-                <p class="text-gray-400 text-xs">Platné od 18. 6. 2026 · Verze 1.1</p>
+                <p class="text-gray-400 text-xs">Platné od 19. 6. 2026 · Verze 1.2</p>
             </div>
             <div class="space-y-8 text-gray-700 text-sm leading-relaxed">
 
@@ -5426,9 +5429,10 @@
                         <li>Inzerát nesmí porušovat práva třetích osob (autorská práva, ochranné známky, patenty).</li>
                         <li>Platforma inzeráty moderuje a může je bez náhrady kdykoli odstranit.</li>
                         <li>Aukce je závazná: vítěz příhozu je povinen zboží zakoupit a uhradit.</li>
+                        <li>Po zahájení nákupu („Koupit ihned") je zboží <strong>rezervováno po dobu 2 hodin</strong>. Nezaplatí-li Kupující v této lhůtě, objednávka se automaticky stornuje, zaplacené prostředky (jsou-li jaké) se vrací a zboží se vrací do prodeje. Opakované nezaplacení je porušením VOP — po druhém případu obdrží Kupující varování, po <strong>třetím je účet automaticky zablokován</strong>.</li>
                         <li>Prodávající je povinen <strong>před odesláním zásilky</strong> nahrát min. 1 fotografii zásilky (obsah, balení, přepravní štítek) prostřednictvím funkce „Zdokumentovat a odeslat" v aplikaci. Fotografie slouží jako důkaz v případě sporu.</li>
                         <li>Prodávající je povinen odeslat zboží do <strong>5 pracovních dnů</strong> od potvrzení platby.</li>
-                        <li>Inzerát za pevnou cenu je aktivní po dobu <strong>30 dní</strong> (lze prodloužit), aukce po dobu zvolenou Prodávajícím. V <strong>prázdninovém režimu</strong> jsou inzeráty Prodávajícího dočasně skryté a jejich platnost se pozastaví.</li>
+                        <li>Inzerát za pevnou cenu je aktivní po dobu <strong>30 dní</strong> (lze prodloužit). <strong>Aukce trvá pevně 7 dní</strong> a její dobu nelze měnit ani prodloužit. V <strong>prázdninovém režimu</strong> jsou inzeráty Prodávajícího dočasně skryté a jejich platnost se pozastaví.</li>
                     </ul>
                     <p>Prodávající smí inzerát kdykoli smazat, pokud neexistuje probíhající escrow transakce nebo aukce s příhozem.</p>
                 </section>
@@ -5488,6 +5492,7 @@
                         <li>nedorazilo ve lhůtě <strong>21 dní</strong> od potvrzení platby.</li>
                     </ul>
                     <p class="mb-2">Spor je nutné otevřít do <strong>14 dní od přijetí zásilky</strong> přímo v aplikaci (sekce Moje objednávky → Spor). Kupující je povinen přiložit min. 2 fotografie přijatého zboží a stručný popis problému (výjimka: zásilka nedorazila). Provozovatel případ prošetří do <strong>48 hodin</strong> a rozhodne o vrácení platby nebo uvolnění prostředků prodávajícímu. Rozhodnutí je konečné. Vědomě nepravdivé spory jsou důvodem k trvalému zákazu účtu.</p>
+                    <p class="mb-2">Rozhodne-li Provozovatel ve prospěch Kupujícího u zboží, které mu bylo doručeno, vystaví Kupujícímu <strong>předplacený štítek na vrácení zboží</strong> a zásilku eviduje dle podacího čísla. Po potvrzení přijetí Prodávajícím (nebo po uplynutí stanovené lhůty) vrací Provozovatel Kupujícímu <strong>celou zaplacenou částku (cena zboží + provize + původní doprava)</strong> sníženou pouze o <strong>cenu zpětné dopravy</strong>, a to do jeho virtuální peněženky. Předplacený štítek pozbývá platnosti při zrušení objednávky či zablokování účtu.</p>
                     <p class="mb-2">Kupující, který zásilku obdržel bez závad, je povinen potvrdit doručení. Opakované bezdůvodné otvírání sporů nebo odmítání potvrzení doručení je porušením VOP.</p>
                     <p>Spotřebitelé (fyzické osoby – nepodnikatelé) mají právo na mimosoudní řešení spotřebitelských sporů prostřednictvím České obchodní inspekce (<a href="https://www.coi.cz" class="text-sky-500 underline">www.coi.cz</a>) nebo evropské platformy ODR (<a href="https://ec.europa.eu/consumers/odr" class="text-sky-500 underline">ec.europa.eu/consumers/odr</a>).</p>
                 </section>
@@ -5525,7 +5530,8 @@
 
                 <section>
                     <h3 class="text-base font-extrabold text-gray-800 mb-2 pb-2 border-b border-gray-100">13. Porušení podmínek a sankce</h3>
-                    <p>Při porušení VOP je Provozovatel oprávněn: upozornit Uživatele, dočasně pozastavit nebo trvale zrušit účet, smazat inzeráty, zadržet nevyplacené prostředky jako zajištění pohledávky. V případě škody způsobené Uživatelem má Provozovatel nárok na náhradu škody dle platných právních předpisů.</p>
+                    <p>Při porušení VOP je Provozovatel oprávněn: upozornit Uživatele, dočasně pozastavit nebo trvale zrušit účet, smazat inzeráty, zadržet nevyplacené prostředky jako zajištění pohledávky. V případě škody způsobené Uživatelem má Provozovatel nárok na náhradu škody dle platných právních předpisů. Účet může být zablokován ručně Provozovatelem i automaticky (např. po opakovaném nezaplacení objednávek).</p>
+                    <p class="mt-2">Při zablokování účtu Provozovatel ošetří otevřené objednávky Uživatele: <strong>neodeslané objednávky se stornují a zaplacené prostředky se vrací</strong>, již odeslané objednávky doběhnou standardně; protistrana je o zablokování informována. Trvale zablokovaný Uživatel se <strong>nesmí znovu registrovat</strong> — Provozovatel kontroluje shodu e-mailu i totožnosti (vč. ověření přes BankID); obcházení zákazu je dalším porušením VOP.</p>
                 </section>
 
                 <section>
@@ -5535,7 +5541,7 @@
 
                 <section>
                     <h3 class="text-base font-extrabold text-gray-800 mb-2 pb-2 border-b border-gray-100">15. Závěrečná ustanovení</h3>
-                    <p>Provozovatel si vyhrazuje právo tyto VOP jednostranně změnit. O změně informuje Uživatele e-mailem nebo oznámením na Platformě nejméně <strong>14 dní</strong> před účinností změn. Pokračuje-li Uživatel v užívání Platformy po nabytí účinnosti změn, považuje se to za souhlas se změněnými VOP. Je-li některé ustanovení VOP neplatné, ostatní ustanovení zůstávají v platnosti. Tyto VOP nabývají účinnosti dnem <strong>1. 1. 2025</strong>.</p>
+                    <p>Provozovatel si vyhrazuje právo tyto VOP jednostranně změnit. O změně informuje Uživatele e-mailem nebo oznámením na Platformě nejméně <strong>14 dní</strong> před účinností změn. Pokračuje-li Uživatel v užívání Platformy po nabytí účinnosti změn, považuje se to za souhlas se změněnými VOP. Je-li některé ustanovení VOP neplatné, ostatní ustanovení zůstávají v platnosti. Tyto VOP ve znění verze 1.2 nabývají účinnosti dnem <strong>19. 6. 2026</strong>.</p>
                 </section>
 
             </div>
