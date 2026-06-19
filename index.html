@@ -1683,7 +1683,7 @@
         if (!window.currentUser || window._isAnonBuyer) {
             showToast('Pro uložení hlídače hledání se přihlaste.','warning'); navigate('login'); return;
         }
-        const query = (_listState.search || '').trim();
+        const query = ((_listState.search || '').trim()) || ((document.getElementById('header-search')?.value || '').trim());
         const category = (cat && cat !== 'Vše') ? cat : null;
         if (!query && !category) { showToast('Zadejte hledaný výraz nebo zvolte kategorii, kterou chcete hlídat.','warning'); return; }
         try {
@@ -9014,19 +9014,10 @@
         } catch(e) { el.textContent = ''; }
     };
 
-    // ── Uložené vyhledávání ─────────────────────────────────────────
-    window.saveCurrentSearch = async function() {
-        if (!window.currentUser) return showToast('Pro uložení hledání se přihlaste.', 'warning');
-        const q = (document.getElementById('header-search')?.value || '').trim();
-        if (!q) return showToast('Nejprve zadejte hledaný výraz.', 'warning');
-        const token = await _ensureValidToken();
-        if (!token) return;
-        const r = await fetch(SUPABASE_URL + '/rest/v1/saved_searches?on_conflict=user_id,query',
-            { method: 'POST', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'resolution=ignore-duplicates,return=minimal' },
-              body: JSON.stringify({ user_id: window.currentUser.id, query: q }) });
-        if (r.ok || r.status === 201 || r.status === 204) showToast('Hledání „' + q + '" uloženo — upozorníme vás na nové inzeráty.', 'success');
-        else showToast('Chyba uložení.', 'warning');
-    };
+    // ── Uložené vyhledávání: viz window.saveCurrentSearch výše (bod 2c) ──
+    //  Starší verze (přímý REST INSERT) byla odstraněna — sjednoceno do
+    //  jediné funkce, která jde přes RPC add_saved_search a podporuje
+    //  i kategorii. Zvoneček v hlavičce i tlačítko ve výpisu volají tutéž.
 
     // Unread badge — spustí se po přihlášení
     async function _refreshUnreadBadge() {
