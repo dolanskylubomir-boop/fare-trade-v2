@@ -5720,7 +5720,11 @@
                     </button>
                     <button onclick="navigate('escrow')" class="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-2xl px-4 py-2.5 transition-colors">
                         <span class="text-lg">🔒</span>
-                        <div class="text-left"><p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Escrow</p><p class="text-sm font-black text-indigo-700" id="profile-escrow-total">—</p></div>
+                        <div class="text-left"><p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Escrow prodej</p><p class="text-sm font-black text-indigo-700" id="profile-escrow-sell">—</p></div>
+                    </button>
+                    <button onclick="navigate('escrow-nakup')" class="flex items-center gap-2 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-2xl px-4 py-2.5 transition-colors">
+                        <span class="text-lg">🛒</span>
+                        <div class="text-left"><p class="text-[10px] font-bold text-violet-600 uppercase tracking-wide">Escrow nákup</p><p class="text-sm font-black text-violet-700" id="profile-escrow-buy">—</p></div>
                     </button>
                 </div>` : ''}
                 <div id="dac7-banner"></div>
@@ -6728,74 +6732,107 @@
     };
 
     window._loadEscrowSummary = async function() {
-        const el = document.getElementById('profile-escrow-total');
-        if (!el || !window.currentUser) return;
+        const elSell = document.getElementById('profile-escrow-sell');
+        const elBuy  = document.getElementById('profile-escrow-buy');
+        if ((!elSell && !elBuy) || !window.currentUser) return;
         try {
             const token = await _ensureValidToken();
-            const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?seller_id=eq.' + window.currentUser.id
-                + '&status=in.(' + ESCROW_STATUSES.join(',') + ')&select=total', {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
-            });
-            const rows = await r.json();
-            const sum = Array.isArray(rows) ? rows.reduce(function(s,o){ return s + (Number(o.total)||0); }, 0) : 0;
-            el.textContent = sum.toLocaleString('cs-CZ') + ' Kč';
-            el.className = 'text-sm font-black ' + (sum > 0 ? 'text-indigo-700' : 'text-gray-400');
+            const h = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token };
+            const st = '&status=in.(' + ESCROW_STATUSES.join(',') + ')';
+            if (elSell) {
+                const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?seller_id=eq.' + window.currentUser.id + st + '&select=subtotal', { headers: h });
+                const rows = await r.json();
+                const sum = Array.isArray(rows) ? rows.reduce(function(s,o){ return s + (Number(o.subtotal)||0); }, 0) : 0;
+                elSell.textContent = sum.toLocaleString('cs-CZ') + ' Kč';
+                elSell.className = 'text-sm font-black ' + (sum > 0 ? 'text-indigo-700' : 'text-gray-400');
+            }
+            if (elBuy) {
+                const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?buyer_id=eq.' + window.currentUser.id + st + '&select=total', { headers: h });
+                const rows = await r.json();
+                const sum = Array.isArray(rows) ? rows.reduce(function(s,o){ return s + (Number(o.total)||0); }, 0) : 0;
+                elBuy.textContent = sum.toLocaleString('cs-CZ') + ' Kč';
+                elBuy.className = 'text-sm font-black ' + (sum > 0 ? 'text-violet-700' : 'text-gray-400');
+            }
         } catch(e) {}
     };
 
-    views['escrow'] = () => {
-        if (!window.currentUser) { navigate('login'); return ''; }
-        setTimeout(async function() {
-            const listEl = document.getElementById('escrow-list');
-            const totEl  = document.getElementById('escrow-total-big');
-            const cntEl  = document.getElementById('escrow-count');
-            try {
-                const token = await _ensureValidToken();
-                const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?seller_id=eq.' + window.currentUser.id
-                    + '&status=in.(' + ESCROW_STATUSES.join(',') + ')'
-                    + '&select=id,status,subtotal,platform_fee,shipping_fee,total,created_at,objednavka_polozky(title)&order=created_at.desc', {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
-                });
-                const list = await r.json();
-                const rows = Array.isArray(list) ? list : [];
-                const sum = rows.reduce(function(s,o){ return s + (Number(o.total)||0); }, 0);
-                if (totEl) totEl.textContent = sum.toLocaleString('cs-CZ') + ' Kč';
-                if (cntEl) cntEl.textContent = rows.length + ' ' + (rows.length === 1 ? 'platba' : (rows.length >= 2 && rows.length <= 4 ? 'platby' : 'plateb'));
-                if (listEl) listEl.innerHTML = rows.length ? rows.map(function(o){
-                    const si = _escrowStatusInfo[o.status] || { label:o.status, cls:'bg-gray-100 text-gray-500' };
-                    const titles = (o.objednavka_polozky || []).map(function(p){ return esc(p.title); }).join(', ') || 'Objednávka';
-                    const cena = Number(o.subtotal)||0, marze = Number(o.platform_fee)||0, doprava = Number(o.shipping_fee)||0, tot = Number(o.total)||0;
-                    return '<div class="border border-gray-100 rounded-2xl p-4 mb-3">'
-                        + '<div class="flex items-start justify-between gap-2 mb-2"><div class="min-w-0"><p class="font-mono text-[11px] text-gray-400">#' + o.id.substring(0,8).toUpperCase() + '</p><p class="font-bold text-sm text-gray-800 truncate">' + titles + '</p><p class="text-[11px] text-gray-400">' + new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'}) + '</p></div><span class="text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ' + si.cls + '">' + si.label + '</span></div>'
-                        + '<div class="bg-gray-50 rounded-xl p-3 flex flex-col gap-1 text-sm">'
-                        + '<div class="flex justify-between text-gray-500"><span>Cena zboží</span><span>' + cena.toLocaleString('cs-CZ') + ' Kč</span></div>'
-                        + '<div class="flex justify-between text-gray-500"><span>Marže (poplatek platformy)</span><span>' + marze.toLocaleString('cs-CZ') + ' Kč</span></div>'
-                        + '<div class="flex justify-between text-gray-500"><span>Doprava</span><span>' + doprava.toLocaleString('cs-CZ') + ' Kč</span></div>'
-                        + '<div class="flex justify-between font-extrabold text-indigo-700 border-t border-gray-200 pt-1.5 mt-0.5"><span>V escrow celkem</span><span>' + tot.toLocaleString('cs-CZ') + ' Kč</span></div>'
-                        + '</div>'
-                        + '<button onclick="navigate(\'objednavka-detail\',\'' + o.id + '\')" class="mt-2 text-xs text-sky-500 font-bold hover:text-sky-600">Detail objednávky →</button>'
-                        + '</div>';
-                }).join('') : '<p class="text-gray-400 text-sm text-center py-8">Žádné peníze v escrow. Jakmile někdo zaplatí váš inzerát, uvidíte částku tady. 🔒</p>';
-            } catch(e) {
-                if (listEl) listEl.innerHTML = '<p class="text-red-500 text-sm text-center py-8">Chyba načítání escrow.</p>';
-            }
-        }, 100);
+    // Načtení seznamu do escrow view. side='sell' (prodej, jen cena) | 'buy' (nákup, celá částka)
+    window._loadEscrowView = async function(side) {
+        const isSell = side === 'sell';
+        const listEl = document.getElementById('escrow-list');
+        const totEl  = document.getElementById('escrow-total-big');
+        const cntEl  = document.getElementById('escrow-count');
+        try {
+            const token = await _ensureValidToken();
+            const col = isSell ? 'seller_id' : 'buyer_id';
+            const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?' + col + '=eq.' + window.currentUser.id
+                + '&status=in.(' + ESCROW_STATUSES.join(',') + ')'
+                + '&select=id,status,subtotal,platform_fee,shipping_fee,total,created_at,objednavka_polozky(title)&order=created_at.desc', {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
+            });
+            const list = await r.json();
+            const rows = Array.isArray(list) ? list : [];
+            const sum = rows.reduce(function(s,o){ return s + (isSell ? (Number(o.subtotal)||0) : (Number(o.total)||0)); }, 0);
+            if (totEl) totEl.textContent = sum.toLocaleString('cs-CZ') + ' Kč';
+            if (cntEl) cntEl.textContent = rows.length + ' ' + (rows.length === 1 ? 'platba' : (rows.length >= 2 && rows.length <= 4 ? 'platby' : 'plateb'));
+            if (listEl) listEl.innerHTML = rows.length ? rows.map(function(o){
+                const si = _escrowStatusInfo[o.status] || { label:o.status, cls:'bg-gray-100 text-gray-500' };
+                const titles = (o.objednavka_polozky || []).map(function(p){ return esc(p.title); }).join(', ') || 'Objednávka';
+                const cena = Number(o.subtotal)||0, marze = Number(o.platform_fee)||0, doprava = Number(o.shipping_fee)||0, tot = Number(o.total)||0;
+                const breakdown = isSell
+                    ? '<div class="flex justify-between font-extrabold text-indigo-700"><span>V escrow — cena pro vás</span><span>' + cena.toLocaleString('cs-CZ') + ' Kč</span></div>'
+                      + '<p class="text-[11px] text-gray-400 mt-0.5">Marže ' + marze.toLocaleString('cs-CZ') + ' Kč (platforma) a doprava ' + doprava.toLocaleString('cs-CZ') + ' Kč (dopravce) nejsou součástí vaší výplaty.</p>'
+                    : '<div class="flex justify-between text-gray-500"><span>Cena zboží</span><span>' + cena.toLocaleString('cs-CZ') + ' Kč</span></div>'
+                      + '<div class="flex justify-between text-gray-500"><span>Provize</span><span>' + marze.toLocaleString('cs-CZ') + ' Kč</span></div>'
+                      + '<div class="flex justify-between text-gray-500"><span>Doprava</span><span>' + doprava.toLocaleString('cs-CZ') + ' Kč</span></div>'
+                      + '<div class="flex justify-between font-extrabold text-violet-700 border-t border-gray-200 pt-1.5 mt-0.5"><span>V escrow celkem</span><span>' + tot.toLocaleString('cs-CZ') + ' Kč</span></div>';
+                return '<div class="border border-gray-100 rounded-2xl p-4 mb-3">'
+                    + '<div class="flex items-start justify-between gap-2 mb-2"><div class="min-w-0"><p class="font-mono text-[11px] text-gray-400">#' + o.id.substring(0,8).toUpperCase() + '</p><p class="font-bold text-sm text-gray-800 truncate">' + titles + '</p><p class="text-[11px] text-gray-400">' + new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'}) + '</p></div><span class="text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ' + si.cls + '">' + si.label + '</span></div>'
+                    + '<div class="bg-gray-50 rounded-xl p-3 flex flex-col gap-1 text-sm">' + breakdown + '</div>'
+                    + '<button onclick="navigate(\'objednavka-detail\',\'' + o.id + '\')" class="mt-2 text-xs text-sky-500 font-bold hover:text-sky-600">Detail objednávky →</button>'
+                    + '</div>';
+            }).join('') : '<p class="text-gray-400 text-sm text-center py-8">' + (isSell ? 'Žádné prodeje v escrow. Jakmile někdo zaplatí váš inzerát, uvidíte částku tady. 🔒' : 'Žádné nákupy v escrow. Tady uvidíte peníze za zaplacené objednávky, dokud se obchod nedokončí. 🛒') + '</p>';
+        } catch(e) {
+            if (listEl) listEl.innerHTML = '<p class="text-red-500 text-sm text-center py-8">Chyba načítání escrow.</p>';
+        }
+    };
 
+    function _escrowViewHtml(side) {
+        const isSell = side === 'sell';
+        const accentText = isSell ? 'text-indigo-600' : 'text-violet-600';
+        const accentBtn  = isSell ? 'text-indigo-500 hover:text-indigo-600' : 'text-violet-500 hover:text-violet-600';
+        const icon  = isSell ? '🔒' : '🛒';
+        const title = isSell ? 'Escrow prodej' : 'Escrow nákup';
+        const sub   = isSell ? 'Zaplacené prodeje v úschově do dokončení · ' : 'Vaše zaplacené nákupy v úschově do dokončení · ';
+        const noteBg = isSell ? 'bg-indigo-50 border-indigo-100 text-indigo-800' : 'bg-violet-50 border-violet-100 text-violet-800';
+        const note = isSell
+            ? '🔒 Peníze od kupujícího drží platforma, dokud se obchod nedokončí (potvrzení doručení / 14 dní po odeslání). Po dokončení se vám vyplatí <strong>cena zboží</strong> — marže je poplatek platformy a doprava náleží dopravci, proto je zde nezapočítáváme.'
+            : '🛒 Tyto peníze (<strong>cena + provize + doprava</strong>) jste zaplatil/a a platforma je drží v escrow, dokud se obchod nedokončí (status dokončeno). Pokud vyhrajete spor, vrací se vám zpět (mínus případná zpětná doprava).';
+        const switchBtn = isSell
+            ? '<button onclick="navigate(\'escrow-nakup\')" class="text-xs font-bold text-violet-600 hover:text-violet-700">🛒 Escrow nákup →</button>'
+            : '<button onclick="navigate(\'escrow\')" class="text-xs font-bold text-indigo-600 hover:text-indigo-700">🔒 Escrow prodej →</button>';
         return `<div class="w-full max-w-lg mx-auto bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
-            <button onclick="navigate('profil')" class="mb-5 text-indigo-500 font-bold hover:text-indigo-600 flex items-center gap-2">← Zpět na profil</button>
+            <div class="flex items-center justify-between gap-3 mb-5"><button onclick="navigate('profil')" class="${accentBtn} font-bold flex items-center gap-2">← Zpět na profil</button>${switchBtn}</div>
             <div class="text-center mb-6">
-                <div class="text-5xl mb-3">🔒</div>
-                <h2 class="text-2xl font-extrabold text-pastel-text">Escrow</h2>
-                <p class="text-4xl font-black text-indigo-600 mt-2" id="escrow-total-big">—</p>
-                <p class="text-xs text-gray-400 mt-1">Peníze z prodejů držené v úschově · <span id="escrow-count">—</span></p>
+                <div class="text-5xl mb-3">${icon}</div>
+                <h2 class="text-2xl font-extrabold text-pastel-text">${title}</h2>
+                <p class="text-4xl font-black ${accentText} mt-2" id="escrow-total-big">—</p>
+                <p class="text-xs text-gray-400 mt-1">${sub}<span id="escrow-count">—</span></p>
             </div>
-            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 mb-5 text-xs text-indigo-800 leading-relaxed">
-                <p class="mb-2">🔒 Tyto peníze drží platforma v escrow, dokud kupující nepotvrdí doručení (nebo se uvolní automaticky 14 dní po odeslání).</p>
-                <p class="mb-1.5">✅ <strong>Při úspěšném obchodu</strong> se prodejci vyplatí <strong>cena zboží</strong>. Doprava byla uhrazena dopravci a marže je poplatek platformy za zprostředkování obchodu.</p>
-                <p>⚖️ <strong>Pokud kupující vyhraje spor</strong>, vrací se mu <strong>cena zboží + marže + původní doprava</strong>. Od této částky se odečte cena <strong>zpětné dopravy</strong> (zaslání zboží zpět prodejci).</p>
-            </div>
+            <div class="${noteBg} border rounded-2xl px-4 py-3 mb-5 text-xs leading-relaxed">${note}</div>
             <div id="escrow-list"><div class="text-gray-400 text-sm text-center py-6">Načítám…</div></div>
         </div>`;
+    }
+
+    views['escrow'] = () => {
+        if (!window.currentUser) { navigate('login'); return ''; }
+        setTimeout(function(){ window._loadEscrowView('sell'); }, 100);
+        return _escrowViewHtml('sell');
+    };
+    views['escrow-nakup'] = () => {
+        if (!window.currentUser) { navigate('login'); return ''; }
+        setTimeout(function(){ window._loadEscrowView('buy'); }, 100);
+        return _escrowViewHtml('buy');
     };
 
     window._initWalletTopup = async function(amount) {
@@ -10158,6 +10195,8 @@
                     const h = window.location.hash;
                     if (h.includes('moje-objednavky')) window.loadMojeObjednavky();
                     if (h.includes('platba-objednavky/'+o.id)) _loadPlatbaObjednavky(o.id);
+                    window._loadEscrowSummary && window._loadEscrowSummary();
+                    if (h.includes('escrow-nakup')) window._loadEscrowView('buy'); else if (h.includes('escrow')) window._loadEscrowView('sell');
                     if (o.status === 'shipped') {
                         showToast('📦 Vaše zásilka byla odeslána! Před potvrzením doručení důkladně zkontrolujte zboží — teprve pak uvolníte platbu prodejci.', 'warning', 12000);
                     }
@@ -10174,6 +10213,8 @@
                     if (sellerCont) _loadSellerObjednavkyTab();
                     const h = window.location.hash;
                     if (h.includes('prodejce-objednavky')) window.loadProdejceObjednavky();
+                    window._loadEscrowSummary && window._loadEscrowSummary();
+                    if (h.includes('escrow-nakup')) window._loadEscrowView('buy'); else if (h.includes('escrow')) window._loadEscrowView('sell');
                 })
                 .on('postgres_changes', { event:'UPDATE', schema:'public', table:'objednavky', filter:`seller_id=eq.${_rtuid}` }, (p) => {
                     const o = p.new;
@@ -10186,6 +10227,8 @@
                     if (document.getElementById('profil-seller-obj-content')) _loadSellerObjednavkyTab();
                     const h = window.location.hash;
                     if (h.includes('prodejce-objednavky')) window.loadProdejceObjednavky();
+                    window._loadEscrowSummary && window._loadEscrowSummary();
+                    if (h.includes('escrow-nakup')) window._loadEscrowView('buy'); else if (h.includes('escrow')) window._loadEscrowView('sell');
                 })
                 .subscribe();
 
