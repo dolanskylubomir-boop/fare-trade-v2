@@ -2498,7 +2498,7 @@
             const [r1, r2, r3, r4] = await Promise.all([
                 db.from('aukce').select('*').eq('status','aktivní').order('is_top', { ascending:false }),
                 db.from('pevna_cena').select('*').eq('status','aktivní').order('is_top', { ascending:false }),
-                db.from('profiles').select('id,first_name,last_name,display_name,is_verified,rating,rating_count,total_sold_count,avatar_url'),
+                db.from('profiles').select('id,first_name,last_name,display_name,is_verified,rating,rating_count,total_sold_count,satisfaction_pct,avg_ship_hours,avatar_url'),
                 db.from('bids').select('auction_id,amount')
             ]);
 
@@ -2529,9 +2529,9 @@
 
             const getSellerInfo = sellerId => {
                 const p = profilesMap[sellerId];
-                if (!p) return { name:'Neznámý prodejce', verified:false, rating:0 };
+                if (!p) return { name:'Neznámý prodejce', verified:false, rating:0, rating_count:0, total_sold_count:0, satisfaction_pct:0, avg_ship_hours:0 };
                 let name = p.display_name?.trim() || `${p.first_name||''} ${p.last_name||''}`.trim();
-                return { name: esc(name) || 'Uživatel tržiště', verified: p.is_verified===true, rating: Number(p.rating)||0, rating_count: Number(p.rating_count)||0 };
+                return { name: esc(name) || 'Uživatel tržiště', verified: p.is_verified===true, rating: Number(p.rating)||0, rating_count: Number(p.rating_count)||0, total_sold_count: Number(p.total_sold_count)||0, satisfaction_pct: Number(p.satisfaction_pct)||0, avg_ship_hours: Number(p.avg_ship_hours)||0 };
             };
 
             const getProfileName = id => {
@@ -2568,6 +2568,7 @@
                         condition: esc(item.condition), brand: esc(item.brand),
                         has360: item.has_360 || false, seller: seller.name,
                         verified: seller.verified, rating: seller.rating, rating_count: seller.rating_count || 0,
+                        seller_total_sold: seller.total_sold_count || 0, seller_satisfaction: seller.satisfaction_pct || 0, seller_ship_hours: seller.avg_ship_hours || 0,
                         description: esc(item.description), endTime: item.end_time,
                         last_bidder_id: lastBidderId, last_bidder_name: lastBidderId ? getProfileName(lastBidderId) : null,
                         is_top: checkTopExpiry(item), top_expires_at: item.top_expires_at,
@@ -2590,6 +2591,7 @@
                         condition: esc(item.condition), brand: esc(item.brand),
                         has360: item.has_360 || false, seller: seller.name,
                         verified: seller.verified, rating: seller.rating, rating_count: seller.rating_count || 0,
+                        seller_total_sold: seller.total_sold_count || 0, seller_satisfaction: seller.satisfaction_pct || 0, seller_ship_hours: seller.avg_ship_hours || 0,
                         description: esc(item.description), endTime: item.expires_at,
                         is_top: checkTopExpiry(item), top_expires_at: item.top_expires_at,
                         top_paid_kc: item.top_paid_kc || 0, views_count: item.views_count || 0,
@@ -3725,6 +3727,16 @@
         return h > 0 ? (h + 'h ' + m + 'min') : (m + ' min');
     }
 
+    // Reputační odznaky prodejce (bod 3) — z agregovaných polí profilu
+    window._sellerBadges = function(item) {
+        const badges = [];
+        if ((item.seller_total_sold || 0) >= 10) badges.push(['🏆','Superprodejce','bg-amber-100 text-amber-700 border-amber-200']);
+        if ((item.seller_satisfaction || 0) >= 80 && (item.rating_count || 0) >= 3) badges.push(['👍', Math.round(item.seller_satisfaction)+' % spokojených','bg-green-100 text-green-700 border-green-200']);
+        if (item.seller_ship_hours > 0 && item.seller_ship_hours <= 48) badges.push(['⚡','Rychlý odesílatel','bg-sky-100 text-sky-700 border-sky-200']);
+        if (!badges.length) return '';
+        return `<div class="flex flex-wrap gap-1 mt-1.5">${badges.map(b => `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${b[2]} whitespace-nowrap">${b[0]} ${b[1]}</span>`).join('')}</div>`;
+    };
+
     window.renderAdCard = function(item) {
         const isAukce    = item.type === 'aukce';
         const detailView = isAukce ? 'aukce-detail' : 'pevna-cena-detail';
@@ -3764,6 +3776,7 @@
                 </div>
             </div>
             <h3 class="text-sm sm:text-base font-bold text-gray-800 line-clamp-2 leading-tight">${item.title}</h3>
+            ${window._sellerBadges(item)}
             ${item.description ? `<p onclick="event.stopPropagation();showDescModal(event,'${item.id}')" class="text-[11px] text-gray-400 mt-0.5 truncate cursor-pointer hover:text-sky-500 transition-colors leading-snug" title="Zobrazit celý popis">${item.description}</p>` : '<div class="mt-0.5 h-4"></div>'}
             <div class="mt-1 flex items-center justify-between text-[10px] text-gray-400">
                 <span class="${timeInfo.urgent ? 'countdown-urgent text-red-500 font-bold' : ''}">${isAukce ? '⏱ ' + timeInfo.text : ''}</span>
