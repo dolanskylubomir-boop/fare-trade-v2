@@ -2262,7 +2262,7 @@
                 // Pojistka proti prázdné kartě — vždy ukaž aspoň titulek.
                 const title = (n.title && String(n.title).trim()) ? n.title : 'Nová aktivita';
                 const body  = (n.body && String(n.body).trim())   ? n.body  : '';
-                return `<div onclick="_openNotifLink('${n.id}','${n.link}')" class="flex items-start gap-3 p-4 rounded-2xl mb-2 cursor-pointer transition-all hover:shadow-md ${n.is_read?'bg-white border border-gray-100':'bg-sky-50 border border-sky-200'}">
+                return `<div onclick="_openNotifLink('${n.id}','${n.link||''}')" class="flex items-start gap-3 p-4 rounded-2xl mb-2 cursor-pointer transition-all hover:shadow-md ${n.is_read?'bg-white border border-gray-100':'bg-sky-50 border border-sky-200'}">
                     <span class="text-2xl shrink-0 mt-0.5">${icon}</span>
                     <div class="flex-1 min-w-0">
                         <p class="font-bold text-gray-800 text-sm">${esc(title)}</p>
@@ -2355,7 +2355,7 @@
             headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':`Bearer ${token}`,'Content-Type':'application/json','Prefer':'return=minimal'},
             body: JSON.stringify({ is_read: true })
         });
-        if (link && link !== '/') {
+        if (link && link !== '/' && link !== 'null' && link !== 'undefined') {
             const view = link.replace('/?view=','');
             navigate(view);
         }
