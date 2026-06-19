@@ -5726,11 +5726,11 @@
                     </button>
                     <button onclick="navigate('escrow')" class="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-2xl px-4 py-2.5 transition-colors">
                         <span class="text-lg">🔒</span>
-                        <div class="text-left"><p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Escrow prodej</p><p class="text-sm font-black text-indigo-700" id="profile-escrow-sell">—</p></div>
+                        <div class="text-left"><p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Escrow prodej · úschova</p><p class="text-sm font-black text-indigo-700" id="profile-escrow-sell">—</p></div>
                     </button>
                     <button onclick="navigate('escrow-nakup')" class="flex items-center gap-2 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-2xl px-4 py-2.5 transition-colors">
                         <span class="text-lg">🛒</span>
-                        <div class="text-left"><p class="text-[10px] font-bold text-violet-600 uppercase tracking-wide">Escrow nákup</p><p class="text-sm font-black text-violet-700" id="profile-escrow-buy">—</p></div>
+                        <div class="text-left"><p class="text-[10px] font-bold text-violet-600 uppercase tracking-wide">Escrow nákup · úschova</p><p class="text-sm font-black text-violet-700" id="profile-escrow-buy">—</p></div>
                     </button>
                 </div>` : ''}
                 <div id="dac7-banner"></div>
@@ -6808,7 +6808,7 @@
         const accentText = isSell ? 'text-indigo-600' : 'text-violet-600';
         const accentBtn  = isSell ? 'text-indigo-500 hover:text-indigo-600' : 'text-violet-500 hover:text-violet-600';
         const icon  = isSell ? '🔒' : '🛒';
-        const title = isSell ? 'Escrow prodej' : 'Escrow nákup';
+        const title = isSell ? 'Escrow prodej · úschova' : 'Escrow nákup · úschova';
         const sub   = isSell ? 'Zaplacené prodeje v úschově do dokončení · ' : 'Vaše zaplacené nákupy v úschově do dokončení · ';
         const noteBg = isSell ? 'bg-indigo-50 border-indigo-100 text-indigo-800' : 'bg-violet-50 border-violet-100 text-violet-800';
         const note = isSell
@@ -7772,6 +7772,22 @@
         }
     };
 
+    // Načte přezdívky kupujících (display_name) pro sadu objednávek → mapa id→jméno
+    async function _attachBuyerNames(orders, hdrs) {
+        try {
+            const ids = [...new Set((orders || []).map(o => o.buyer_id).filter(Boolean))];
+            if (!ids.length) return {};
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${ids.join(',')})&select=id,display_name`, { headers: hdrs });
+            const rows = r.ok ? await r.json() : [];
+            const map = {};
+            (Array.isArray(rows) ? rows : []).forEach(p => { map[p.id] = (p.display_name || '').trim(); });
+            return map;
+        } catch(e) { return {}; }
+    }
+    window._buyerLabel = function(map, buyerId) {
+        return (map && map[buyerId]) || ('Kupující #' + String(buyerId || '').substring(0, 6).toUpperCase());
+    };
+
     async function _loadSellerObjednavkyTab() {
         const container = document.getElementById('profil-seller-obj-content');
         if (!container || !window.currentUser) return;
@@ -7781,6 +7797,7 @@
             const r = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?seller_id=eq.${window.currentUser.id}&order=created_at.desc&select=*,objednavka_polozky(*)&limit=50`, { headers: hdrs });
             const orders = await r.json();
             if (Array.isArray(orders)) window._mySellerOrdersCache = orders;
+            const buyerMap = await _attachBuyerNames(orders, hdrs);
             _updateObjednavkyAlertBadge(orders);
             _renderFilterBar('obj-filter-bar', OBJ_FILTERS, window._objFilter || 'vse', '_setObjFilter');
             if (!Array.isArray(orders) || !orders.length) { container.innerHTML = renderEmptyState('🛒', 'Žádné objednávky', 'Tady se zobrazí objednávky ke zpracování.', null, null); return; }
@@ -7802,7 +7819,7 @@
                 const carr = DOPRAVCI.find(d => d.id === o.carrier) || { name: o.carrier || '—', icon:'📦' };
                 return `<div onclick="navigate('objednavka-detail','${o.id}')" class="border ${o.status==='paid'?'border-orange-300 bg-orange-50/40':'border-purple-100 bg-purple-50/30'} rounded-2xl p-4 mb-3 hover:shadow-md transition-shadow cursor-pointer group">
                     ${window._returnBlock(o, true)}
-                    <div class="flex items-start justify-between gap-2 mb-3"><div><p class="font-mono text-xs text-gray-400 mb-0.5 group-hover:text-purple-500 transition-colors">#${o.id.substring(0,8).toUpperCase()} <span class="text-[10px] text-purple-400">→ detail</span></p><p class="text-xs text-gray-400">${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'short',year:'numeric'})}</p></div>${window._statusBadge(o.status, st, true)}</div>
+                    <div class="flex items-start justify-between gap-2 mb-3"><div><p class="font-mono text-xs text-gray-400 mb-0.5 group-hover:text-purple-500 transition-colors">#${o.id.substring(0,8).toUpperCase()} <span class="text-[10px] text-purple-400">→ detail</span></p><p class="text-xs text-gray-400">${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'short',year:'numeric'})}</p><p class="text-xs text-gray-500 mt-0.5">👤 Kupující: <span class="font-semibold text-gray-700">${esc(window._buyerLabel(buyerMap, o.buyer_id))}</span></p></div>${window._statusBadge(o.status, st, true)}</div>
                     <div class="flex flex-col gap-1.5 mb-3">${items.map(i=>`<div class="flex items-center gap-2"><img src="${i.img||FI}" onerror="this.onerror=null;this.src='${FI}'" class="w-9 h-9 rounded-lg object-cover bg-gray-100 shrink-0"><span class="text-sm flex-1 min-w-0 truncate">${esc(i.title)}</span><span class="text-sm font-bold shrink-0 whitespace-nowrap text-purple-600">${Number(i.price).toLocaleString('cs-CZ')} Kč</span></div>`).join('')}</div>
                     <div class="flex items-center justify-between pt-2 border-t border-purple-100">
                         <span class="text-xs text-gray-400">${carr.icon} ${carr.name} · ${Number(o.shipping_fee||0).toLocaleString('cs-CZ')} Kč</span>
@@ -7836,6 +7853,7 @@
             ]);
             const orders = await rOrders.json();
             const auctOffers = await rAuctOffers.json();
+            const buyerMap = await _attachBuyerNames(orders, hdrs);
             const FI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f1f5f9'/%3E%3C/svg%3E";
             let html = '';
 
@@ -7873,7 +7891,7 @@
                 const addr = o.shipping_address || {};
                 const carr = DOPRAVCI.find(d => d.id === o.carrier) || { name: o.carrier || '—', icon:'📦' };
                 return `<div onclick="navigate('objednavka-detail','${o.id}')" class="border border-gray-100 rounded-3xl p-5 mb-4 hover:shadow-md transition-shadow cursor-pointer group">
-                    <div class="flex items-start justify-between gap-3 mb-4"><div><p class="font-mono text-xs text-gray-400 mb-0.5 group-hover:text-purple-500 transition-colors">#${o.id.substring(0,8).toUpperCase()} <span class="text-[10px] text-purple-400">→ detail</span></p><p class="text-xs text-gray-400">${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'})}</p></div><span class="order-status-badge ${st.cls} shrink-0">${st.label}</span></div>
+                    <div class="flex items-start justify-between gap-3 mb-4"><div><p class="font-mono text-xs text-gray-400 mb-0.5 group-hover:text-purple-500 transition-colors">#${o.id.substring(0,8).toUpperCase()} <span class="text-[10px] text-purple-400">→ detail</span></p><p class="text-xs text-gray-400">${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'})}</p><p class="text-xs text-gray-500 mt-0.5">👤 Kupující: <span class="font-semibold text-gray-700">${esc(window._buyerLabel(buyerMap, o.buyer_id))}</span></p></div><span class="order-status-badge ${st.cls} shrink-0">${st.label}</span></div>
                     <div class="flex flex-col gap-2 mb-3">${items.map(i=>`<div class="flex items-center gap-2"><img src="${i.img||FI}" onerror="this.onerror=null;this.src='${FI}'" class="w-10 h-10 rounded-lg object-cover bg-gray-100 shrink-0"><span class="text-sm flex-1 min-w-0 truncate">${esc(i.title)}</span><span class="text-sm font-semibold shrink-0 whitespace-nowrap">${Number(i.price).toLocaleString('cs-CZ')} Kč</span></div>`).join('')}</div>
                     ${addr.name?`<div class="bg-gray-50 rounded-xl p-3 mb-3 text-xs text-gray-500"><strong class="text-gray-700">${esc(addr.name)}</strong><br>${esc(addr.street)}, ${esc(addr.city)} ${esc(addr.zip)}<br>${esc(addr.phone)}</div>`:''}
                     <div class="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-end pt-3 border-t border-gray-100">
