@@ -8817,6 +8817,8 @@
                     <div class="flex flex-col gap-3">
                         <div><label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">User ID (UUID)</label><input id="admin-ban-userid" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-red-400 bg-white text-sm font-mono"></div>
                         <div><label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Důvod deaktivace</label><textarea id="admin-ban-reason" rows="3" placeholder="Popis důvodu..." class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-red-400 bg-white text-sm resize-none"></textarea></div>
+                        <button onclick="window._adminLoadUserOrders()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl transition-colors text-sm border border-gray-200">🔍 Zobrazit nevyřízené objednávky</button>
+                        <div id="admin-ban-orders"></div>
                         <button onclick="adminBanUser()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-colors">🚫 Deaktivovat účet</button>
                     </div>
                 </div>`;
@@ -9558,19 +9560,84 @@
         } catch(e) { showToast('Chyba: ' + esc(e.message), 'error'); }
     };
 
+    // Vykreslí seznam nevyřešených objednávek uživatele + co s nimi BAN udělá
+    window._adminUnresolvedOrdersHtml = function(orders) {
+        if (!Array.isArray(orders) || !orders.length)
+            return '<div class="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">✓ Uživatel nemá žádné nevyřešené objednávky.</div>';
+        const stMap = { created:'Vytvořeno', pending:'Čeká na platbu', paid:'Zaplaceno', shipped:'Odesláno', dispute:'Ve sporu' };
+        return '<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 mb-2">Nevyřešené objednávky (' + orders.length + '). Po BANu: <strong>neodeslané = storno + vrácení peněz</strong>, <strong>odeslané doběhnou</strong>, ve sporu řeší admin. Protistrana dostane informaci.</div>'
+            + orders.map(function(o){
+                const role = o.banned_role === 'seller' ? 'zablokovaný = prodejce' : 'zablokovaný = kupující';
+                const fate = o.is_shipped ? '<span class="text-sky-600 font-bold">doběhne</span>'
+                    : (o.status === 'dispute' ? '<span class="text-red-600 font-bold">řeší admin</span>'
+                    : '<span class="text-orange-600 font-bold">storno + vrácení</span>');
+                return '<div class="border border-gray-100 rounded-xl p-3 mb-2 text-xs">'
+                    + '<div class="flex justify-between gap-2"><span class="font-mono text-gray-400">#' + o.order_id.substring(0,8).toUpperCase() + '</span><span class="font-bold">' + (stMap[o.status] || o.status) + ' · ' + fate + '</span></div>'
+                    + '<p class="font-semibold text-gray-700 mt-0.5 truncate">' + esc(o.item_titles) + '</p>'
+                    + '<p class="text-gray-400">' + role + ' · protistrana: ' + esc(o.counterparty_name) + ' · ' + Number(o.total||0).toLocaleString('cs-CZ') + ' Kč</p>'
+                    + '</div>';
+            }).join('');
+    };
+
+    window._adminFetchUserOrders = async function(userId) {
+        const token = await _ensureValidToken();
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_user_unresolved_orders`, {
+            method:'POST',
+            headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':'Bearer '+token, 'Content-Type':'application/json' },
+            body: JSON.stringify({ p_user_id: userId })
+        });
+        if (!r.ok) throw new Error(await r.text());
+        return await r.json();
+    };
+
+    window._adminLoadUserOrders = async function() {
+        const userId = (document.getElementById('admin-ban-userid')?.value || '').trim();
+        const box = document.getElementById('admin-ban-orders');
+        if (!userId) { showToast('Zadejte User ID.', 'warning'); return; }
+        if (box) box.innerHTML = '<p class="text-gray-400 text-sm py-2">Načítám…</p>';
+        try {
+            const orders = await window._adminFetchUserOrders(userId);
+            if (box) box.innerHTML = window._adminUnresolvedOrdersHtml(orders);
+        } catch(e) { if (box) box.innerHTML = '<p class="text-red-500 text-sm py-2">Chyba: ' + esc(e.message) + '</p>'; }
+    };
+
+    // Ruční BAN — NEJDŘÍV zobrazí nevyřešené objednávky a co s nimi udělá, pak potvrzení
     window.adminBanUser = async function() {
         const userId = (document.getElementById('admin-ban-userid')?.value || '').trim();
         const reason = (document.getElementById('admin-ban-reason')?.value || '').trim();
         if (!userId || !reason) { showToast('Zadejte User ID i důvod.', 'warning'); return; }
-        if (!confirm(`Opravdu deaktivovat uživatele ${userId.substring(0,8)}…?`)) return;
+        let orders = [];
+        try { orders = await window._adminFetchUserOrders(userId); }
+        catch(e) { showToast('Chyba načtení objednávek: ' + e.message, 'error'); return; }
+        const old = document.getElementById('admin-ban-modal'); if (old) old.remove();
+        const m = document.createElement('div');
+        m.id = 'admin-ban-modal';
+        m.className = 'fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm';
+        m.innerHTML = `<div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="p-5 bg-red-50 border-b border-red-100"><p class="font-black text-red-700 text-lg">🚫 Potvrdit deaktivaci účtu</p><p class="text-xs text-red-600 mt-0.5 font-mono">${esc(userId.substring(0,8))}… · ${esc(reason)}</p></div>
+            <div class="p-5 overflow-y-auto">${window._adminUnresolvedOrdersHtml(orders)}</div>
+            <div class="p-4 border-t border-gray-100 flex gap-2 shrink-0">
+                <button onclick="document.getElementById('admin-ban-modal').remove()" class="flex-1 border border-gray-200 text-gray-600 font-bold py-2.5 rounded-xl hover:bg-gray-50 transition-colors">Zrušit</button>
+                <button onclick="window._adminBanConfirm()" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl transition-colors">Potvrdit BAN</button>
+            </div></div>`;
+        m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+        document.body.appendChild(m);
+    };
+
+    window._adminBanConfirm = async function() {
+        const userId = (document.getElementById('admin-ban-userid')?.value || '').trim();
+        const reason = (document.getElementById('admin-ban-reason')?.value || '').trim();
+        if (!userId || !reason) return;
         const token = await _ensureValidToken();
         const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
         try {
             const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_ban_user`, { method: 'POST', headers: hdrs, body: JSON.stringify({ p_target_id: userId, p_reason: reason }) });
             if (!r.ok) throw new Error(await r.text());
-            showToast('Uživatel byl deaktivován.', 'success');
-            document.getElementById('admin-ban-userid').value = '';
-            document.getElementById('admin-ban-reason').value = '';
+            showToast('Uživatel deaktivován, objednávky ošetřeny.', 'success', 4000);
+            const mm = document.getElementById('admin-ban-modal'); if (mm) mm.remove();
+            const ui = document.getElementById('admin-ban-userid'); if (ui) ui.value = '';
+            const re = document.getElementById('admin-ban-reason'); if (re) re.value = '';
+            const bx = document.getElementById('admin-ban-orders'); if (bx) bx.innerHTML = '';
         } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
     };
 
