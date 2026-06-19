@@ -3161,9 +3161,9 @@
             });
             const d = await r.json().catch(() => ({}));
             if (!r.ok || !d || !d.description) {
-                const reason = (d && (d.error || d.detail)) ? (d.error || d.detail) : ('HTTP ' + r.status);
+                const reason = (d && d.error ? d.error : ('HTTP ' + r.status)) + (d && d.detail ? (' — ' + String(d.detail).slice(0, 400)) : '');
                 console.warn('[AI generate-listing] selhalo:', r.status, d);
-                showToast('AI zatím nedostupná: ' + reason + ' — použil jsem šablonu. (Zkontroluj nasazení funkce a secret.)', 'warning', 8000);
+                showToast('AI nedostupná: ' + reason, 'warning', 12000);
                 _fallback();
                 if (btnText) btnText.innerText = 'Hotovo (šablona)';
                 return;
