@@ -2239,7 +2239,7 @@
         dispute_admin:  '🚨', auction_won:'🏆', new_review:'⭐', seller_reply:'💬',
         dac7_warning:   '⚠️', dac7_blocked:'🔒', dac7_verified:'✅',
         listing_deactivated:'🚫', listing_reactivated:'✅',
-        support_reply:'💬', news:'📢', account_banned:'🚫', nonpayment:'⏰', nonpayment_warning:'⚠️', ban_notice:'⚠️', order_cancelled:'❌', price_offer:'💬',
+        support_reply:'💬', news:'📢', account_banned:'🚫', nonpayment:'⏰', nonpayment_warning:'⚠️', ban_notice:'⚠️', order_cancelled:'❌', price_offer:'💬', price_drop:'🔻',
         default:'🔔'
     };
 
@@ -2510,7 +2510,8 @@
                         is_top: checkTopExpiry(item), top_expires_at: item.top_expires_at,
                         top_paid_kc: item.top_paid_kc || 0, views_count: item.views_count || 0,
                         created_at: item.created_at ? new Date(item.created_at).getTime() : 0,
-                        payment_type: item.payment_type || 'escrow', weight: Number(item.weight) || 0, dimensions: item.dimensions || ''
+                        payment_type: item.payment_type || 'escrow', weight: Number(item.weight) || 0, dimensions: item.dimensions || '',
+                        original_price: Number(item.original_price) || 0, price_dropped_at: item.price_dropped_at ? new Date(item.price_dropped_at).getTime() : 0
                     };
                 });
             }
@@ -2533,7 +2534,8 @@
                         created_at: item.created_at ? new Date(item.created_at).getTime() : 0,
                         db_status: item.status || 'aktivní',
                         condition_notes: item.condition_notes ? esc(item.condition_notes) : null,
-                        payment_type: item.payment_type || 'escrow', weight: Number(item.weight) || 0, dimensions: item.dimensions || ''
+                        payment_type: item.payment_type || 'escrow', weight: Number(item.weight) || 0, dimensions: item.dimensions || '',
+                        original_price: Number(item.original_price) || 0, price_dropped_at: item.price_dropped_at ? new Date(item.price_dropped_at).getTime() : 0
                     };
                 });
             }
@@ -3637,6 +3639,9 @@
             ? 'bg-sky-50 text-sky-600 border-sky-100 hover:bg-sky-100'
             : (isReserved ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed' : 'bg-pink-50 text-pink-600 border-pink-100 hover:bg-pink-100');
         const isFav = isFavorite(item.id);
+        const dropped = !isAukce && item.original_price && item.original_price > item.price;
+        const dropPct = dropped ? Math.round((1 - item.price / item.original_price) * 100) : 0;
+        const origTotal = dropped ? getPriceInfo(item.original_price).total : 0;
 
         return `
         <div onclick="navigate('${detailView}/${item.id}')" class="card-lift bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 flex flex-col group cursor-pointer relative ${item.is_top ? 'card-top-glow' : ''}">
@@ -3648,6 +3653,7 @@
                     <div class="text-white/70 font-normal text-[9px]">Cena prodejce</div>
                     <span id="list-seller-${item.id}">${item.price.toLocaleString('cs-CZ')} Kč</span>
                 </div>
+                ${dropped ? `<div class="absolute top-2 left-2 bg-rose-500 text-white text-[10px] font-extrabold px-2 py-1 rounded-lg shadow-md flex items-center gap-1 ${item.is_top ? 'mt-7' : ''}">🔻 Sníženo −${dropPct}%</div>` : ''}
                 <button onclick="toggleFavorite(event,'${item.id}','${item.type}')" data-id="${item.id}"
                     class="fav-btn absolute top-2 right-2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors ${isFav ? 'text-red-500' : 'text-white'}" aria-label="Oblíbené">
                     <svg class="w-4 h-4" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
@@ -3671,6 +3677,7 @@
             <div class="mt-auto pt-3 border-t border-gray-50">
                 <button type="button" onclick="event.stopPropagation();showPriceBreakdown(event,'${item.id}')" class="flex items-center gap-1.5 mb-2 hover:opacity-80 transition-opacity" title="Konečná cena pro kupujícího — rozbor ceny a escrow ochrana">
                     <span class="text-lg sm:text-xl font-black text-red-600" id="list-price-${item.id}">${prices.total.toLocaleString('cs-CZ')} Kč</span>
+                    ${dropped ? `<span class="text-xs text-gray-400 line-through font-semibold">${origTotal.toLocaleString('cs-CZ')} Kč</span>` : ''}
                     <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                 </button>
                 <button class="w-full font-bold py-2.5 rounded-xl transition-colors border text-sm ${btnCls}">${btnLabel}</button>
@@ -6379,8 +6386,8 @@
                             ${item.condition_notes?`<div class="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3"><p class="text-xs font-bold text-amber-700 mb-1">⚠️ Prodejce uvádí k stavu zboží:</p><p class="text-sm text-amber-800" style="white-space:pre-wrap">${item.condition_notes}</p></div>`:''}
                         </div>
                         <div class="bg-pink-50 border border-pink-100 p-5 rounded-3xl mb-5">
-                            <p class="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Cena prodejce</p>
-                            <div class="text-3xl font-black text-gray-800 mb-3">${item.price.toLocaleString('cs-CZ')} Kč</div>
+                            <div class="flex items-center justify-between mb-1"><p class="text-gray-400 text-xs font-semibold uppercase tracking-wider">Cena prodejce</p>${item.original_price && item.original_price > item.price ? `<span class="bg-rose-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">🔻 Sníženo −${Math.round((1-item.price/item.original_price)*100)}%</span>` : ''}</div>
+                            <div class="flex items-end gap-2 mb-3"><div class="text-3xl font-black text-gray-800">${item.price.toLocaleString('cs-CZ')} Kč</div>${item.original_price && item.original_price > item.price ? `<div class="text-base text-gray-400 line-through font-semibold mb-1">${item.original_price.toLocaleString('cs-CZ')} Kč</div>` : ''}</div>
                             <div class="border-t border-pink-200/50 pt-3">
                                 <p class="text-gray-500 text-xs font-semibold uppercase mb-1">Konečná cena pro kupujícího</p>
                                 <div class="flex items-end gap-2">
