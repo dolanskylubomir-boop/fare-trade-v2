@@ -2183,13 +2183,13 @@
             const r = await fetch(`${SUPABASE_URL}/rest/v1/pevna_cena?seller_id=eq.${window.currentUser.id}&status=in.(prodano,zruseno)&order=created_at.desc&select=id,title,price,images,status`, { headers: hdrs });
             const items = await r.json();
             if (!Array.isArray(items) || !items.length) return;
-            let html = `<div class="border-t border-gray-100 pt-5 mt-2 fade-in"><p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Prodané / Archiv (${items.length})</p><div class="flex flex-col gap-2">`;
+            let body = '<div class="flex flex-col gap-2">';
             items.forEach(item => {
                 const img = (item.images && item.images[0]) ? safeUrl(item.images[0]) : FALLBACK_IMG;
                 const isProdano = item.status === 'prodano';
                 const statusLabel = isProdano ? '✓ Prodáno' : '↩️ Vráceno — čeká na aktivaci';
                 const statusCls   = isProdano ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700';
-                html += `<div class="flex items-center gap-3 p-3 border border-gray-100 rounded-2xl bg-gray-50/50 opacity-80">
+                body += `<div class="flex items-center gap-3 p-3 border border-gray-100 rounded-2xl bg-gray-50/50 opacity-80">
                     <div class="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0"><img src="${img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}'" class="w-full h-full object-cover grayscale"></div>
                     <div class="flex-grow min-w-0">
                         <h4 class="font-bold text-gray-600 truncate text-sm">${esc(item.title)}</h4>
@@ -2202,8 +2202,8 @@
                     </div>` : ''}
                 </div>`;
             });
-            html += '</div></div>';
-            container.innerHTML = html;
+            body += '</div>';
+            container.innerHTML = '<div class="mt-4"></div>' + window._accordion('inz_archive_sec', `Prodané / Archiv (${items.length})`, body, { closedDefault:true });
         } catch(e) {}
     }
 
