@@ -3446,7 +3446,7 @@
             if (isAuction) {
                 const startPrice = parseInt(document.getElementById('ad-starting-price').value, 10);
                 if (isNaN(startPrice)||startPrice<1||startPrice>100000000) throw new Error('Neplatná vyvolávací cena.');
-                const dur = parseInt(document.getElementById('ad-duration').value)||7;
+                const dur = 7; // doba trvání aukce je pevně 7 dní
                 const end = new Date(); end.setDate(end.getDate()+dur);
                 adData.starting_price = startPrice; adData.current_price = startPrice; adData.end_time = end.toISOString();
             } else {
@@ -4616,12 +4616,13 @@
                     const isAukce = item.type === 'aukce';
                     const isPending = item.db_status === 'ceka_na_platbu';
                     const topInfo = item.is_top && item.top_expires_at ? `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ml-2">⭐ TOP do ${new Date(item.top_expires_at).toLocaleDateString('cs-CZ')}</span>` : '';
+                    const createdStr = item.created_at ? new Date(item.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric',year:'numeric'}) : '';
                     html += `<div class="flex items-center gap-3 p-3.5 border ${isPending?'border-yellow-200 bg-yellow-50/50 opacity-70':'border-gray-100 bg-white'} rounded-2xl ${isPending?'':'hover:shadow-md'} transition-shadow group relative overflow-hidden">
                         ${isPending?`<div class="absolute top-2 right-2 z-10"><span class="bg-yellow-400 text-yellow-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">⏳ Čeká na platbu</span></div>`:''}
                         <div onclick="${isPending?'':'navigate(\''+( isAukce?'aukce-detail':'pevna-cena-detail')+'/'+item.id+'\')'}" class="flex items-center gap-3 flex-grow ${isPending?'pointer-events-none':'cursor-pointer'} min-w-0">
                             <div class="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 ${isPending?'grayscale':''}" ><img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" class="w-full h-full object-cover ${isPending?'':'group-hover:scale-110'} transition-transform"></div>
                             <div class="flex-grow min-w-0">
-                                <div class="text-[11px] ${isPending?'text-gray-400':isAukce?'text-sky-500':'text-pink-500'} font-bold mb-0.5 uppercase flex items-center flex-wrap gap-1">${isAukce?'Aukce':'Pevná cena'}${topInfo}${!isPending?`<span class="text-gray-400 font-medium text-[10px] bg-gray-50 px-1.5 py-0.5 rounded">${getDays(item.endTime)}</span>`:''}</div>
+                                <div class="text-[11px] ${isPending?'text-gray-400':isAukce?'text-sky-500':'text-pink-500'} font-bold mb-0.5 uppercase flex items-center flex-wrap gap-1">${isAukce?'Aukce':'Pevná cena'}${topInfo}${!isPending?`<span class="text-gray-400 font-medium text-[10px] bg-gray-50 px-1.5 py-0.5 rounded">${getDays(item.endTime)}</span>`:''}${createdStr?`<span class="text-gray-400 font-medium text-[10px] bg-gray-50 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5 normal-case">📅 ${createdStr}</span>`:''}</div>
                                 <h4 class="font-bold ${isPending?'text-gray-400':'text-gray-800'} truncate text-sm">${item.title}</h4>
                                 ${isPending?`<p class="text-[10px] text-yellow-700 font-semibold mt-0.5">Kupující má 2 hod. na zaplacení</p>`:''}
                                 ${!isPending&&isAukce&&item.last_bidder_id?`<div class="text-[10px] text-green-600 font-bold mt-0.5">✓ Zájemce: ${item.last_bidder_name}</div>`:''}
@@ -4637,6 +4638,9 @@
                             <button onclick="${isPending?'':('showTopModal(\''+item.id+'\',\''+item.type+'\')')}" title="TOP inzerát" class="w-8 h-8 rounded-xl ${isPending?'bg-gray-100 text-gray-300 cursor-not-allowed':'bg-amber-50 text-amber-600 hover:bg-amber-100'} flex items-center justify-center transition-colors">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                             </button>
+                            ${!isAukce && !isPending ? `<button onclick="extendAd('${item.type}','${item.id}')" title="Prodloužit inzerát" class="w-8 h-8 rounded-xl bg-yellow-50 text-yellow-600 hover:bg-yellow-100 flex items-center justify-center transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </button>` : ''}
                             <button onclick="${isPending?'showToast(\'Inzerát nelze smazat — čeká na platbu.\',\'warning\')':'deleteAd(\''+item.type+'\',\''+item.id+'\')'}" title="${isPending?'Nelze smazat':'Smazat'}" class="w-8 h-8 rounded-xl ${isPending?'bg-gray-100 text-gray-300 cursor-not-allowed':'bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600'} flex items-center justify-center transition-colors">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
@@ -5617,7 +5621,7 @@
                         <div id="fee-preview" class="hidden mt-2 bg-sky-50 border border-sky-100 rounded-xl px-4 py-3 text-xs text-sky-800 flex flex-col gap-1"></div>
                     </div>
                     <div id="field-auction-price" class="hidden flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Vyvolávací cena (Kč)</label><input type="number" id="ad-starting-price" min="1" max="100000000" placeholder="1" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-2xl font-bold focus:outline-sky-400 text-sky-600"></div>
-                    <div id="field-auction-duration" class="hidden flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Doba trvání aukce</label><select id="ad-duration" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white"><option value="7">7 dní</option><option value="10">10 dní</option><option value="14">14 dní</option><option value="20">20 dní</option></select></div>
+                    <div id="field-auction-duration" class="hidden flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Doba trvání aukce</label><div class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-bold text-gray-700 flex items-center gap-2"><span>📅</span>7 dní <span class="text-gray-400 font-medium">· pevně daná, nelze měnit ani prodlužovat</span></div><input type="hidden" id="ad-duration" value="7"></div>
                 </div>
                 <div class="border-t border-gray-100 pt-6">
                     <h3 class="text-base font-bold text-gray-800 mb-4">Přeprava a rozměry</h3>
