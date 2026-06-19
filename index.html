@@ -2743,6 +2743,8 @@
         if (action === 'signup' && password.length < 8) return showToast('Heslo musí mít alespoň 8 znaků.','warning');
         if (action === 'signup' && !document.getElementById('vop-consent')?.checked)
             return showToast('Pro registraci musíte být starší 18 let a souhlasit s obchodními podmínkami.','warning');
+        if (action === 'signup' && await window._isIdentityBanned({ email }))
+            return showToast('Tento e-mail patří k účtu, který byl trvale zablokován. Registrace s ním není možná.','error',7000);
         if (action === 'signup') {
             window._justSignedUp = true;
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
@@ -2948,6 +2950,12 @@
                 kyc_status: 'verified', is_verified: true, fio_verified: true
             };
             if (avatarUrl) profileData.avatar_url = avatarUrl;
+            // Zákaz pro dříve zabanované — podle e-mailu a (u ostrého BankID) rodného čísla.
+            // Mock RČ 900101/1234 RPC ignoruje, takže testování neblokuje.
+            if (await window._isIdentityBanned({ email: window.currentUser?.email, birth_number: profileData.kyc_birth_number })) {
+                showToast('Tato totožnost patří k trvale zablokovanému účtu. Ověření nelze dokončit a účet nebude vpuštěn.','error',8000);
+                return;
+            }
             const token = await _ensureValidToken();
             await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + window.currentUser.id, {
                 method: 'PATCH',
@@ -4784,6 +4792,25 @@
     }
 
     // Založí "light" účet kupujícího z checkout formuláře (nebo přihlásí existující).
+    // Vrátí true, pokud zadané údaje odpovídají ZABANOVANÉMU účtu (zákaz re-registrace).
+    // Při chybě/nedostupnosti vrací false — neblokujeme legitimní uživatele.
+    window._isIdentityBanned = async function(p) {
+        try {
+            const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/check_identity_banned', {
+                method: 'POST',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    p_email:        p.email || null,
+                    p_phone:        p.phone || null,
+                    p_birth_number: p.birth_number || null,
+                    p_full_address: p.full_address || null
+                })
+            });
+            if (!r.ok) return false;
+            return (await r.json()) === true;
+        } catch(e) { return false; }
+    };
+
     async function _createBuyerAccount(email, password) {
         if (!supabaseClient) { showToast('Systém je dočasně nedostupný, zkuste to znovu.','error'); return false; }
         try {
@@ -4815,6 +4842,9 @@
         if (!window.currentUser || window._isAnonBuyer) {
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Zadejte platný e-mail — slouží jako přihlášení k vašemu účtu.','warning'); return; }
             if (password.length < 8) { showToast('Zadejte heslo k účtu (min. 8 znaků).','warning'); return; }
+            if (await window._isIdentityBanned({ email, phone, full_address: [street, city, zip].filter(Boolean).join(', ') })) {
+                showToast('Zadané údaje odpovídají účtu, který byl trvale zablokován. Registraci ani nákup nelze dokončit.','error',7000); return;
+            }
             if (!(await _createBuyerAccount(email, password))) return;
         }
         let sub, items, sellerId;
@@ -5619,6 +5649,12 @@
                 <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5 flex items-start gap-3">
                     <span class="text-2xl shrink-0">💰</span>
                     <p class="text-sm text-amber-800 leading-relaxed">Vstupní registrace přes BankID je zpoplatněna jednorázově <strong>65 Kč</strong>. Tuto částku vám ale <strong>po úspěšném ověření vrátíme zpět do vaší virtuální peněženky</strong> — využijete ji např. na TOPování inzerátů, prodlužování nebo další služby. Fakticky vás tak ověření nestojí nic navíc, jen potvrzuje, že jste skutečná osoba.</p>
+                </div>
+
+                <!-- Varování pro dříve zabanované -->
+                <div class="bg-red-50 border border-red-200 rounded-2xl p-4 mb-5 flex items-start gap-3">
+                    <span class="text-2xl shrink-0">🚫</span>
+                    <p class="text-sm text-red-800 leading-relaxed"><strong>Pokud jste u nás už dostal/a trvalý zákaz (BAN), BankID nezkoušejte a neplaťte.</strong> Ověření podle vaší skutečné totožnosti neprojde — účet <strong>nebude vpuštěn ani zaregistrován</strong> a poplatek řešíte zbytečně.</p>
                 </div>
 
                 <!-- BankID tlačítko -->
