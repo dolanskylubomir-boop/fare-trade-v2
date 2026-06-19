@@ -5420,23 +5420,26 @@
     window._loadBlocklist = async function() {
         const box = document.getElementById('blocklist-mgr');
         if (!box) return;
+        let list = [];
+        let notDeployed = false;
         try {
             const token = await _ensureValidToken();
             const r = await fetch(`${SUPABASE_URL}/rest/v1/moderation_blocklist?select=id,word&order=word.asc`, { headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}` } });
-            const words = await r.json().catch(()=>[]);
-            const list = Array.isArray(words) ? words : [];
-            box.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                    <h4 class="font-extrabold text-amber-800 text-sm flex items-center gap-2">🛡️ Zakázaná slova (auto-moderace) — ${list.length}</h4>
-                </div>
-                <p class="text-xs text-gray-500 mb-3">Nový inzerát s některým z těchto slov v názvu či popisu se nezveřejní a čeká na schválení. Shoda je na hranici slova (ne podřetězec).</p>
-                <div class="flex gap-2 mb-3">
-                    <input id="blocklist-input" type="text" maxlength="40" placeholder="přidat slovo…" onkeydown="if(event.key==='Enter')addBlocklistWord()" class="flex-1 px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:border-amber-400 bg-white">
-                    <button onclick="addBlocklistWord()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors">+ Přidat</button>
-                </div>
-                <div class="flex flex-wrap gap-1.5">${list.length ? list.map(w => `<span class="inline-flex items-center gap-1 bg-white border border-amber-200 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">${esc(w.word)}<button onclick="removeBlocklistWord('${w.id}')" class="text-amber-400 hover:text-red-500 ml-0.5" title="Odebrat">✕</button></span>`).join('') : '<span class="text-xs text-gray-400 italic">Zatím žádná slova.</span>'}</div>
-            </div>`;
-        } catch(e) { box.innerHTML = ''; }
+            if (r.ok) { const words = await r.json().catch(()=>[]); list = Array.isArray(words) ? words : []; }
+            else { notDeployed = true; }
+        } catch(e) { notDeployed = true; }
+        const chips = notDeployed
+            ? '<span class="text-xs text-red-500 italic">Tabulka zakázaných slov zatím neexistuje — spusťte auto-moderation.sql v Supabase.</span>'
+            : (list.length ? list.map(w => `<span class="inline-flex items-center gap-1 bg-white border border-amber-200 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">${esc(w.word)}<button onclick="removeBlocklistWord('${w.id}')" class="text-amber-400 hover:text-red-500 ml-0.5" title="Odebrat">✕</button></span>`).join('') : '<span class="text-xs text-gray-400 italic">Zatím žádná slova.</span>');
+        box.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <h4 class="font-extrabold text-amber-800 text-sm flex items-center gap-2 mb-3">🛡️ Zakázaná slova (auto-moderace)${notDeployed?'':` — ${list.length}`}</h4>
+            <p class="text-xs text-gray-500 mb-3">Nový inzerát s některým z těchto slov v názvu či popisu se nezveřejní a čeká na schválení. Shoda je na hranici slova (ne podřetězec).</p>
+            <div class="flex gap-2 mb-3">
+                <input id="blocklist-input" type="text" maxlength="40" placeholder="přidat slovo…" onkeydown="if(event.key==='Enter')addBlocklistWord()" class="flex-1 px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:border-amber-400 bg-white">
+                <button onclick="addBlocklistWord()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors">+ Přidat</button>
+            </div>
+            <div class="flex flex-wrap gap-1.5">${chips}</div>
+        </div>`;
     };
     window.addBlocklistWord = async function() {
         const inp = document.getElementById('blocklist-input');
