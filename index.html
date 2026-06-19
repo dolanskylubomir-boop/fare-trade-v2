@@ -8975,18 +8975,74 @@
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_audit_log`, { method: 'POST', headers: hdrs, body: JSON.stringify({ p_limit: 500 }) });
                 if (!r.ok) { container.innerHTML = '<p class="text-red-500 text-center py-8">Log se nepodařilo načíst (status ' + r.status + ').<br><span class="text-xs text-gray-400">Spustil jsi aml-compliance.sql v Supabase?</span></p>'; return; }
                 let all = await r.json();
-                all = Array.isArray(all) ? all.filter(x => x.actor_role === 'admin' || x.actor_role === 'compliance') : [];
+                all = Array.isArray(all) ? all.filter(x =>
+                    (x.actor_role === 'admin' || x.actor_role === 'compliance')
+                    && x.entity_type !== 'aml_audit_log'      // nelogujeme prohlížení samotného logu
+                    && x.action !== 'aml.audit_view'
+                ) : [];
                 const ALABEL = {
                     'profiles.update':'Úprava uživatele / profilu', 'profiles.insert':'Nový profil', 'profiles.delete':'Smazání profilu',
                     'objednavky.update':'Změna objednávky', 'objednavky.insert':'Nová objednávka', 'objednavky.delete':'Smazání objednávky',
                     'disputes.update':'Vyřešení / úprava sporu', 'disputes.insert':'Nový spor',
                     'wallet_transactions.insert':'Pohyb peněženky', 'top_payments.insert':'Platba za TOP', 'transactions.update':'Změna transakce',
+                    'pevna_cena.update':'Úprava inzerátu (pevná cena)', 'pevna_cena.delete':'Smazání inzerátu', 'pevna_cena.insert':'Nový inzerát',
+                    'aukce.update':'Úprava aukce', 'aukce.delete':'Smazání aukce', 'aukce.insert':'Nová aukce',
+                    'support_tickets.update':'Odpověď / úprava ticketu podpory', 'support_tickets.insert':'Nový ticket podpory',
+                    'reviews.update':'Moderace hodnocení', 'reviews.delete':'Smazání hodnocení', 'reviews.insert':'Nové hodnocení',
+                    'messages.insert':'Zpráva od administrátora',
                     'aml.resolve':'Vyřešení AML alertu', 'aml.case_create':'Založení AML případu', 'aml.case_update':'Úprava AML případu',
                     'aml.screen':'Screening klienta (AML)', 'aml.str_view':'Zobrazení STR podkladu', 'aml.config_set':'Změna AML prahu',
                     'report.generate':'Vygenerování reportu'
                 };
                 const lbl = a => ALABEL[a] || a;
                 window._adminLogLabels = ALABEL;
+
+                // Lidský popis akce z diffu before/after
+                window._auditHuman = function(a) {
+                    const b = a.before || {}, af = a.after || {}, act = a.action || '';
+                    const who = String(af.display_name || b.display_name || '').trim();
+                    const eid = (a.entity_id || '').substring(0,8).toUpperCase();
+                    const kc  = v => (Number(v)||0).toLocaleString('cs-CZ') + ' Kč';
+                    if (act === 'profiles.update') {
+                        if (b.is_banned !== true && af.is_banned === true) return '🚫 Zablokoval účet' + (who?(' '+who):'') + (af.ban_reason?(' — důvod: '+af.ban_reason):'');
+                        if (b.is_banned === true && af.is_banned !== true) return '✅ Odblokoval účet' + (who?(' '+who):'');
+                        if (b.kyc_status !== af.kyc_status) {
+                            if (af.kyc_status === 'approved' || af.kyc_status === 'verified') return '🪪 Schválil ověření (KYC)' + (who?(' '+who):'');
+                            if (af.kyc_rejection_reason) return '🪪 Zamítl KYC' + (who?(' '+who):'') + ' — ' + af.kyc_rejection_reason;
+                            return '🪪 Změnil stav KYC na „' + (af.kyc_status||'?') + '"' + (who?(' '+who):'');
+                        }
+                        if (b.role !== af.role) return '🔑 Změnil roli' + (who?(' '+who):'') + ' na „' + (af.role||'?') + '"';
+                        if (Number(b.wallet_balance) !== Number(af.wallet_balance)) return '💰 Upravil peněženku' + (who?(' '+who):'') + ': ' + kc(b.wallet_balance) + ' → ' + kc(af.wallet_balance);
+                        return '✏️ Upravil profil' + (who?(' '+who):'');
+                    }
+                    if (act === 'profiles.insert') return '➕ Vytvořen profil' + (who?(' '+who):'');
+                    if (act === 'objednavky.update') {
+                        const sm = {paid:'zaplaceno',shipped:'odesláno',completed:'dokončeno',cancelled:'stornováno',refunded:'vráceno',returned:'vratka',dispute:'spor'};
+                        if (b.status !== af.status) return '📦 Objednávka #' + eid + ' → ' + (sm[af.status]||af.status);
+                        return '📦 Úprava objednávky #' + eid;
+                    }
+                    if (act === 'disputes.update') {
+                        const dm = {resolved_buyer:'ve prospěch kupujícího',resolved_seller:'ve prospěch prodejce',closed:'uzavřen',investigating:'v šetření'};
+                        if (b.status !== af.status) return '⚖️ Spor ' + (dm[af.status]||af.status);
+                        return '⚖️ Úprava sporu';
+                    }
+                    if (act === 'wallet_transactions.insert') { const amt = Number(af.amount)||0; return '💰 Peněženka: ' + (amt>0?'+':'') + kc(amt) + (af.description?(' — '+af.description):''); }
+                    if (act === 'pevna_cena.update' || act === 'aukce.update') {
+                        const t = String(af.title || b.title || '');
+                        if (b.status !== af.status) {
+                            if (af.status === 'deaktivován_adminem') return '🚫 Deaktivoval inzerát' + (t?(' „'+t+'"'):'');
+                            if (af.status === 'aktivní' && b.status === 'deaktivován_adminem') return '✅ Obnovil inzerát' + (t?(' „'+t+'"'):'');
+                            return '🏷️ Inzerát' + (t?(' „'+t+'"'):'') + ' → ' + af.status;
+                        }
+                        return '🏷️ Úprava inzerátu' + (t?(' „'+t+'"'):'');
+                    }
+                    if (act === 'pevna_cena.delete' || act === 'aukce.delete') return '🗑️ Smazal inzerát' + (b.title?(' „'+b.title+'"'):'');
+                    if (act === 'support_tickets.update') return '💬 Odpověděl / upravil ticket podpory' + (af.subject?(' — '+af.subject):'');
+                    if (act === 'support_tickets.insert') return '🎫 Nový ticket podpory' + (af.subject?(' — '+af.subject):'');
+                    if (act.indexOf('reviews.') === 0) return '⭐ Moderace hodnocení';
+                    if (act === 'messages.insert') return '✉️ Odeslal zprávu uživateli';
+                    return ALABEL[act] || act;
+                };
                 const fAction = window._logFilterAction || '';
                 const onlyMine = !!window._logOnlyMine;
                 let rows = all;
@@ -8997,8 +9053,8 @@
                     const rs = window._adminLogRows || [];
                     if (!rs.length) { showToast('Žádné záznamy k exportu.', 'warning'); return; }
                     const L = window._adminLogLabels || {};
-                    const head = ['Čas','Akce','Aktér','Role','Entita','Entity ID'];
-                    const data = rs.map(a => [new Date(a.created_at).toLocaleString('cs-CZ'), (L[a.action]||a.action), a.actor_name||'', a.actor_role||'', a.entity_type||'', a.entity_id||'']);
+                    const head = ['Čas','Popis (lidsky)','Akce','Aktér','Role','Entita','Entity ID'];
+                    const data = rs.map(a => [new Date(a.created_at).toLocaleString('cs-CZ'), (window._auditHuman?window._auditHuman(a):''), (L[a.action]||a.action), a.actor_name||'', a.actor_role||'', a.entity_type||'', a.entity_id||'']);
                     if (window._downloadCsv) window._downloadCsv([head].concat(data), 'admin-log.csv');
                 };
                 const actions = [...new Set(all.map(a => a.action))].sort();
@@ -9015,10 +9071,10 @@
                 if (!rows.length) { container.innerHTML = `<div class="fade-in">${bar}<p class="text-gray-400 text-center py-8">Žádné záznamy pro zvolený filtr.</p></div>`; return; }
                 container.innerHTML = `<div class="fade-in">${bar}${rows.map(a => `<div class="border border-gray-100 rounded-2xl p-3 mb-2 bg-white text-sm">
                         <div class="flex items-center justify-between gap-2 flex-wrap">
-                            <span class="font-bold text-gray-800">${esc(lbl(a.action))}</span>
+                            <span class="font-bold text-gray-800">${esc(window._auditHuman(a))}</span>
                             <span class="text-xs text-gray-500 font-mono whitespace-nowrap">${new Date(a.created_at).toLocaleString('cs-CZ')}</span>
                         </div>
-                        <p class="text-xs text-gray-500 mt-1">👤 <strong>${esc(a.actor_name||'admin')}</strong>${a.actor_role?(' · '+esc(a.actor_role)):''} · ${esc(a.entity_type||'')} <span class="font-mono text-gray-400">${esc((a.entity_id||'').substring(0,12))}</span></p>
+                        <p class="text-xs text-gray-500 mt-1">👤 <strong>${esc(a.actor_name||'admin')}</strong>${a.actor_role?(' · '+esc(a.actor_role)):''} · ${esc(lbl(a.action))} · <span class="font-mono text-gray-400">${esc((a.entity_id||'').substring(0,12))}</span></p>
                         ${(a.before||a.after) ? `<details class="mt-1"><summary class="cursor-pointer text-xs text-gray-400 hover:text-gray-600">detaily změny</summary><pre class="bg-gray-50 rounded-lg p-2 mt-1 overflow-x-auto text-[10px] text-gray-600">${esc(JSON.stringify({ before: a.before, after: a.after }, null, 2))}</pre></details>` : ''}
                     </div>`).join('')}</div>`;
             }
