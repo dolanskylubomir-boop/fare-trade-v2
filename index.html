@@ -4711,6 +4711,7 @@
                     <button onclick="window._loadAdminTab('spory')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors">⚖️ Spory<span id="admin-badge-spory" class="${(window._adminCounts&&window._adminCounts.spory>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-red-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.spory>0)?(window._adminCounts.spory>99?'99+':window._adminCounts.spory):''}</span></button>
                     <button onclick="window._loadAdminTab('dac7')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors">🇪🇺 DAC7 report</button>
                     <button onclick="window._loadAdminTab('inzeraty')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 transition-colors">📋 Inzeráty</button>
+                    <button onclick="window._loadAdminTab('reports')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors">🚩 Nahlášení<span id="admin-badge-reports" class="${(window._adminCounts&&window._adminCounts.reports>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-rose-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.reports>0)?(window._adminCounts.reports>99?'99+':window._adminCounts.reports):''}</span></button>
                     <button onclick="window._loadAdminTab('ban')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200 transition-colors">🚫 Ruční BAN</button>
                     <button onclick="window._loadAdminTab('podpora')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors">💬 Podpora<span id="admin-badge-podpora" class="${(window._adminCounts&&window._adminCounts.podpora>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-sky-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.podpora>0)?(window._adminCounts.podpora>99?'99+':window._adminCounts.podpora):''}</span></button>
                     <button onclick="window._loadAdminTab('compliance')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors">🛡️ Compliance<span id="admin-badge-compliance" class="${(window._adminCounts&&window._adminCounts.compliance>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-indigo-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.compliance>0)?(window._adminCounts.compliance>99?'99+':window._adminCounts.compliance):''}</span></button>
@@ -5232,6 +5233,83 @@
         } catch(e) { showToast('Chyba spojení.','error'); }
     };
     window.payAcceptedOffer = function(offerId) { navigate('platba-nabidka-cena', offerId); };
+
+    // ══════════════════════════════════════════════════════════
+    //  NAHLÁŠENÍ inzerátu / uživatele  (bod 3b)
+    // ══════════════════════════════════════════════════════════
+    const _REPORT_REASONS = {
+        listing: [['prohibited','Zakázané nebo nelegální zboží'],['fake','Padělek / nepravdivé informace'],['scam','Podezření na podvod'],['inappropriate','Nevhodný obsah nebo fotky'],['spam','Spam / duplicitní inzerát'],['other','Jiný důvod']],
+        user:    [['scam','Podvodné chování'],['offensive','Urážlivé / nevhodné jednání'],['spam','Spam'],['other','Jiný důvod']]
+    };
+    window.reportListing = function(itemId) {
+        const item = [...dataPevnaCena, ...dataAukce].find(i => i.id == itemId);
+        if (!item) { showToast('Položka nenalezena.','warning'); return; }
+        showReportModal('listing', String(itemId), item.title, item.type);
+    };
+    window.reportUser = function(userId, label) {
+        showReportModal('user', String(userId), label || 'Uživatel', null);
+    };
+    window.showReportModal = function(targetType, targetId, label, itemType) {
+        if (!window.currentUser || window._isAnonBuyer) { showToast('Pro nahlášení se přihlaste.','warning'); navigate('login'); return; }
+        window._closeOfferModal();
+        const reasons = _REPORT_REASONS[targetType] || _REPORT_REASONS.listing;
+        window._reportCtx = { targetType, targetId, label, itemType };
+        const wrap = document.createElement('div');
+        wrap.id = 'price-offer-modal';
+        wrap.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm fade-in';
+        wrap.innerHTML = `<div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-6 md:p-7" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-extrabold text-pastel-text flex items-center gap-2">🚩 Nahlásit ${targetType==='user'?'uživatele':'inzerát'}</h3>
+                <button onclick="_closeOfferModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors">✕</button>
+            </div>
+            <p class="text-sm text-gray-500 mb-4 truncate">${esc(label||'')}</p>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Důvod</label>
+            <select id="report-reason" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-rose-400 bg-white mb-3">
+                ${reasons.map(r => `<option value="${r[0]}">${r[1]}</option>`).join('')}
+            </select>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Popis (volitelné)</label>
+            <textarea id="report-note" rows="3" maxlength="500" placeholder="Upřesněte, co je v pořádku…" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-rose-400 bg-white resize-none mb-4"></textarea>
+            <button onclick="submitReport()" id="report-send" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3.5 rounded-2xl transition-colors">Odeslat nahlášení</button>
+        </div>`;
+        wrap.onclick = window._closeOfferModal;
+        document.body.appendChild(wrap);
+        document.body.style.overflow = 'hidden';
+    };
+    window.submitReport = async function() {
+        const ctx = window._reportCtx; if (!ctx) return;
+        const reason = document.getElementById('report-reason')?.value || 'other';
+        const note = (document.getElementById('report-note')?.value || '').trim();
+        const btn = document.getElementById('report-send');
+        if (btn) { btn.disabled = true; btn.textContent = 'Odesílám…'; }
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_report`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+                body: JSON.stringify({ p_target_type: ctx.targetType, p_target_id: ctx.targetId, p_reason: reason, p_item_type: ctx.itemType || null, p_target_label: ctx.label || null, p_note: note || null })
+            });
+            if (r.ok) { window._closeOfferModal(); showToast('🚩 Nahlášení odesláno. Děkujeme, prověříme to.','success',5000); }
+            else {
+                const t = await r.text();
+                let msg = 'Nahlášení se nepodařilo odeslat.';
+                if (t.includes('already_reported')) msg = 'Tento obsah jste už nahlásili — prověřujeme ho.';
+                else if (t.includes('PGRST202')||t.includes('Could not find')) msg = 'Funkce nahlášení není nasazena — spusťte reports.sql v Supabase.';
+                showToast(msg,'error',6000);
+                if (btn) { btn.disabled = false; btn.textContent = 'Odeslat nahlášení'; }
+            }
+        } catch(e) { showToast('Chyba spojení.','error'); if (btn) { btn.disabled = false; btn.textContent = 'Odeslat nahlášení'; } }
+    };
+    window.resolveReport = async function(id, action) {
+        if (action === 'dismiss' && !confirm('Zamítnout toto nahlášení?')) return;
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/resolve_report`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+                body: JSON.stringify({ p_id: id, p_action: action })
+            });
+            if (r.ok) { showToast(action==='resolve'?'✓ Vyřešeno.':'Zamítnuto.','success'); if (window._loadAdminTab) window._loadAdminTab('reports'); if (window._checkAdminBadge) window._checkAdminBadge(); }
+            else showToast('Akce se nezdařila.','error');
+        } catch(e) { showToast('Chyba spojení.','error'); }
+    };
 
     function _refreshOfferLists() {
         if (document.getElementById('prodejce-obj-content') && typeof loadProdejceObjednavky==='function') loadProdejceObjednavky();
@@ -6527,6 +6605,7 @@
                                 ${!isReserved ? `<button onclick="showOfferModal('${item.id}')" class="w-full bg-white border border-violet-200 hover:border-violet-400 hover:bg-violet-50 text-violet-600 font-bold py-3 px-8 rounded-2xl transition-all text-sm flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>Nabídnout cenu</button>` : ''}
                                 ${window._isSellerVerified() ? `<button onclick="showMessageModal('${item.id}','${item.seller_id}',\`${item.title.replace(/`/g,'')}\`,'pevna_cena')" class="w-full bg-white border border-pink-200 hover:border-pink-400 hover:bg-pink-50 text-pink-600 font-bold py-3 px-8 rounded-2xl transition-all text-sm flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3-3-3z"/></svg>Dotaz prodejci</button>` : ''}
                 <button onclick="shareItem('${item.title}','${item.id}','pevna-cena')" class="w-full bg-white border border-gray-200 hover:border-gray-400 hover:bg-gray-50 text-gray-500 hover:text-sky-600 font-bold py-3 px-8 rounded-2xl transition-all text-sm flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>Sdílet</button>
+                <button onclick="reportListing('${item.id}')" class="w-full text-gray-400 hover:text-rose-500 font-bold py-2 text-xs flex items-center justify-center gap-1.5 transition-colors">🚩 Nahlásit inzerát</button>
                             </div>`}
                     </div>
                 </div>
@@ -9527,6 +9606,36 @@
                     </div>
                 </div>`).join('');
             }
+            else if (tab === 'reports') {
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_open_reports`, { method: 'POST', headers: hdrs, body: '{}' });
+                const rows = await r.json();
+                if (!Array.isArray(rows) || !rows.length) { container.innerHTML = '<p class="text-gray-400 text-center py-8">Žádná otevřená nahlášení. ✓</p>'; return; }
+                const RL = { spam:'Spam / hromadný inzerát', prohibited:'Zakázané zboží', fake:'Padělek / nepravdivé', scam:'Podvod', inappropriate:'Nevhodný obsah', offensive:'Urážlivé chování', other:'Jiné' };
+                container.innerHTML = rows.map(o => {
+                    const isListing = o.target_type === 'listing';
+                    const openBtn = isListing
+                        ? `<button onclick="navigate('${o.item_type==='aukce'?'aukce-detail':'pevna-cena-detail'}/${o.target_id}')" class="bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 font-bold px-3 py-2 rounded-xl text-xs transition-colors">🔗 Otevřít inzerát</button>`
+                        : `<button onclick="navigate('seller-inzeraty','${o.target_id}')" class="bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 font-bold px-3 py-2 rounded-xl text-xs transition-colors">👤 Profil uživatele</button>`;
+                    return `<div class="border border-rose-100 bg-rose-50/30 rounded-2xl p-4 mb-3 fade-in">
+                        <div class="flex items-start justify-between gap-3 mb-2">
+                            <div class="min-w-0">
+                                <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${isListing?'bg-orange-100 text-orange-700':'bg-purple-100 text-purple-700'}">${isListing?'Inzerát':'Uživatel'}</span>
+                                <p class="font-bold text-gray-800 mt-1 truncate">${esc(o.target_label || o.target_id)}</p>
+                                <p class="text-xs text-gray-400">Nahlásil: <strong>${esc(o.reporter_name)}</strong> · ${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 mb-3 border border-rose-100">
+                            <p class="text-xs font-bold text-rose-700 mb-1">🚩 Důvod: ${esc(RL[o.reason]||o.reason)}</p>
+                            ${o.note ? `<p class="text-sm text-gray-700" style="white-space:pre-wrap">${esc(o.note)}</p>` : '<p class="text-xs text-gray-400 italic">Bez popisu</p>'}
+                        </div>
+                        <div class="flex gap-2 flex-wrap">
+                            ${openBtn}
+                            <button onclick="resolveReport('${o.id}','resolve')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">✓ Vyřešeno</button>
+                            <button onclick="resolveReport('${o.id}','dismiss')" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors">Zamítnout</button>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
             else if (tab === 'spory') {
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_disputed_orders`, { method: 'POST', headers: hdrs, body: '{}' });
                 const rows = await r.json();
@@ -10740,25 +10849,28 @@
         if (!token) return;
         const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
         try {
-            const [r1, r2, r3, r4] = await Promise.all([
+            const [r1, r2, r3, r4, r5] = await Promise.all([
                 fetch(SUPABASE_URL + '/rest/v1/rpc/get_pending_kyc',      { method: 'POST', headers: hdrs, body: '{}' }),
                 fetch(SUPABASE_URL + '/rest/v1/rpc/get_disputed_orders',   { method: 'POST', headers: hdrs, body: '{}' }),
                 fetch(SUPABASE_URL + '/rest/v1/support_tickets?status=eq.open&select=id', { headers: hdrs }),
-                fetch(SUPABASE_URL + '/rest/v1/rpc/get_aml_dashboard',     { method: 'POST', headers: hdrs, body: '{}' })
+                fetch(SUPABASE_URL + '/rest/v1/rpc/get_aml_dashboard',     { method: 'POST', headers: hdrs, body: '{}' }),
+                fetch(SUPABASE_URL + '/rest/v1/rpc/count_open_reports',    { method: 'POST', headers: hdrs, body: '{}' })
             ]);
-            const [kyc, disputes, tickets, aml] = await Promise.all([
+            const [kyc, disputes, tickets, aml, reports] = await Promise.all([
                 r1.ok ? r1.json().catch(function() { return []; }) : Promise.resolve([]),
                 r2.ok ? r2.json().catch(function() { return []; }) : Promise.resolve([]),
                 r3.ok ? r3.json().catch(function() { return []; }) : Promise.resolve([]),
-                r4.ok ? r4.json().catch(function() { return {}; }) : Promise.resolve({})
+                r4.ok ? r4.json().catch(function() { return {}; }) : Promise.resolve({}),
+                r5.ok ? r5.json().catch(function() { return 0; }) : Promise.resolve(0)
             ]);
             const counts = {
                 kyc:        Array.isArray(kyc)      ? kyc.length      : 0,
                 spory:      Array.isArray(disputes) ? disputes.length : 0,
                 podpora:    Array.isArray(tickets)  ? tickets.length  : 0,
-                compliance: (aml && typeof aml.alerts_open === 'number') ? aml.alerts_open : 0
+                compliance: (aml && typeof aml.alerts_open === 'number') ? aml.alerts_open : 0,
+                reports:    (typeof reports === 'number') ? reports : 0
             };
-            const total = counts.kyc + counts.spory + counts.podpora + counts.compliance;
+            const total = counts.kyc + counts.spory + counts.podpora + counts.compliance + counts.reports;
             window._adminBadgeCount = total;
             window._adminCounts     = counts;
             // Helper: update badge element
@@ -10773,6 +10885,7 @@
             upd('admin-badge-spory',   counts.spory);
             upd('admin-badge-podpora', counts.podpora);
             upd('admin-badge-compliance', counts.compliance);
+            upd('admin-badge-reports', counts.reports);
         } catch(e) { /* silent */ }
     };
 
