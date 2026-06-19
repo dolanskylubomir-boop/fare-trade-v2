@@ -3071,6 +3071,7 @@
             row.className = 'hidden';
             row.innerHTML = '';
         }
+        if (typeof _loadPriceSuggestion === 'function') _loadPriceSuggestion();
     };
 
     window.selectAdSubcat = function(el, name) {
@@ -3194,6 +3195,40 @@
         const commission = Math.round(price * 0.05);
         preview.innerHTML = `<div class="flex justify-between"><span>Cena zboží (vy obdržíte)</span><span class="font-bold">${price.toLocaleString('cs-CZ')} Kč</span></div><div class="flex justify-between text-sky-600"><span>Kupující zaplatí celkem (bez dopravy)</span><span class="font-bold">${(price + commission + 49).toLocaleString('cs-CZ')} Kč</span></div><div class="flex justify-between text-gray-400 text-[11px]"><span>Provize 5% + 49 Kč escrow — platí kupující</span><span>+${commission + 49} Kč</span></div><div class="flex justify-between text-green-700 font-bold border-t border-sky-200 pt-1 mt-1"><span>Aktivace inzerátu escrow</span><span>zdarma</span></div>`;
         preview.classList.remove('hidden');
+    };
+
+    // Cenové doporučení podle reálných dat (bod 2d) — „podobné za…"
+    window._priceSuggestReq = 0;
+    window._loadPriceSuggestion = async function() {
+        const box = document.getElementById('price-suggestion');
+        if (!box) return;
+        const category = (document.getElementById('ad-category')?.value || '').trim();
+        const title    = (document.getElementById('ad-title')?.value || '').trim();
+        if (!category) { box.classList.add('hidden'); box.innerHTML=''; return; }
+        const reqId = ++window._priceSuggestReq;
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/price_suggestion`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token||SUPABASE_ANON_KEY}`, 'Content-Type':'application/json' },
+                body: JSON.stringify({ p_category: category, p_query: title || null })
+            });
+            if (reqId !== window._priceSuggestReq) return; // zastaralá odpověď
+            if (!r.ok) { box.classList.add('hidden'); return; }
+            const d = await r.json();
+            const cnt = Number(d && d.count) || 0;
+            if (cnt < 2 || !d.median) { box.classList.add('hidden'); box.innerHTML=''; return; }
+            const median = Math.round(Number(d.median));
+            const lo = Math.round(Number(d.min)), hi = Math.round(Number(d.max));
+            const scope = title ? `„${esc(title)}"` : esc(category);
+            box.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-xs text-emerald-800">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <span class="font-bold flex items-center gap-1.5">💡 Doporučená cena podle ${cnt} podobných (${scope})</span>
+                    <button type="button" onclick="document.getElementById('ad-price').value=${median};window._updateFeePreview();" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-lg transition-colors">Použít ${median.toLocaleString('cs-CZ')} Kč</button>
+                </div>
+                <p class="mt-1.5 text-emerald-700">Medián <strong>${median.toLocaleString('cs-CZ')} Kč</strong> · rozsah ${lo.toLocaleString('cs-CZ')}–${hi.toLocaleString('cs-CZ')} Kč. Cena blízko mediánu se prodává nejrychleji.</p>
+            </div>`;
+            box.classList.remove('hidden');
+        } catch(e) { box.classList.add('hidden'); }
     };
 
     window.generateAIContent = async function() {
@@ -6204,7 +6239,7 @@
                     </button>
                 </div>
                 <div class="flex flex-col gap-4">
-                    <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Název zboží</label><input type="text" id="ad-title" required maxlength="120" placeholder="Např. Zlaté hodinky Omega" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
+                    <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Název zboží</label><input type="text" id="ad-title" required maxlength="120" placeholder="Např. Zlaté hodinky Omega" onblur="if(typeof _loadPriceSuggestion==='function')_loadPriceSuggestion()" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
 
                     <!-- Kategorie — vizuální picker -->
                     <div class="flex flex-col gap-2">
@@ -6235,6 +6270,7 @@
                 <div class="flex flex-col gap-4">
                     <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Popis inzerátu</label><textarea id="ad-description" required maxlength="1000" rows="5" placeholder="Detailní popis předmětu, vady i přednosti…" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400" style="resize:vertical" oninput="document.getElementById('desc-counter').textContent=(1000-this.value.length)+' znaků zbývá'; if(this.value.length>900)document.getElementById('desc-counter').className='text-xs text-orange-500 mt-1 text-right'; else document.getElementById('desc-counter').className='text-xs text-gray-400 mt-1 text-right'"></textarea><div id="desc-counter" class="text-xs text-gray-400 mt-1 text-right">1000 znaků zbývá</div></div>
                     <div id="field-fixed-price" class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Cena (Kč)</label><input type="number" id="ad-price" min="1" max="100000000" placeholder="1 500" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-2xl font-bold focus:outline-sky-400 text-sky-600" oninput="window._updateFeePreview()">
+                        <div id="price-suggestion" class="hidden mt-2"></div>
                         <div id="fee-preview" class="hidden mt-2 bg-sky-50 border border-sky-100 rounded-xl px-4 py-3 text-xs text-sky-800 flex flex-col gap-1"></div>
                     </div>
                     <div id="field-auction-price" class="hidden flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Vyvolávací cena (Kč)</label><input type="number" id="ad-starting-price" min="1" max="100000000" placeholder="1" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-2xl font-bold focus:outline-sky-400 text-sky-600"></div>
