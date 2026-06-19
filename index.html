@@ -3159,16 +3159,24 @@
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + (token || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, category, condition, brand })
             });
-            if (!r.ok) throw new Error('ef_' + r.status);
-            const d = await r.json();
-            if (!d || !d.description) throw new Error('empty');
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok || !d || !d.description) {
+                const reason = (d && (d.error || d.detail)) ? (d.error || d.detail) : ('HTTP ' + r.status);
+                console.warn('[AI generate-listing] selhalo:', r.status, d);
+                showToast('AI zatím nedostupná: ' + reason + ' — použil jsem šablonu. (Zkontroluj nasazení funkce a secret.)', 'warning', 8000);
+                _fallback();
+                if (btnText) btnText.innerText = 'Hotovo (šablona)';
+                return;
+            }
             if (descEl) descEl.value = d.description;
             const p = Math.round(Number(d.price) || 0);
             if (p > 0) { if (priceEl) priceEl.value = p; if (startEl) startEl.value = Math.floor(p * 0.3); }
             if (btnText) btnText.innerText = 'Hotovo! (Upravte si text)';
         } catch(e) {
+            console.warn('[AI generate-listing] výjimka:', e);
+            showToast('AI se nepodařilo zavolat: ' + (e.message || 'síťová chyba') + ' — použil jsem šablonu.', 'warning', 8000);
             _fallback();
-            if (btnText) btnText.innerText = 'Hotovo! (Upravte si text)';
+            if (btnText) btnText.innerText = 'Hotovo (šablona)';
         }
     };
 
