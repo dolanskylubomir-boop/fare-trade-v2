@@ -2510,7 +2510,7 @@
                         is_top: checkTopExpiry(item), top_expires_at: item.top_expires_at,
                         top_paid_kc: item.top_paid_kc || 0, views_count: item.views_count || 0,
                         created_at: item.created_at ? new Date(item.created_at).getTime() : 0,
-                        payment_type: item.payment_type || 'escrow', weight: Number(item.weight) || 0
+                        payment_type: item.payment_type || 'escrow', weight: Number(item.weight) || 0, dimensions: item.dimensions || ''
                     };
                 });
             }
@@ -2533,7 +2533,7 @@
                         created_at: item.created_at ? new Date(item.created_at).getTime() : 0,
                         db_status: item.status || 'aktivní',
                         condition_notes: item.condition_notes ? esc(item.condition_notes) : null,
-                        payment_type: item.payment_type || 'escrow', weight: Number(item.weight) || 0
+                        payment_type: item.payment_type || 'escrow', weight: Number(item.weight) || 0, dimensions: item.dimensions || ''
                     };
                 });
             }
@@ -6226,15 +6226,37 @@
         const it = [...(dataAukce||[]), ...(dataPevnaCena||[])].find(x => String(x.id) === String(id));
         return it ? (Number(it.weight) || 0) : 0;
     };
-    // Vykreslení dopravců s cenou dle hmotnosti — dvě varianty (karty / radio).
-    window._carrierCards = function(weightKg) {
-        return DOPRAVCI.map(function(d){ const pr = window._carrierPrice(d, weightKg);
-            return `<div class="carrier-card" data-carrier="${d.id}" onclick="selectCarrier('${d.id}',${pr})"><div class="flex items-center justify-between"><div class="flex items-center gap-3"><span class="text-2xl">${d.icon}</span><div><p class="font-bold text-sm text-pastel-text">${d.name}</p><p class="text-xs text-gray-400">${d.desc}</p></div></div><span class="font-extrabold text-pastel-text whitespace-nowrap">${pr} Kč</span></div></div>`; }).join('');
+    window._lookupDims = function(id) {
+        const it = [...(dataAukce||[]), ...(dataPevnaCena||[])].find(x => String(x.id) === String(id));
+        return it ? (it.dimensions || '') : '';
     };
-    window._carrierRadios = function(weightKg, accent) {
+    // Vejde se zásilka k dopravci? (váha i rozměr; neznámé hodnoty neomezují)
+    window._carrierFits = function(d, kg, dimsStr) {
+        if (!d || !d.tierKey) return true;
+        const w = Number(kg) || 0;
+        if (w > 0 && window._shipPriceFor(d.tierKey, w) === null) return false; // nad váhový limit
+        if (!window._dimsFit(d.tierKey, dimsStr)) return false;                  // nad rozměr
+        return true;
+    };
+    // Vykreslení dopravců s cenou dle hmotnosti — nevhodné (váha/rozměr) jsou neklikatelné.
+    window._carrierCards = function(weightKg, dimsStr) {
+        return DOPRAVCI.map(function(d){
+            if (!window._carrierFits(d, weightKg, dimsStr)) {
+                return `<div class="carrier-card !border-gray-100 opacity-50 cursor-not-allowed" title="Nevhodné pro hmotnost/rozměr zásilky"><div class="flex items-center justify-between"><div class="flex items-center gap-3"><span class="text-2xl grayscale">${d.icon}</span><div><p class="font-bold text-sm text-gray-400">${d.name}</p><p class="text-[11px] text-amber-600">Nevhodné — váha/rozměr zásilky</p></div></div><span class="text-xs font-bold text-gray-300 whitespace-nowrap">—</span></div></div>`;
+            }
+            const pr = window._carrierPrice(d, weightKg);
+            return `<div class="carrier-card" data-carrier="${d.id}" onclick="selectCarrier('${d.id}',${pr})"><div class="flex items-center justify-between"><div class="flex items-center gap-3"><span class="text-2xl">${d.icon}</span><div><p class="font-bold text-sm text-pastel-text">${d.name}</p><p class="text-xs text-gray-400">${d.desc}</p></div></div><span class="font-extrabold text-pastel-text whitespace-nowrap">${pr} Kč</span></div></div>`;
+        }).join('');
+    };
+    window._carrierRadios = function(weightKg, accent, dimsStr) {
         accent = accent || 'amber';
-        return DOPRAVCI.map(function(d){ const pr = window._carrierPrice(d, weightKg);
-            return `<label class="flex items-center gap-3 p-3 rounded-xl border-2 border-gray-100 cursor-pointer hover:border-${accent}-300 transition-colors has-[:checked]:border-${accent}-400 has-[:checked]:bg-${accent}-50"><input type="radio" name="phn-carrier" value="${d.id}" onchange="selectCarrier('${d.id}',${pr})" class="accent-${accent}-500"><span class="text-lg">${d.icon}</span><span class="flex-1 text-sm font-medium">${d.name}</span><span class="text-sm font-bold text-gray-700">${pr > 0 ? pr.toLocaleString('cs-CZ') + ' Kč' : 'Zdarma'}</span></label>`; }).join('');
+        return DOPRAVCI.map(function(d){
+            if (!window._carrierFits(d, weightKg, dimsStr)) {
+                return `<label class="flex items-center gap-3 p-3 rounded-xl border-2 border-gray-100 opacity-50 cursor-not-allowed"><input type="radio" disabled class="accent-gray-400"><span class="text-lg grayscale">${d.icon}</span><span class="flex-1 text-sm font-medium text-gray-400">${d.name}</span><span class="text-[11px] font-bold text-amber-600">Nevhodné — váha/rozměr</span></label>`;
+            }
+            const pr = window._carrierPrice(d, weightKg);
+            return `<label class="flex items-center gap-3 p-3 rounded-xl border-2 border-gray-100 cursor-pointer hover:border-${accent}-300 transition-colors has-[:checked]:border-${accent}-400 has-[:checked]:bg-${accent}-50"><input type="radio" name="phn-carrier" value="${d.id}" onchange="selectCarrier('${d.id}',${pr})" class="accent-${accent}-500"><span class="text-lg">${d.icon}</span><span class="flex-1 text-sm font-medium">${d.name}</span><span class="text-sm font-bold text-gray-700">${pr > 0 ? pr.toLocaleString('cs-CZ') + ' Kč' : 'Zdarma'}</span></label>`;
+        }).join('');
     };
 
     // Živý přepočet cen dopravy ve formuláři inzerátu podle zadané váhy
@@ -7088,7 +7110,7 @@
                     <div class="bg-gray-50 rounded-3xl p-5">
                         <h3 class="font-bold text-pastel-text mb-4 flex items-center gap-2"><svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>Způsob doručení</h3>
                         <div class="flex flex-col gap-3">
-                            ${window._carrierCards(_cartW)}
+                            ${window._carrierCards(_cartW, '')}
                         </div>
                     </div>`;
         const itemRows = group.items.map(item => `<div class="flex items-center gap-3 py-3"><img src="${item.img}" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23f1f5f9%22/%3E%3C/svg%3E'" class="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0"><div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">${item.title}</p></div><span class="font-bold text-sm shrink-0 whitespace-nowrap">${item.price.toLocaleString('cs-CZ')} Kč</span></div>`).join('');
@@ -7200,7 +7222,7 @@
                     </div>
                     <div class="bg-gray-50 rounded-3xl p-5">
                         <h3 class="font-bold text-pastel-text mb-4 flex items-center gap-2"><svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>Způsob doručení</h3>
-                        <div class="flex flex-col gap-3">${window._carrierCards(item.weight)}</div>
+                        <div class="flex flex-col gap-3">${window._carrierCards(item.weight, item.dimensions)}</div>
                     </div>
                 </div>
                 <div class="flex flex-col gap-4">
@@ -7272,7 +7294,7 @@
                         </div>
                         <div class="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                             <h3 class="font-bold text-gray-800 mb-4">Způsob doručení</h3>
-                            <div class="flex flex-col gap-2">${window._carrierRadios(item.weight, 'amber')}</div>
+                            <div class="flex flex-col gap-2">${window._carrierRadios(item.weight, 'amber', item.dimensions)}</div>
                         </div>
                     </div>
                     <div class="flex flex-col gap-4">
@@ -7342,7 +7364,7 @@
                         </div>
                         <div class="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                             <h3 class="font-bold text-gray-800 mb-4">Způsob doručení</h3>
-                            <div class="flex flex-col gap-2">${window._carrierRadios(window._lookupWeight(offer.auction_id), 'sky')}</div>
+                            <div class="flex flex-col gap-2">${window._carrierRadios(window._lookupWeight(offer.auction_id), 'sky', window._lookupDims(offer.auction_id))}</div>
                         </div>
                     </div>
                     <div class="flex flex-col gap-4">
