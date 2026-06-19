@@ -1657,13 +1657,35 @@
     // ──────────────────────────────────────────────────────────────
     // TOP SYSTÉM
     // ──────────────────────────────────────────────────────────────
+    // Tarify TOPu podle typu inzerátu.
+    //  - Pevná cena: standardní balíčky 1/3/7/30 dní.
+    //  - Aukce: NELZE prodlužovat → jen 1 den (29 Kč) NEBO „do konce aukce" za
+    //    podílovou cenu (29 Kč/den poměrně dle zbývajícího času, TOP skončí
+    //    přesně s aukcí, ne déle).
+    function _topTiersFor(id, type) {
+        if (type !== 'aukce') return TOP_TIERS;
+        const tiers = [{ days:1, amount:29, label:'1 den', popular:false }];
+        const item = dataAukce.find(i => i.id === id);
+        const endMs = item && item.endTime ? new Date(item.endTime).getTime() : 0;
+        const ms = endMs - Date.now();
+        if (ms > 0) {
+            const days   = ms / 86400000;
+            const amount = Math.max(15, Math.round(days * 29));
+            const dd = Math.floor(days), hh = Math.floor((ms % 86400000) / 3600000);
+            const lbl = dd > 0 ? `Do konce aukce · ${dd} d ${hh} h` : `Do konce aukce · ${hh} h`;
+            tiers.push({ untilEnd:true, until:new Date(endMs).toISOString(), amount, label:lbl, popular:true });
+        }
+        return tiers;
+    }
+
     window.showTopModal = function(id, type) {
         if (!window.currentUser) { showToast('Pro topování inzerátu se musíte přihlásit.','warning'); navigate('login'); return; }
-        _topState = { id, type, selectedTier:null, vs:null };
+        const tiers = _topTiersFor(id, type);
+        _topState = { id, type, selectedTier:null, vs:null, tiers };
 
         // Vyrender tarifu
         const grid = document.getElementById('top-tier-grid');
-        grid.innerHTML = TOP_TIERS.map((t, i) => `
+        grid.innerHTML = tiers.map((t, i) => `
             <div class="tier-btn ${t.popular?'popular':''}" id="tier-${i}" onclick="selectTopTier(${i})">
                 <div class="text-2xl font-extrabold text-amber-500 mb-0.5">${t.amount} Kč</div>
                 <div class="font-bold text-gray-700 text-sm">${t.label}</div>
@@ -1679,7 +1701,7 @@
 
     window.selectTopTier = function(idx) {
         document.querySelectorAll('.tier-btn').forEach((el,i) => el.classList.toggle('selected', i===idx));
-        _topState.selectedTier = TOP_TIERS[idx];
+        _topState.selectedTier = (_topState.tiers || TOP_TIERS)[idx];
         document.getElementById('btn-top-continue').disabled = false;
     };
 
@@ -1708,7 +1730,9 @@
         if (!id || !type || !selectedTier) return;
         try {
             const tableName = type === 'aukce' ? 'aukce' : 'pevna_cena';
-            const topUntil  = new Date(Date.now() + selectedTier.days * 86400000).toISOString();
+            const topUntil  = (selectedTier.untilEnd && selectedTier.until)
+                ? selectedTier.until
+                : new Date(Date.now() + selectedTier.days * 86400000).toISOString();
             if (supabaseClient && window.currentUser) {
                 await supabaseClient.from(tableName).update({ is_top:true, top_expires_at:topUntil, top_paid_kc:selectedTier.amount }).eq('id', id);
             }
@@ -1738,6 +1762,7 @@
 
     window.extendAd = function(type, id) {
         if (!window.currentUser) { showToast('Pro prodloužení se musíte přihlásit.','warning'); navigate('login'); return; }
+        if (type === 'aukce') { showToast('Aukci nelze prodloužit — má pevný konec. Zviditelni ji přes ⭐ TOP inzerát.','warning',4500); return; }
         _extendState = { id, type, tier:null };
         const grid = document.getElementById('extend-tier-grid');
         if (grid) grid.innerHTML = EXTEND_TIERS.map((t, i) => `
@@ -5699,7 +5724,7 @@
                                 <div class="grid grid-cols-2 gap-2">
                                     <button onclick="showEditModal('${item.id}','${item.type}')" class="flex items-center justify-center gap-1.5 bg-white border border-yellow-300 text-yellow-700 hover:bg-yellow-100 font-bold py-2.5 rounded-xl transition-colors text-sm">✏️ Upravit</button>
                                     <button onclick="showTopModal('${item.id}','${item.type}')" class="flex items-center justify-center gap-1.5 bg-amber-50 border border-amber-300 text-amber-700 hover:bg-amber-100 font-bold py-2.5 rounded-xl transition-colors text-sm">⭐ TOP inzerát</button>
-                                    <button onclick="extendAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-white border border-yellow-300 text-yellow-700 hover:bg-yellow-100 font-bold py-2.5 rounded-xl transition-colors text-sm">⏱ Prodloužit</button>
+                                    ${item.type !== 'aukce' ? `<button onclick="extendAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-white border border-yellow-300 text-yellow-700 hover:bg-yellow-100 font-bold py-2.5 rounded-xl transition-colors text-sm">⏱ Prodloužit</button>` : ''}
                                     <button onclick="deleteAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-600 hover:text-white text-red-500 font-bold py-2.5 rounded-xl transition-colors border border-red-200 text-sm">🗑️ Smazat</button>
                                 </div>
                                 ${item.is_top ? `<button onclick="showTopStats('${item.id}','${item.type}')" class="w-full mt-2 flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 border border-amber-300 text-amber-800 hover:from-amber-200 hover:to-yellow-200 font-bold py-2.5 rounded-xl transition-colors text-sm">📊 Statistiky TOPu</button>` : ''}
@@ -5821,7 +5846,7 @@
                                 <div class="grid grid-cols-2 gap-2">
                                     <button onclick="showEditModal('${item.id}','${item.type}')" class="flex items-center justify-center gap-1.5 bg-white border border-yellow-300 text-yellow-700 hover:bg-yellow-100 font-bold py-2.5 rounded-xl transition-colors text-sm">✏️ Upravit</button>
                                     <button onclick="showTopModal('${item.id}','${item.type}')" class="flex items-center justify-center gap-1.5 bg-amber-50 border border-amber-300 text-amber-700 hover:bg-amber-100 font-bold py-2.5 rounded-xl transition-colors text-sm">⭐ TOP inzerát</button>
-                                    <button onclick="extendAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-white border border-yellow-300 text-yellow-700 hover:bg-yellow-100 font-bold py-2.5 rounded-xl transition-colors text-sm">⏱ Prodloužit</button>
+                                    ${item.type !== 'aukce' ? `<button onclick="extendAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-white border border-yellow-300 text-yellow-700 hover:bg-yellow-100 font-bold py-2.5 rounded-xl transition-colors text-sm">⏱ Prodloužit</button>` : ''}
                                     <button onclick="deleteAd('${item.type}','${item.id}')" class="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-600 hover:text-white text-red-500 font-bold py-2.5 rounded-xl transition-colors border border-red-200 text-sm">🗑️ Smazat</button>
                                 </div>
                                 ${item.is_top ? `<button onclick="showTopStats('${item.id}','${item.type}')" class="w-full mt-2 flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 border border-amber-300 text-amber-800 hover:from-amber-200 hover:to-yellow-200 font-bold py-2.5 rounded-xl transition-colors text-sm">📊 Statistiky TOPu</button>` : ''}
