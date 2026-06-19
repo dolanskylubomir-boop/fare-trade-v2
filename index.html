@@ -1543,6 +1543,7 @@
                 <option value="price_desc" ${_listState.sort==='price_desc'?'selected':''}>Cena ↓</option>
                 <option value="rating_desc" ${_listState.sort==='rating_desc'?'selected':''}>Hodnocení ↓</option>
             </select>
+            <button type="button" onclick="saveCurrentSearch('${cat}')" title="Dostávejte upozornění, když přibude odpovídající inzerát" class="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold text-sm transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg><span class="hidden sm:inline">Hlídat</span></button>
         </div>
         <div class="flex items-center gap-2 mb-4">
             <span class="text-xs font-bold text-gray-400 shrink-0">Cena (Kč):</span>
@@ -1673,6 +1674,68 @@
             const data = await r.json();
             return Array.isArray(data) ? data : [];
         } catch(e) { return []; }
+    };
+
+    // ──────────────────────────────────────────────────────────────
+    // HLÍDAČ HLEDÁNÍ (saved search alert)  — bod 2c
+    // ──────────────────────────────────────────────────────────────
+    window.saveCurrentSearch = async function(cat) {
+        if (!window.currentUser || window._isAnonBuyer) {
+            showToast('Pro uložení hlídače hledání se přihlaste.','warning'); navigate('login'); return;
+        }
+        const query = (_listState.search || '').trim();
+        const category = (cat && cat !== 'Vše') ? cat : null;
+        if (!query && !category) { showToast('Zadejte hledaný výraz nebo zvolte kategorii, kterou chcete hlídat.','warning'); return; }
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/add_saved_search`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+                body: JSON.stringify({ p_query: query || null, p_category: category })
+            });
+            if (r.ok) {
+                const label = [query ? `„${query}"` : null, category].filter(Boolean).join(' · ');
+                showToast(`🔔 Hlídač uložen: ${label}. Dáme vědět, až přibude odpovídající inzerát.`,'success',5000);
+                if (document.getElementById('saved-searches-block')) _loadSavedSearches();
+            } else {
+                const t = await r.text();
+                let msg = 'Hlídač se nepodařilo uložit.';
+                if (t.includes('search_exists')) msg = 'Tento hlídač už máte uložený.';
+                else if (t.includes('PGRST202')||t.includes('Could not find')) msg = 'Funkce hlídačů není nasazena — spusťte saved-searches.sql v Supabase.';
+                else if (t.includes('too_many')) msg = 'Máte uložený maximální počet hlídačů (20). Nějaký nejprve smažte.';
+                showToast(msg,'error',6000);
+            }
+        } catch(e) { showToast('Chyba spojení.','error'); }
+    };
+    window._loadSavedSearches = async function() {
+        const block = document.getElementById('saved-searches-block');
+        if (!block || !window.currentUser) return;
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/saved_searches?user_id=eq.${window.currentUser.id}&order=created_at.desc`, { headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}` } });
+            const rows = await r.json().catch(()=>[]);
+            if (!Array.isArray(rows) || !rows.length) { block.innerHTML = ''; return; }
+            block.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 fade-in">
+                <h3 class="font-extrabold text-amber-800 text-sm mb-3 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>Hlídače hledání (${rows.length})</h3>
+                <div class="flex flex-col gap-2">${rows.map(s => {
+                    const label = [s.query ? `„${esc(s.query)}"` : null, s.category ? esc(s.category) : null].filter(Boolean).join(' · ') || 'Vše';
+                    return `<div class="flex items-center justify-between gap-2 bg-white rounded-xl px-3 py-2 border border-amber-100">
+                        <span class="text-sm text-gray-700 font-semibold truncate">🔔 ${label}</span>
+                        <button onclick="deleteSavedSearch('${s.id}')" class="text-xs text-gray-400 hover:text-red-500 font-bold shrink-0 transition-colors" title="Smazat hlídač">✕ Smazat</button>
+                    </div>`;
+                }).join('')}</div>
+            </div>`;
+        } catch(e) { block.innerHTML = ''; }
+    };
+    window.deleteSavedSearch = async function(id) {
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/delete_saved_search`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+                body: JSON.stringify({ p_id: id })
+            });
+            if (r.ok) { showToast('Hlídač smazán.','success'); _loadSavedSearches(); }
+            else showToast('Smazání se nezdařilo.','error');
+        } catch(e) { showToast('Chyba spojení.','error'); }
     };
 
     // ──────────────────────────────────────────────────────────────
@@ -2239,7 +2302,7 @@
         dispute_admin:  '🚨', auction_won:'🏆', new_review:'⭐', seller_reply:'💬',
         dac7_warning:   '⚠️', dac7_blocked:'🔒', dac7_verified:'✅',
         listing_deactivated:'🚫', listing_reactivated:'✅',
-        support_reply:'💬', news:'📢', account_banned:'🚫', nonpayment:'⏰', nonpayment_warning:'⚠️', ban_notice:'⚠️', order_cancelled:'❌', price_offer:'💬', price_drop:'🔻',
+        support_reply:'💬', news:'📢', account_banned:'🚫', nonpayment:'⏰', nonpayment_warning:'⚠️', ban_notice:'⚠️', order_cancelled:'❌', price_offer:'💬', price_drop:'🔻', saved_search:'🔔',
         default:'🔔'
     };
 
@@ -4705,7 +4768,9 @@
                 html += '</div>' + window._moreBtn('oblibene', activeFavs.length, "_reRenderTab('oblibene')");
                 container.innerHTML = html;
             }, 0);
-            return `<div class="flex items-center justify-between mb-6 fade-in"><h3 class="text-xl font-bold text-gray-800">Oblíbené položky</h3></div><div id="oblibene-content" class="text-gray-400 text-center py-10">⌛ Načítám oblíbené…</div>`;
+            setTimeout(() => { if (typeof _loadSavedSearches==='function') _loadSavedSearches(); }, 0);
+            return `<div id="saved-searches-block" class="mb-7"></div>
+            <div class="flex items-center justify-between mb-6 fade-in"><h3 class="text-xl font-bold text-gray-800">Oblíbené položky</h3></div><div id="oblibene-content" class="text-gray-400 text-center py-10">⌛ Načítám oblíbené…</div>`;
         }
 
         if (tab === 'inzeraty') {
