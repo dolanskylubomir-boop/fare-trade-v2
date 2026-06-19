@@ -1299,7 +1299,8 @@
     // Stav pro TOP modal
     let _topState = { id:null, type:null, selectedTier:null, vs:null };
     // Stav pro vyhledávání/řazení
-    let _listState = { search:'', sort:'top', priceMin:null, priceMax:null, condition:'', carrier:'' };
+    let _listState = { search:'', sort:'top', priceMin:null, priceMax:null, condition:'', carrier:'', kraj:'' };
+    const KRAJE = ['Praha','Středočeský','Jihočeský','Plzeňský','Karlovarský','Ústecký','Liberecký','Královéhradecký','Pardubický','Vysočina','Jihomoravský','Olomoucký','Zlínský','Moravskoslezský'];
 
     // Synchronní čtení uložené Supabase session z localStorage — žádný async, nemůže zamrznout
     function _getLocalUser() {
@@ -1562,7 +1563,12 @@
                 <option value="" ${!_listState.carrier?'selected':''}>Doprava: vše</option>
                 ${['Zásilkovna','PPL','Česká pošta','Osobní předání'].map(c=>`<option value="${c}" ${_listState.carrier===c?'selected':''}>${c}</option>`).join('')}
             </select>
-            ${(_listState.priceMin||_listState.priceMax||_listState.condition||_listState.carrier)?`<button onclick="_listState.priceMin=null;_listState.priceMax=null;_listState.condition='';_listState.carrier='';navigate('${view}','${cat}')" class="text-xs text-gray-400 hover:text-red-400 transition-colors font-bold">✕ Zrušit filtry</button>`:''}
+            <select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.kraj=this.value; try{if(this.value)localStorage.setItem('ft_my_kraj',this.value)}catch(e){}; navigate('${view}','${cat}')">
+                <option value="" ${!_listState.kraj?'selected':''}>📍 Kraj: vše</option>
+                ${KRAJE.map(k=>`<option value="${k}" ${_listState.kraj===k?'selected':''}>${k}</option>`).join('')}
+            </select>
+            <button type="button" onclick="_nearbyFilter('${view}','${cat}')" title="Zobrazit inzeráty ve vašem kraji" class="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold text-sm transition-colors">📍 V okolí</button>
+            ${(_listState.priceMin||_listState.priceMax||_listState.condition||_listState.carrier||_listState.kraj)?`<button onclick="_listState.priceMin=null;_listState.priceMax=null;_listState.condition='';_listState.carrier='';_listState.kraj='';navigate('${view}','${cat}')" class="text-xs text-gray-400 hover:text-red-400 transition-colors font-bold">✕ Zrušit filtry</button>`:''}
         </div>`;
     };
 
@@ -1576,6 +1582,7 @@
         if (_listState.priceMax != null) result = result.filter(i => i.price <= _listState.priceMax);
         if (_listState.condition) result = result.filter(i => i.condition === _listState.condition);
         if (_listState.carrier)   result = result.filter(i => Array.isArray(i.shipping_methods) && i.shipping_methods.includes(_listState.carrier));
+        if (_listState.kraj)      result = result.filter(i => i.kraj === _listState.kraj);
         // Seřazení dle data — novější = větší číslo
         const byDate = (a, b) => (b.created_at || 0) - (a.created_at || 0);
         result.sort((a, b) => {
@@ -1593,6 +1600,23 @@
             return byDate(a, b);
         });
         return result;
+    };
+
+    // „V okolí" — filtruje na kraj uživatele (z profilu nebo posledně zvolený)
+    window._nearbyFilter = function(view, cat) {
+        let myKraj = '';
+        try { myKraj = localStorage.getItem('ft_my_kraj') || ''; } catch(e) {}
+        if (!myKraj && window._profilesMap && window.currentUser) {
+            const p = window._profilesMap[window.currentUser.id];
+            if (p && p.kraj) myKraj = p.kraj;
+        }
+        if (!myKraj) {
+            showToast('Vyberte nejdřív svůj kraj v rozbalovátku „📍 Kraj" — pak ho „V okolí" zapamatuje.','warning',5000);
+            return;
+        }
+        _listState.kraj = myKraj;
+        showToast('📍 Zobrazuji inzeráty v kraji: ' + myKraj, 'success');
+        navigate(view, cat);
     };
 
     window.applyHeaderSearch = function(val) {
@@ -2597,7 +2621,7 @@
                         starting_price: Number(item.starting_price)||0, current_price: Number(currentPrice)||0,
                         category: esc(item.category), subcategory: esc(item.subcategory || ''), img: safeImage(item),
                         images: (item.images || [safeImage(item)]).map(u => safeUrl(u)),
-                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[],
+                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[], kraj: esc(item.kraj||''), mesto: esc(item.mesto||''),
                         has360: item.has_360 || false, seller: seller.name,
                         verified: seller.verified, rating: seller.rating, rating_count: seller.rating_count || 0,
                         seller_total_sold: seller.total_sold_count || 0, seller_satisfaction: seller.satisfaction_pct || 0, seller_ship_hours: seller.avg_ship_hours || 0,
@@ -2620,7 +2644,7 @@
                         title: esc(item.title), price: Number(item.price)||0,
                         category: esc(item.category), subcategory: esc(item.subcategory || ''), img: safeImage(item),
                         images: (item.images || [safeImage(item)]).map(u => safeUrl(u)),
-                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[],
+                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[], kraj: esc(item.kraj||''), mesto: esc(item.mesto||''),
                         has360: item.has_360 || false, seller: seller.name,
                         verified: seller.verified, rating: seller.rating, rating_count: seller.rating_count || 0,
                         seller_total_sold: seller.total_sold_count || 0, seller_satisfaction: seller.satisfaction_pct || 0, seller_ship_hours: seller.avg_ship_hours || 0,
@@ -3685,6 +3709,8 @@
                 brand: document.getElementById('ad-brand').value || null,
                 weight: parseFloat(document.getElementById('ad-weight').value) || null,
                 dimensions: document.getElementById('ad-dimensions').value || null,
+                kraj: (document.getElementById('ad-kraj')?.value || '').trim() || null,
+                mesto: (document.getElementById('ad-psc')?.value || '').trim() || null,
                 shipping_methods: Array.from(document.querySelectorAll('input[name="shipping"]:checked')).map(el=>el.value),
                 images: uploadedImages, has_360: (uploadedImages.length >= 4),
                 payment_type: 'escrow',
@@ -3724,6 +3750,7 @@
                 images: uploadedImages.map(u => safeUrl(u)),
                 condition: esc(adData.condition),
                 brand: esc(adData.brand || ''),
+                kraj: esc(adData.kraj || ''), mesto: esc(adData.mesto || ''), shipping_methods: adData.shipping_methods || [],
                 has360: adData.has_360 || false,
                 seller: esc(sellerProfile.display_name || user.email?.split('@')[0] || ''),
                 verified: sellerProfile.kyc_status === 'verified',
@@ -3736,6 +3763,7 @@
                 created_at: inserted?.created_at ? new Date(inserted.created_at).getTime() : Date.now()
             };
             window._formDirty = false;
+            if (adData.kraj) { try { localStorage.setItem('ft_my_kraj', adData.kraj); } catch(e) {} }
             if (isAuction) dataAukce.unshift(localItem);
             else dataPevnaCena.unshift(localItem);
             if (heldByModeration) {
@@ -3823,6 +3851,7 @@
                 </div>
             </div>
             <h3 class="text-sm sm:text-base font-bold text-gray-800 line-clamp-2 leading-tight">${item.title}</h3>
+            ${item.kraj?`<p class="text-[10px] text-gray-400 mt-1 flex items-center gap-0.5 truncate">📍 ${esc(item.kraj)}${item.mesto?' · '+esc(item.mesto):''}</p>`:''}
             ${window._sellerBadges(item)}
             ${item.description ? `<p onclick="event.stopPropagation();showDescModal(event,'${item.id}')" class="text-[11px] text-gray-400 mt-0.5 truncate cursor-pointer hover:text-sky-500 transition-colors leading-snug" title="Zobrazit celý popis">${item.description}</p>` : '<div class="mt-0.5 h-4"></div>'}
             <div class="mt-1 flex items-center justify-between text-[10px] text-gray-400">
@@ -6539,6 +6568,10 @@
                         <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Váha (kg)</label><input type="number" step="0.1" id="ad-weight" placeholder="1.5" oninput="window._updateShipHint()" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
                         <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Rozměry (cm)</label><input type="text" id="ad-dimensions" placeholder="D x Š x V" oninput="window._updateShipHint()" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
                     </div>
+                    <div class="grid grid-cols-2 gap-4 mb-5">
+                        <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">📍 Kraj (lokalita)</label><select id="ad-kraj" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white"><option value="">Nevyplněno</option>${KRAJE.map(k=>`<option value="${k}">${k}</option>`).join('')}</select></div>
+                        <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Město / PSČ (volitelné)</label><input type="text" id="ad-psc" maxlength="60" placeholder="Např. Brno nebo 602 00" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
+                    </div>
                     <label class="text-xs font-bold text-gray-500 pl-1 mb-2 block">Nabízené způsoby dopravy</label>
                     <div class="flex flex-wrap gap-2">
                         ${['Zásilkovna','PPL','Česká pošta','Osobní předání'].map(m=>`<label class="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"><input type="checkbox" name="shipping" value="${m}" onchange="window._updateShipHint()" class="w-4 h-4 text-sky-500 rounded focus:ring-sky-400" checked><span class="text-xs font-semibold text-gray-700">${m}</span></label>`).join('')}
@@ -6613,6 +6646,7 @@
                             <button onclick="navigate('seller-inzeraty','${item.seller_id}')" class="inline-flex items-center gap-1 bg-white border border-gray-200 hover:border-sky-400 hover:text-sky-600 text-gray-500 text-xs px-3 py-1 rounded-full font-bold transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>Další inzeráty prodejce</button>
                         </div>
                         <h2 class="text-2xl md:text-4xl font-extrabold mb-3 text-pastel-text">${item.title}</h2>
+                        ${item.kraj?`<p class="text-sm text-gray-500 -mt-2 mb-3 flex items-center gap-1">📍 ${esc(item.kraj)}${item.mesto?' · '+esc(item.mesto):''}</p>`:''}
                         <div class="flex items-center gap-3 ${timeInfo.urgent?'bg-red-50 border-red-200':'bg-gray-50'} p-3 rounded-2xl mb-4 border">
                             <div class="w-10 h-10 rounded-full bg-sky-200 flex items-center justify-center text-sky-700 font-bold shrink-0">${item.seller.charAt(0).toUpperCase()}</div>
                             <div>
@@ -6738,6 +6772,7 @@
                             <button onclick="navigate('seller-inzeraty','${item.seller_id}')" class="inline-flex items-center gap-1 bg-white border border-gray-200 hover:border-pink-400 hover:text-pink-600 text-gray-500 text-xs px-3 py-1 rounded-full font-bold transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>Další inzeráty prodejce</button>
                         </div>
                         <h2 class="text-2xl md:text-4xl font-extrabold mb-3 text-pastel-text">${item.title}</h2>
+                        ${item.kraj?`<p class="text-sm text-gray-500 -mt-2 mb-3 flex items-center gap-1">📍 ${esc(item.kraj)}${item.mesto?' · '+esc(item.mesto):''}</p>`:''}
                         <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-2xl mb-4 border border-gray-100">
                             <div class="w-10 h-10 rounded-full bg-pink-200 flex items-center justify-center text-pink-700 font-bold shrink-0">${item.seller.charAt(0).toUpperCase()}</div>
                             <div>
