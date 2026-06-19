@@ -5006,7 +5006,7 @@
             const token = await _ensureValidToken();
             const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/make_price_offer`, {
                 method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
-                body: JSON.stringify({ p_item_id: String(itemId), p_amount: amount })
+                body: JSON.stringify({ p_item_id: String(itemId), p_amount: amount, p_item_img: item.img || null })
             });
             if (r.ok) {
                 window._closeOfferModal();
@@ -5018,7 +5018,10 @@
                 else if (t.includes('amount_too_high')) msg = 'Nabídka musí být nižší než cena prodejce.';
                 else if (t.includes('own_item')) msg = 'Na vlastní inzerát nelze podat nabídku.';
                 else if (t.includes('item_not_available')) msg = 'Inzerát už není dostupný.';
-                showToast(msg,'error',5000);
+                else if (t.includes('item_not_found')) msg = 'Inzerát nebyl nalezen.';
+                else if (t.includes('PGRST202') || t.includes('Could not find')) msg = 'Funkce nabídek není nasazena — spusťte price-offers.sql v Supabase.';
+                else { try { const j = JSON.parse(t); if (j.message) msg += ' (' + j.message + ')'; } catch(_) {} }
+                showToast(msg,'error',6000);
                 if (btn) { btn.disabled = false; btn.textContent = 'Odeslat nabídku'; }
             }
         } catch(e) {
