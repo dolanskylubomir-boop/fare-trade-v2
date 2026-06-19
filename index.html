@@ -3738,9 +3738,18 @@
     // Reputační odznaky prodejce (bod 3) — z agregovaných polí profilu
     window._sellerBadges = function(item) {
         const badges = [];
-        if ((item.seller_total_sold || 0) >= 10) badges.push(['🏆','Superprodejce','bg-amber-100 text-amber-700 border-amber-200']);
-        if ((item.seller_satisfaction || 0) >= 80 && (item.rating_count || 0) >= 3) badges.push(['👍', Math.round(item.seller_satisfaction)+' % spokojených','bg-green-100 text-green-700 border-green-200']);
-        if (item.seller_ship_hours > 0 && item.seller_ship_hours <= 48) badges.push(['⚡','Rychlý odesílatel','bg-sky-100 text-sky-700 border-sky-200']);
+        const sold = item.seller_total_sold || 0;
+        const rc   = item.rating_count || 0;
+        const rt   = item.rating || 0;
+        const sat  = item.seller_satisfaction || 0;   // bonus z reputation-badges.sql
+        const ship = item.seller_ship_hours || 0;     // bonus z reputation-badges.sql
+        // 🏆 Superprodejce — od 5 prodejů
+        if (sold >= 5) badges.push(['🏆','Superprodejce','bg-amber-100 text-amber-700 border-amber-200']);
+        // 👍 % spokojených (přesné z DB), jinak ⭐ Skvělé hodnocení z průměru
+        if (sat >= 75 && rc >= 3) badges.push(['👍', Math.round(sat)+' % spokojených','bg-green-100 text-green-700 border-green-200']);
+        else if (rt >= 4.5 && rc >= 3) badges.push(['⭐','Skvělé hodnocení','bg-yellow-100 text-yellow-700 border-yellow-200']);
+        // ⚡ Rychlý odesílatel — jen je-li změřeno
+        if (ship > 0 && ship <= 48) badges.push(['⚡','Rychlý odesílatel','bg-sky-100 text-sky-700 border-sky-200']);
         if (!badges.length) return '';
         return `<div class="flex flex-wrap gap-1 mt-1.5">${badges.map(b => `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${b[2]} whitespace-nowrap">${b[0]} ${b[1]}</span>`).join('')}</div>`;
     };
@@ -6578,6 +6587,7 @@
                             <div>
                                 <p class="font-bold text-gray-800 text-sm flex items-center gap-1">${item.seller}${item.verified?`<svg class="w-4 h-4 text-sky-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`:''}</p>
                                 <p class="text-xs text-gray-400"><button id="detail-seller-rating-${item.seller_id}" onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
+                                ${window._sellerBadges(item)}
                             </div>
                         </div>
                         <div class="mb-5">
