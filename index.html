@@ -1299,7 +1299,7 @@
     // Stav pro TOP modal
     let _topState = { id:null, type:null, selectedTier:null, vs:null };
     // Stav pro vyhledávání/řazení
-    let _listState = { search:'', sort:'top', priceMin:null, priceMax:null };
+    let _listState = { search:'', sort:'top', priceMin:null, priceMax:null, condition:'', carrier:'' };
 
     // Synchronní čtení uložené Supabase session z localStorage — žádný async, nemůže zamrznout
     function _getLocalUser() {
@@ -1545,16 +1545,24 @@
             </select>
             <button type="button" onclick="saveCurrentSearch('${cat}')" title="Dostávejte upozornění, když přibude odpovídající inzerát" class="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold text-sm transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg><span class="hidden sm:inline">Hlídat</span></button>
         </div>
-        <div class="flex items-center gap-2 mb-4">
+        <div class="flex items-center gap-2 mb-4 flex-wrap">
             <span class="text-xs font-bold text-gray-400 shrink-0">Cena (Kč):</span>
             <input type="number" min="0" placeholder="Od" value="${_listState.priceMin||''}"
-                class="w-24 px-3 py-1.5 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white"
+                class="w-20 px-3 py-1.5 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white"
                 oninput="_listState.priceMin=this.value?Number(this.value):null; navigate('${view}','${cat}')">
             <span class="text-gray-300 font-bold">—</span>
             <input type="number" min="0" placeholder="Do" value="${_listState.priceMax||''}"
-                class="w-24 px-3 py-1.5 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white"
+                class="w-20 px-3 py-1.5 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white"
                 oninput="_listState.priceMax=this.value?Number(this.value):null; navigate('${view}','${cat}')">
-            ${(_listState.priceMin||_listState.priceMax)?`<button onclick="_listState.priceMin=null;_listState.priceMax=null;navigate('${view}','${cat}')" class="text-xs text-gray-400 hover:text-red-400 transition-colors font-bold">✕ Zrušit</button>`:''}
+            <select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.condition=this.value; navigate('${view}','${cat}')">
+                <option value="" ${!_listState.condition?'selected':''}>Stav: vše</option>
+                ${['Nové','Rozbalené','Použité','Poškozené'].map(s=>`<option value="${s}" ${_listState.condition===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+            <select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.carrier=this.value; navigate('${view}','${cat}')">
+                <option value="" ${!_listState.carrier?'selected':''}>Doprava: vše</option>
+                ${['Zásilkovna','PPL','Česká pošta','Osobní předání'].map(c=>`<option value="${c}" ${_listState.carrier===c?'selected':''}>${c}</option>`).join('')}
+            </select>
+            ${(_listState.priceMin||_listState.priceMax||_listState.condition||_listState.carrier)?`<button onclick="_listState.priceMin=null;_listState.priceMax=null;_listState.condition='';_listState.carrier='';navigate('${view}','${cat}')" class="text-xs text-gray-400 hover:text-red-400 transition-colors font-bold">✕ Zrušit filtry</button>`:''}
         </div>`;
     };
 
@@ -1562,10 +1570,12 @@
         let result = items.filter(i => !window.currentUser || i.seller_id !== window.currentUser.id);
         if (_listState.search.trim()) {
             const q = _listState.search.toLowerCase();
-            result = result.filter(i => i.title.toLowerCase().includes(q) || (i.brand||'').toLowerCase().includes(q));
+            result = result.filter(i => i.title.toLowerCase().includes(q) || (i.brand||'').toLowerCase().includes(q) || (i.description||'').toLowerCase().includes(q));
         }
         if (_listState.priceMin != null) result = result.filter(i => i.price >= _listState.priceMin);
         if (_listState.priceMax != null) result = result.filter(i => i.price <= _listState.priceMax);
+        if (_listState.condition) result = result.filter(i => i.condition === _listState.condition);
+        if (_listState.carrier)   result = result.filter(i => Array.isArray(i.shipping_methods) && i.shipping_methods.includes(_listState.carrier));
         // Seřazení dle data — novější = větší číslo
         const byDate = (a, b) => (b.created_at || 0) - (a.created_at || 0);
         result.sort((a, b) => {
@@ -2587,7 +2597,7 @@
                         starting_price: Number(item.starting_price)||0, current_price: Number(currentPrice)||0,
                         category: esc(item.category), subcategory: esc(item.subcategory || ''), img: safeImage(item),
                         images: (item.images || [safeImage(item)]).map(u => safeUrl(u)),
-                        condition: esc(item.condition), brand: esc(item.brand),
+                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[],
                         has360: item.has_360 || false, seller: seller.name,
                         verified: seller.verified, rating: seller.rating, rating_count: seller.rating_count || 0,
                         seller_total_sold: seller.total_sold_count || 0, seller_satisfaction: seller.satisfaction_pct || 0, seller_ship_hours: seller.avg_ship_hours || 0,
@@ -2610,7 +2620,7 @@
                         title: esc(item.title), price: Number(item.price)||0,
                         category: esc(item.category), subcategory: esc(item.subcategory || ''), img: safeImage(item),
                         images: (item.images || [safeImage(item)]).map(u => safeUrl(u)),
-                        condition: esc(item.condition), brand: esc(item.brand),
+                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[],
                         has360: item.has_360 || false, seller: seller.name,
                         verified: seller.verified, rating: seller.rating, rating_count: seller.rating_count || 0,
                         seller_total_sold: seller.total_sold_count || 0, seller_satisfaction: seller.satisfaction_pct || 0, seller_ship_hours: seller.avg_ship_hours || 0,
@@ -6555,6 +6565,7 @@
                 <h2 class="text-2xl md:text-4xl font-extrabold mb-5 text-pastel-text">Aktivní aukce <span class="text-base text-gray-400 font-medium ml-1">(${filteredData.length})</span><span class="text-base text-sky-500 font-semibold ml-2">${subLabel}</span></h2>
                 ${renderCategories('aukce', kategorieFilter, _currentSubcategory)}
                 ${renderSearchSort('aukce', kategorieFilter)}
+                ${window._renderRecentRow()}
                 ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('🔨', 'Žádné aktivní aukce', 'Momentálně neprobíhá žádná aukce. Sleduj to tady — aukce přibývají každý den.', 'Vložit aukci', "navigate('novy-inzerat')") : '')}
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                     ${filteredData.map(item => renderAdCard(item)).join('')}
@@ -6569,6 +6580,8 @@
             // Navýšit zobrazení
             setTimeout(() => incrementViewCount(id, 'aukce'), 500);
             setTimeout(() => loadSellerMoreItems(item.seller_id, item.id), 50);
+            window._recordRecentView(item.id, item.type);
+            setTimeout(() => window.loadSimilarItems(item), 60);
 
             const prices      = getPriceInfo(item.price);
             const isOwner     = window.currentUser && window.currentUser.id === item.seller_id;
@@ -6650,6 +6663,7 @@
                     </div>
                 </div>
             <div id="seller-more-${item.id}"></div>
+            <div id="similar-${item.id}"></div>
             ${!isOwner ? `<div class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-100 p-3 flex gap-2 shadow-lg sm:hidden" id="sticky-cta-aukce">
   <div class="flex-1 min-w-0">
     <div class="text-xs text-gray-500">Aktuální cena</div>
@@ -6679,6 +6693,7 @@
                 <h2 class="text-2xl md:text-4xl font-extrabold mb-5 text-pastel-text">Pevná cena <span class="text-base text-gray-400 font-medium ml-1">(${filteredData.length})</span><span class="text-base text-pink-500 font-semibold ml-2">${subLabel}</span></h2>
                 ${renderCategories('pevna-cena', kategorieFilter, _currentSubcategory)}
                 ${renderSearchSort('pevna-cena', kategorieFilter)}
+                ${window._renderRecentRow()}
                 ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('🏷️', 'Zatím žádné inzeráty', 'Buď první! Přidej svůj první inzerát a oslovíš tisíce kupujících.', 'Vložit inzerát', "navigate('novy-inzerat')") : '')}
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                     ${filteredData.map(item => renderAdCard(item)).join('')}
@@ -6691,6 +6706,8 @@
             if (!item) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50"><button onclick="navigate('pevna-cena')" class="text-pink-500 font-bold">← Zpět</button><p class="mt-8 text-gray-500">${!window.dataLoaded?'⌛ Načítám data…':'Položka nenalezena.'}</p></div>`;
             setTimeout(() => incrementViewCount(id, 'pevna_cena'), 500);
             setTimeout(() => loadSellerMoreItems(item.seller_id, item.id), 50);
+            window._recordRecentView(item.id, item.type);
+            setTimeout(() => window.loadSimilarItems(item), 60);
             const prices    = getPriceInfo(item.price);
             const isOwner   = window.currentUser && window.currentUser.id === item.seller_id;
             const backNav   = isOwner ? 'profil' : 'pevna-cena';
@@ -6767,6 +6784,7 @@
                     </div>
                 </div>
             <div id="seller-more-${item.id}"></div>
+            <div id="similar-${item.id}"></div>
             ${!isOwner ? `<div class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-100 p-3 flex gap-2 shadow-lg sm:hidden" id="sticky-cta">
   <div class="flex-1 min-w-0">
     <div class="text-xs text-gray-500">Cena</div>
@@ -7051,6 +7069,55 @@
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 ${show.map(i => renderAdCard(i)).join('')}
             </div>
+        </div>`;
+    };
+
+    // ── Naposledy zobrazené (localStorage) + Podobné inzeráty ──
+    window._recordRecentView = function(id, type) {
+        if (!id) return;
+        try {
+            let arr = JSON.parse(localStorage.getItem('ft_recent') || '[]');
+            arr = arr.filter(x => String(x.id) !== String(id));
+            arr.unshift({ id: String(id), type });
+            localStorage.setItem('ft_recent', JSON.stringify(arr.slice(0, 12)));
+        } catch(e) {}
+    };
+    window._renderRecentRow = function(excludeId) {
+        let arr = [];
+        try { arr = JSON.parse(localStorage.getItem('ft_recent') || '[]'); } catch(e) {}
+        if (!arr.length) return '';
+        const items = arr
+            .map(x => [...dataPevnaCena, ...dataAukce].find(i => String(i.id) === String(x.id)))
+            .filter(Boolean)
+            .filter(i => String(i.id) !== String(excludeId||''))
+            .filter(i => !window.currentUser || i.seller_id !== window.currentUser.id)
+            .slice(0, 8);
+        if (items.length < 2) return '';
+        return `<div class="mb-6 fade-in">
+            <h3 class="font-bold text-pastel-text text-base mb-3 flex items-center gap-2">🕘 Naposledy zobrazené</h3>
+            <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">${items.map(i => `<div class="w-40 sm:w-48 shrink-0">${renderAdCard(i)}</div>`).join('')}</div>
+        </div>`;
+    };
+    window.loadSimilarItems = function(item) {
+        const container = document.getElementById('similar-' + item.id);
+        if (!container || !item) return;
+        const pool = [...dataPevnaCena, ...dataAukce].filter(i =>
+            String(i.id) !== String(item.id) &&
+            i.seller_id !== item.seller_id &&
+            i.category === item.category &&
+            (!window.currentUser || i.seller_id !== window.currentUser.id)
+        );
+        pool.sort((a, b) => {
+            const sa = (item.subcategory && a.subcategory === item.subcategory) ? 1 : 0;
+            const sb = (item.subcategory && b.subcategory === item.subcategory) ? 1 : 0;
+            if (sa !== sb) return sb - sa;
+            return (b.is_top ? 1 : 0) - (a.is_top ? 1 : 0);
+        });
+        const show = pool.slice(0, 4);
+        if (!show.length) return;
+        container.innerHTML = `<div class="mt-6 pt-6 border-t border-gray-100">
+            <h3 class="font-bold text-pastel-text text-base mb-4">Podobné inzeráty</h3>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${show.map(i => renderAdCard(i)).join('')}</div>
         </div>`;
     };
 
