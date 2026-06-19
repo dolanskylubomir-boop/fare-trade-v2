@@ -2174,28 +2174,42 @@
         if (!container || !window.currentUser) return;
         const token = await _ensureValidToken();
         const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/pevna_cena?seller_id=eq.${window.currentUser.id}&status=eq.ceka_na_platbu&select=id,title,price,images`, { headers: hdrs });
-        const items = await r.json();
-        if (!Array.isArray(items) || !items.length) { container.innerHTML = ''; return; }
+        const uid = window.currentUser.id;
         const FI = FALLBACK_IMG;
-        container.innerHTML = `<div class="border-t border-yellow-100 pt-4 mt-2 fade-in">
-            <p class="text-xs font-bold text-yellow-600 uppercase tracking-wide mb-3">⏳ Čeká na zaplacení (${items.length})</p>
-            <div class="flex flex-col gap-2">` +
-            items.map(item => {
+        try {
+            const [rp, ra] = await Promise.all([
+                fetch(`${SUPABASE_URL}/rest/v1/pevna_cena?seller_id=eq.${uid}&status=in.(ceka_na_platbu,neaktivní)&select=id,title,price,images,status`, { headers: hdrs }),
+                fetch(`${SUPABASE_URL}/rest/v1/aukce?seller_id=eq.${uid}&status=eq.neaktivní&select=id,title,price,images,status`, { headers: hdrs })
+            ]);
+            const pc = await rp.json().catch(()=>[]);
+            const au = await ra.json().catch(()=>[]);
+            const all = [...(Array.isArray(pc)?pc:[]), ...(Array.isArray(au)?au:[])];
+            const waiting = all.filter(i => i.status === 'ceka_na_platbu');
+            const held    = all.filter(i => i.status === 'neaktivní');
+            if (!waiting.length && !held.length) { container.innerHTML = ''; return; }
+            const row = (item, kind) => {
                 const img = item.images?.[0] ? safeUrl(item.images[0]) : FI;
-                return `<div class="flex items-center gap-3 p-3 border border-yellow-200 rounded-2xl bg-yellow-50/60 opacity-75">
+                const isHeld = kind === 'held';
+                const cls = isHeld ? 'border-orange-200 bg-orange-50/60' : 'border-yellow-200 bg-yellow-50/60';
+                const msg = isHeld ? 'Pozdrženo automatickou moderací — čeká na schválení' : 'Kupující má 2 hod. na zaplacení — inzerát je zablokován';
+                const tag = isHeld ? '<span class="text-[10px] bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full font-bold">Ke schválení</span>' : '<span class="text-[10px] bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full font-bold">Blokováno</span>';
+                return `<div class="flex items-center gap-3 p-3 border ${cls} rounded-2xl opacity-80">
                     <img src="${img}" onerror="this.onerror=null;this.src='${FI}'" class="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0 grayscale">
                     <div class="flex-grow min-w-0">
                         <h4 class="font-bold text-gray-500 truncate text-sm">${esc(item.title)}</h4>
-                        <p class="text-[11px] text-yellow-700 font-semibold mt-0.5">Kupující má 2 hod. na zaplacení — inzerát je zablokován</p>
+                        <p class="text-[11px] ${isHeld?'text-orange-700':'text-yellow-700'} font-semibold mt-0.5">${msg}</p>
                     </div>
                     <div class="text-right shrink-0">
                         <div class="font-bold text-sm text-gray-400">${Number(item.price).toLocaleString('cs-CZ')} Kč</div>
-                        <span class="text-[10px] bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full font-bold">Blokováno</span>
+                        ${tag}
                     </div>
                 </div>`;
-            }).join('') +
-            `</div></div>`;
+            };
+            let html = '';
+            if (held.length)    html += `<div class="border-t border-orange-100 pt-4 mt-2 fade-in"><p class="text-xs font-bold text-orange-600 uppercase tracking-wide mb-3">⏳ Čeká na schválení (${held.length})</p><div class="flex flex-col gap-2">${held.map(i=>row(i,'held')).join('')}</div></div>`;
+            if (waiting.length) html += `<div class="border-t border-yellow-100 pt-4 mt-2 fade-in"><p class="text-xs font-bold text-yellow-600 uppercase tracking-wide mb-3">⏳ Čeká na zaplacení (${waiting.length})</p><div class="flex flex-col gap-2">${waiting.map(i=>row(i,'waiting')).join('')}</div></div>`;
+            container.innerHTML = html;
+        } catch(e) { container.innerHTML = ''; }
     }
 
 
@@ -3681,8 +3695,10 @@
                 const exp = new Date(); exp.setDate(exp.getDate()+20);
                 adData.expires_at = exp.toISOString();
             }
-            const { data: inserted, error } = await supabaseClient.from(tableName).insert([adData]).select('id,created_at').single();
+            const { data: inserted, error } = await supabaseClient.from(tableName).insert([adData]).select('id,created_at,status').single();
             if (error) throw new Error(error.message);
+            // Auto-moderace mohla inzerát pozdržet (status != 'aktivní')
+            const heldByModeration = inserted?.status && inserted.status !== 'aktivní';
 
             // Přidej okamžitě do lokálního pole — žádný refresh
             const sellerProfile = (window._profilesMap?.[user.id]) || (window._privateProfileCache?.data) || {};
@@ -3706,13 +3722,17 @@
                 endTime: isAuction ? adData.end_time : adData.expires_at,
                 last_bidder_id: null, last_bidder_name: null,
                 payment_type: adData.payment_type,
-                is_top: false, top_expires_at: null, top_paid_kc: 0, views_count: 0, status: adData.status,
+                is_top: false, top_expires_at: null, top_paid_kc: 0, views_count: 0, status: esc(inserted?.status || adData.status), db_status: esc(inserted?.status || adData.status),
                 created_at: inserted?.created_at ? new Date(inserted.created_at).getTime() : Date.now()
             };
             window._formDirty = false;
             if (isAuction) dataAukce.unshift(localItem);
             else dataPevnaCena.unshift(localItem);
-            showToast('Inzerát byl úspěšně zveřejněn!', 'success');
+            if (heldByModeration) {
+                showToast('⏳ Inzerát byl přijat a čeká na schválení moderátorem. Po kontrole se zveřejní — dáme vám vědět.', 'warning', 8000);
+            } else {
+                showToast('Inzerát byl úspěšně zveřejněn!', 'success');
+            }
             navigate('profil');
         } catch (err) {
             const msg = (err.message||'').includes('rate_limit_exceeded')
