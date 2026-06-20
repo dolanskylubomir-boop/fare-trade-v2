@@ -2852,8 +2852,10 @@
             // Soukromí: globálně načítáme jen částky (bez bidder_id), abychom komukoli
             // neodhalovali, KDO na co přihazoval. Nejvyšší částka jen koriguje cenu při
             // replikačním zpoždění; identita vítěze se bere z autoritativního aukce.last_bidder_id.
+            window._auctionBidCounts = {};
             if (r4.data) {
                 r4.data.forEach(bid => {
+                    window._auctionBidCounts[bid.auction_id] = (window._auctionBidCounts[bid.auction_id] || 0) + 1;
                     if (!auctionBids[bid.auction_id] || bid.amount > auctionBids[bid.auction_id].amount)
                         auctionBids[bid.auction_id] = { amount: bid.amount };
                 });
@@ -4196,9 +4198,9 @@
             ${item.kraj?`<p class="text-[10px] text-gray-400 mt-1 flex items-center gap-0.5 truncate">📍 ${esc(item.kraj)} kraj</p>`:''}
             ${window._sellerBadges(item)}
             ${item.description ? `<p onclick="event.stopPropagation();showDescModal(event,'${item.id}')" class="text-[11px] text-gray-400 mt-0.5 truncate cursor-pointer hover:text-sky-500 transition-colors leading-snug" title="Zobrazit celý popis">${item.description}</p>` : '<div class="mt-0.5 h-4"></div>'}
-            <div class="mt-1 flex items-center justify-between text-[10px] text-gray-400">
-                <span class="${timeInfo.urgent ? 'countdown-urgent text-red-500 font-bold' : ''}">${isAukce ? '⏱ ' + timeInfo.text : ''}</span>
-                <div class="flex items-center gap-2">
+            <div class="mt-1 flex items-center justify-between text-[10px] text-gray-400 gap-1">
+                <span class="flex items-center gap-1 flex-wrap min-w-0">${isAukce ? window._auctionTimePill(timeInfo) + window._bidChip(item) : ''}</span>
+                <div class="flex items-center gap-2 shrink-0">
                     ${(item.rating_count || 0) > 0 ? `<span class="text-yellow-500 font-bold seller-rating-badge" data-sid="${item.seller_id}">⭐ ${Number(item.rating).toFixed(1)}</span>` : `<span class="seller-rating-badge" data-sid="${item.seller_id}" style="display:none"></span>`}
                     <span class="views-badge"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>${item.views_count || 0}</span>
                 </div>
@@ -4248,8 +4250,8 @@
                 ${item.kraj ? `<p class="text-[10px] text-gray-400 mt-0.5 flex items-center gap-0.5 truncate">📍 ${esc(item.kraj)} kraj</p>` : ''}
                 ${window._sellerBadges(item)}
                 ${item.description ? `<p onclick="event.stopPropagation();showDescModal(event,'${item.id}')" class="hidden sm:block text-xs text-gray-400 mt-1 line-clamp-2 cursor-pointer hover:text-sky-500 transition-colors leading-snug" title="Zobrazit celý popis">${item.description}</p>` : ''}
-                <div class="mt-auto pt-1 flex items-center gap-3 text-[10px] text-gray-400">
-                    ${isAukce ? `<span class="${timeInfo.urgent ? 'countdown-urgent text-red-500 font-bold' : ''}">⏱ ${timeInfo.text}</span>` : ''}
+                <div class="mt-auto pt-1 flex items-center gap-2 flex-wrap text-[10px] text-gray-400">
+                    ${isAukce ? window._auctionTimePill(timeInfo) + window._bidChip(item) : ''}
                     ${(item.rating_count || 0) > 0 ? `<span class="text-yellow-500 font-bold seller-rating-badge" data-sid="${item.seller_id}">⭐ ${Number(item.rating).toFixed(1)}</span>` : `<span class="seller-rating-badge" data-sid="${item.seller_id}" style="display:none"></span>`}
                     <span class="views-badge inline-flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>${item.views_count || 0}</span>
                 </div>
@@ -7362,6 +7364,7 @@
             window._recordRecentView(item.id, item.type);
             try { document.title = (item.title || 'Inzerát') + ' — ' + Number(item.price || 0).toLocaleString('cs-CZ') + ' Kč | FairTrade'; } catch(e) {}
             setTimeout(() => window.loadSimilarItems(item), 60);
+            setTimeout(() => window._loadBidStats(item.id), 80);
 
             const prices      = getPriceInfo(item.price);
             const isOwner     = window.currentUser && window.currentUser.id === item.seller_id;
@@ -7394,6 +7397,22 @@
                         </div>
                         <h2 class="text-2xl md:text-4xl font-extrabold mb-3 text-pastel-text">${item.title}</h2>
                         ${item.kraj?`<p class="text-sm text-gray-500 -mt-2 mb-3 flex items-center gap-1">📍 ${esc(item.kraj)} kraj${_offersPickup(item.shipping_methods)?' · možné osobní předání':''}</p>`:''}
+                        <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                            <div class="flex-1 rounded-2xl p-3 border flex items-center gap-3 ${timeInfo.urgent?'bg-red-50 border-red-200':'bg-gradient-to-br from-sky-50 to-indigo-50 border-sky-100'}">
+                                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${timeInfo.urgent?'bg-red-100 text-red-600':'bg-sky-100 text-sky-600'}">⏱</div>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] uppercase tracking-wider font-bold ${timeInfo.urgent?'text-red-400':'text-sky-400'}">Do konce aukce</div>
+                                    <div class="text-xl font-black ${timeInfo.urgent?'text-red-600 countdown-urgent':'text-gray-800'}">${timeInfo.text}</div>
+                                </div>
+                            </div>
+                            <button onclick="showBidTimeline('${item.id}')" class="flex-1 rounded-2xl p-3 border border-amber-100 bg-gradient-to-br from-amber-50 to-yellow-50 hover:from-amber-100 hover:to-yellow-100 transition-colors flex items-center gap-3 text-left" title="Zobrazit časovou osu příhozů">
+                                <div class="w-11 h-11 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl shrink-0">🔨</div>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] uppercase tracking-wider font-bold text-amber-400">Příhozy</div>
+                                    <div class="text-sm font-black text-gray-800 truncate" id="bid-stats-${item.id}">Zobrazit historii →</div>
+                                </div>
+                            </button>
+                        </div>
                         <div class="flex items-center gap-3 ${timeInfo.urgent?'bg-red-50 border-red-200':'bg-gray-50'} p-3 rounded-2xl mb-4 border">
                             <div class="w-10 h-10 rounded-full bg-sky-200 flex items-center justify-center text-sky-700 font-bold shrink-0">${item.seller.charAt(0).toUpperCase()}</div>
                             <div>
@@ -7956,6 +7975,126 @@
         try { localStorage.setItem('ft_recent_collapsed', collapsed ? '1' : '0'); } catch(e) {}
         if (btn) btn.style.transform = collapsed ? 'rotate(-90deg)' : '';
         if (arrows) { arrows.classList.toggle('hidden', collapsed); arrows.classList.toggle('flex', !collapsed); }
+    };
+
+    // ── Aukce: zvýrazněný čas + počet příhozů + časová osa ──
+    window._plurPrihoz = function(n) { n = Number(n) || 0; return n === 1 ? 'příhoz' : (n >= 2 && n <= 4 ? 'příhozy' : 'příhozů'); };
+    window._auctionTimePill = function(timeInfo) {
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${timeInfo.urgent ? 'bg-red-100 text-red-600 countdown-urgent' : 'bg-sky-100 text-sky-700'}">⏱ ${timeInfo.text}</span>`;
+    };
+    window._bidChip = function(item) {
+        const c = (window._auctionBidCounts && window._auctionBidCounts[item.id]) || 0;
+        return `<button onclick="event.stopPropagation();showBidTimeline('${item.id}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors" title="Časová osa příhozů">🔨 ${c} ${window._plurPrihoz(c)}</button>`;
+    };
+    window._bidAgo = function(iso) {
+        try {
+            const d = Math.max(0, Date.now() - new Date(iso).getTime());
+            const m = Math.floor(d / 60000), h = Math.floor(d / 3600000), dd = Math.floor(d / 86400000);
+            if (dd >= 1) return `před ${dd} d`;
+            if (h >= 1) return `před ${h} h`;
+            if (m >= 1) return `před ${m} min`;
+            return 'právě teď';
+        } catch(e) { return ''; }
+    };
+    window._auctionBidsRpc = async function(id) {
+        let token = SUPABASE_ANON_KEY;
+        try { token = (await _ensureValidToken()) || SUPABASE_ANON_KEY; } catch(e) {}
+        const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_auction_bids`, { method: 'POST', headers: hdrs, body: JSON.stringify({ p_auction_id: id }) });
+        if (!r.ok) throw new Error('get_auction_bids ' + r.status);
+        return await r.json();
+    };
+    // Doplnění inline statistiky na detailu aukce
+    window._loadBidStats = async function(id) {
+        try {
+            const data = await _auctionBidsRpc(id);
+            window._bidCache = window._bidCache || {};
+            window._bidCache[id] = data;
+            if (window._auctionBidCounts) window._auctionBidCounts[id] = data.bid_count;
+            const el = document.getElementById('bid-stats-' + id);
+            if (el) el.textContent = data.bid_count > 0
+                ? `${data.bid_count} ${window._plurPrihoz(data.bid_count)} · ${data.bidder_count} ${data.bidder_count === 1 ? 'dražitel' : (data.bidder_count >= 2 && data.bidder_count <= 4 ? 'dražitelé' : 'dražitelů')}`
+                : 'Zatím bez příhozu — buďte první!';
+        } catch(e) {}
+    };
+    window.closeBidTimeline = function() {
+        const m = document.getElementById('bid-timeline-modal');
+        if (m) m.remove();
+    };
+    window.showBidTimeline = async function(id) {
+        closeBidTimeline();
+        const item = dataAukce.find(i => String(i.id) === String(id)) || {};
+        const overlay = document.createElement('div');
+        overlay.id = 'bid-timeline-modal';
+        overlay.className = 'fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 fade-in';
+        overlay.onclick = (e) => { if (e.target === overlay) closeBidTimeline(); };
+        overlay.innerHTML = `<div class="bg-white w-full sm:max-w-md sm:rounded-[2rem] rounded-t-[2rem] shadow-2xl max-h-[88vh] flex flex-col overflow-hidden">
+            <div class="p-5 pb-3 border-b border-gray-100 relative shrink-0">
+                <button onclick="closeBidTimeline()" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                <h3 class="text-lg font-extrabold text-gray-800 flex items-center gap-2 pr-10">🔨 Časová osa příhozů</h3>
+                <p class="text-xs text-gray-400 mt-0.5 truncate">${esc(item.title || 'Aukce')}</p>
+                <div id="bid-timeline-stats" class="grid grid-cols-3 gap-2 mt-4"></div>
+            </div>
+            <div id="bid-timeline-body" class="p-5 overflow-y-auto">${_skelRows(4)}</div>
+        </div>`;
+        document.body.appendChild(overlay);
+        try {
+            const data = (window._bidCache && window._bidCache[id]) || await _auctionBidsRpc(id);
+            window._bidCache = window._bidCache || {}; window._bidCache[id] = data;
+            _renderBidTimeline(data);
+        } catch(e) {
+            const b = document.getElementById('bid-timeline-body');
+            if (b) b.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">Historii příhozů se nepodařilo načíst.</p>';
+        }
+    };
+    window._renderBidTimeline = function(data) {
+        const stats = document.getElementById('bid-timeline-stats');
+        const body  = document.getElementById('bid-timeline-body');
+        if (!body) return;
+        const tile = (val, lab, cls) => `<div class="rounded-2xl p-2.5 text-center ${cls}"><div class="text-lg font-black leading-none">${val}</div><div class="text-[10px] font-semibold uppercase tracking-wide opacity-70 mt-1">${lab}</div></div>`;
+        if (stats) stats.innerHTML =
+            tile(data.bid_count || 0, window._plurPrihoz(data.bid_count || 0), 'bg-amber-50 text-amber-700') +
+            tile(data.bidder_count || 0, 'dražitelů', 'bg-sky-50 text-sky-700') +
+            tile((Number(data.current_price) || 0).toLocaleString('cs-CZ'), 'Kč nyní', 'bg-emerald-50 text-emerald-700');
+        const bids = Array.isArray(data.bids) ? data.bids.slice() : [];
+        if (!bids.length) {
+            body.innerHTML = `<div class="text-center py-8"><div class="text-5xl mb-3">🫥</div><p class="text-gray-500 font-bold text-sm">Zatím nikdo nepřihodil.</p><p class="text-gray-400 text-xs mt-1">Vyvolávací cena ${(Number(data.starting_price)||0).toLocaleString('cs-CZ')} Kč — buďte první!</p></div>`;
+            return;
+        }
+        const rev = bids.slice().reverse(); // nejnovější nahoře
+        const maxAmt = bids[bids.length - 1].amount;
+        let html = '<div class="relative pl-7">';
+        html += '<div class="absolute left-[9px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-amber-300 via-sky-200 to-gray-200"></div>';
+        rev.forEach((b, idx) => {
+            const leader = (idx === 0);
+            const mine   = !!b.is_me;
+            const dot = leader ? 'bg-amber-400 ring-4 ring-amber-100' : (mine ? 'bg-sky-500 ring-4 ring-sky-100' : 'bg-gray-300');
+            const card = leader ? 'bg-amber-50 border-amber-200' : (mine ? 'bg-sky-50 border-sky-100' : 'bg-white border-gray-100');
+            html += `<div class="relative mb-3 fade-in" style="animation-delay:${idx * 40}ms">
+                <span class="absolute -left-[22px] top-3 w-3.5 h-3.5 rounded-full ${dot}"></span>
+                <div class="rounded-2xl border ${card} p-3 flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="font-extrabold text-gray-800">${(Number(b.amount)||0).toLocaleString('cs-CZ')} Kč</span>
+                            ${leader ? '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-400 text-white">🏆 VEDOUCÍ</span>' : ''}
+                            ${mine ? '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-sky-500 text-white">VY</span>' : ''}
+                        </div>
+                        <div class="text-[11px] text-gray-400 mt-0.5">${esc(b.label || 'Dražitel')} · ${window._bidAgo(b.at)}</div>
+                    </div>
+                    <div class="text-[10px] font-bold text-gray-300 shrink-0">#${b.seq}</div>
+                </div>
+            </div>`;
+        });
+        // Základní uzel — vyvolávací cena
+        html += `<div class="relative mb-1">
+            <span class="absolute -left-[22px] top-3 w-3.5 h-3.5 rounded-full bg-gray-200 border-2 border-white"></span>
+            <div class="rounded-2xl border border-dashed border-gray-200 p-3 flex items-center justify-between">
+                <span class="text-xs font-bold text-gray-400">Vyvolávací cena</span>
+                <span class="font-bold text-gray-500">${(Number(data.starting_price)||0).toLocaleString('cs-CZ')} Kč</span>
+            </div>
+        </div>`;
+        html += '</div>';
+        body.innerHTML = html;
     };
     window.loadSimilarItems = function(item) {
         const container = document.getElementById('similar-' + item.id);
@@ -10590,6 +10729,9 @@
         const newBidder = newData.last_bidder_id || newData.bidder_id;
         if (newPrice > oldPrice) {
             auction.price = newPrice; auction.last_bidder_id = newBidder;
+            if (window._auctionBidCounts) window._auctionBidCounts[id] = (window._auctionBidCounts[id] || 0) + 1;
+            if (window._bidCache) delete window._bidCache[id];
+            if (document.getElementById('bid-stats-' + id)) window._loadBidStats(id);
             if (window.currentUser && newBidder !== window.currentUser.id) {
                 if (auction.seller_id === window.currentUser.id) showToast(`Nový příhoz ${newPrice.toLocaleString('cs-CZ')} Kč na "${_htmlDecode(auction.title)}"!`,'success');
                 else if (safeParse(localStorage.getItem('ft_local_bids'),{})[id]) showToast(`Byli jste překonáni v "${_htmlDecode(auction.title)}"! Nová cena: ${newPrice.toLocaleString('cs-CZ')} Kč.`,'warning');
