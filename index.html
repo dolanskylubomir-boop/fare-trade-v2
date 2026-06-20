@@ -50,6 +50,30 @@
         .glass-tile { background: rgba(255,255,255,.65); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.6); }
         .glass-tile:hover { background: rgba(255,255,255,.85); transform: translateY(-2px); }
         .glass-tile { transition: transform .15s ease, background .2s ease; }
+
+        /* ===== DARK MODE (cílené přepisy, ne invert) ===== */
+        html.dark { color-scheme: dark; }
+        html.dark body, html.dark .bg-animated { background:#0f141b !important; }
+        html.dark .bg-white, html.dark .bg-white\/95, html.dark .bg-white\/90, html.dark .bg-white\/80, html.dark .bg-white\/70, html.dark .bg-white\/60, html.dark .bg-white\/50 { background-color:#1b222c !important; }
+        html.dark .bg-gray-50, html.dark .bg-gray-100, html.dark .bg-gray-50\/60, html.dark .bg-gray-50\/50, html.dark .bg-gray-50\/30, html.dark .bg-gray-50\/20 { background-color:#232c38 !important; }
+        html.dark .text-pastel-text, html.dark .text-gray-900, html.dark .text-gray-800, html.dark .text-gray-700, html.dark .text-black { color:#e8ebf0 !important; }
+        html.dark .text-gray-600, html.dark .text-gray-500 { color:#aab4c2 !important; }
+        html.dark .text-gray-400, html.dark .text-gray-300 { color:#7c8794 !important; }
+        html.dark .border-gray-100, html.dark .border-gray-200, html.dark .border-gray-50, html.dark .border-white\/50, html.dark .border-white\/60, html.dark .border-white\/40 { border-color:rgba(255,255,255,.1) !important; }
+        html.dark input, html.dark select, html.dark textarea { background-color:#232c38 !important; color:#e8ebf0 !important; border-color:rgba(255,255,255,.14) !important; }
+        html.dark input::placeholder, html.dark textarea::placeholder { color:#6b7682 !important; }
+        html.dark .glass-tile { background:rgba(35,44,56,.7) !important; border-color:rgba(255,255,255,.08) !important; }
+        html.dark .glass-tile:hover { background:rgba(46,57,71,.92) !important; }
+        html.dark .skeleton { background:#2a323d !important; }
+        html.dark .shadow-sm, html.dark .shadow-md, html.dark .shadow-lg, html.dark .shadow-xl, html.dark .shadow-2xl { box-shadow:0 10px 26px -14px rgba(0,0,0,.7) !important; }
+        /* pastelové akcenty (-50) → tmavé barevné tinty (zachová význam, nezáří) */
+        html.dark .bg-red-50, html.dark .bg-red-50\/30 { background-color:rgba(239,68,68,.13) !important; }
+        html.dark .bg-amber-50, html.dark .bg-yellow-50, html.dark .bg-amber-50\/30, html.dark .bg-amber-50\/20, html.dark .bg-amber-50\/60 { background-color:rgba(245,158,11,.13) !important; }
+        html.dark .bg-green-50, html.dark .bg-emerald-50, html.dark .bg-green-50\/60 { background-color:rgba(16,185,129,.13) !important; }
+        html.dark .bg-sky-50, html.dark .bg-blue-50, html.dark .bg-sky-50\/60, html.dark .bg-sky-50\/50 { background-color:rgba(14,165,233,.13) !important; }
+        html.dark .bg-pink-50, html.dark .bg-rose-50, html.dark .bg-fuchsia-50, html.dark .bg-pink-50\/60, html.dark .bg-pink-50\/30, html.dark .bg-rose-50\/30 { background-color:rgba(236,72,153,.13) !important; }
+        html.dark .bg-indigo-50, html.dark .bg-violet-50, html.dark .bg-purple-50 { background-color:rgba(139,92,246,.13) !important; }
+        html.dark .bg-orange-50, html.dark .bg-orange-50\/30 { background-color:rgba(249,115,22,.13) !important; }
         .bg-animated { background: #F8F4F0; }
         @media (prefers-reduced-motion:reduce) {
             *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
@@ -200,6 +224,7 @@
         .story-bar{animation:storyBar 5s linear forwards;}
         @keyframes storyBar{from{width:0}to{width:100%}}
     </style>
+    <script>try{if(localStorage.getItem('ft_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
 </head>
 <body class="bg-animated text-pastel-text font-sans min-h-screen flex flex-col selection:bg-sky-200">
 
@@ -241,6 +266,7 @@
                 <button onclick="navigate('vop')" class="px-3 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wider text-xs">VOP</button>
             </nav>
             <div class="flex items-center gap-2 sm:gap-3 ml-auto md:ml-0">
+                <button id="theme-toggle" onclick="_toggleTheme()" class="flex items-center justify-center w-9 h-9 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-sky-500 transition-colors text-lg" aria-label="Přepnout světlý/tmavý režim" title="Světlý / tmavý režim">🌙</button>
                 <!-- Košík ikona -->
                 <button id="nav-cart-btn" onclick="navigate('kosik')" style="display:none" class="relative flex items-center justify-center w-9 h-9 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-sky-500 transition-colors" aria-label="Košík">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -1626,6 +1652,17 @@
     window._debouncedListFilter = function(view) {
         clearTimeout(window._listFilterTimer);
         window._listFilterTimer = setTimeout(() => window._applyListFilter(view), 220);
+    };
+
+    // ── Dark mode ──
+    window._toggleTheme = function() {
+        const dark = document.documentElement.classList.toggle('dark');
+        try { localStorage.setItem('ft_theme', dark ? 'dark' : 'light'); } catch(e) {}
+        const b = document.getElementById('theme-toggle'); if (b) b.textContent = dark ? '☀️' : '🌙';
+    };
+    window._initThemeIcon = function() {
+        const b = document.getElementById('theme-toggle');
+        if (b) b.textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
     };
 
     // „V okolí" — filtruje na kraj uživatele (z profilu nebo posledně zvolený)
@@ -12286,6 +12323,7 @@
         const hash = window.location.hash.replace('#','');
         navigate(hash || 'home');
         _initGdprBanner();
+        window._initThemeIcon && window._initThemeIcon();
 
         fetchDatabaseItems().then(() => {
             const h = window.location.hash.replace('#','');
