@@ -2365,9 +2365,9 @@
                 </div>`;
             };
             let html = '';
-            if (rejected.length) html += `<div class="border-t border-red-100 pt-4 mt-2 fade-in"><p class="text-xs font-bold text-red-600 uppercase tracking-wide mb-3">❌ Zamítnuto adminem (${rejected.length})</p><div class="flex flex-col gap-2">${rejected.map(i=>row(i,'rejected')).join('')}</div></div>`;
-            if (held.length)     html += `<div class="border-t border-orange-100 pt-4 mt-2 fade-in"><p class="text-xs font-bold text-orange-600 uppercase tracking-wide mb-3">⏳ Čeká na schválení (${held.length})</p><div class="flex flex-col gap-2">${held.map(i=>row(i,'held')).join('')}</div></div>`;
-            if (waiting.length)  html += `<div class="border-t border-yellow-100 pt-4 mt-2 fade-in"><p class="text-xs font-bold text-yellow-600 uppercase tracking-wide mb-3">⏳ Čeká na zaplacení (${waiting.length})</p><div class="flex flex-col gap-2">${waiting.map(i=>row(i,'waiting')).join('')}</div></div>`;
+            if (rejected.length) html += window._accordion('pend_rejected', `<span class="text-red-600 uppercase tracking-wider">❌ Zamítnuto adminem (${rejected.length})</span>`, `<div class="flex flex-col gap-2">${rejected.map(i=>row(i,'rejected')).join('')}</div>`, {});
+            if (held.length)     html += window._accordion('pend_held', `<span class="text-orange-600 uppercase tracking-wider">⏳ Čeká na schválení (${held.length})</span>`, `<div class="flex flex-col gap-2">${held.map(i=>row(i,'held')).join('')}</div>`, {});
+            if (waiting.length)  html += window._accordion('pend_waiting', `<span class="text-yellow-600 uppercase tracking-wider">⏳ Čeká na zaplacení (${waiting.length})</span>`, `<div class="flex flex-col gap-2">${waiting.map(i=>row(i,'waiting')).join('')}</div>`, {});
             container.innerHTML = html;
         } catch(e) { container.innerHTML = ''; }
     }
@@ -4804,13 +4804,6 @@
                     const _pb = document.getElementById('kyc-push-box'); if (_pb) _pb.classList.add('hidden');
                     const _vb = document.getElementById('kyc-vacation-box'); if (_vb) _vb.classList.add('hidden');
                 }
-                // Roční přehled & faktury — vždy (RPC vrací jen vlastní data prodejce)
-                const yrSel = document.getElementById('statements-year');
-                if (yrSel && !yrSel.options.length) {
-                    const yNow = new Date().getFullYear();
-                    for (let y = yNow; y >= yNow - 4; y--) { const o = document.createElement('option'); o.value = y; o.textContent = y; yrSel.appendChild(o); }
-                    _loadMyStatements(yNow);
-                }
                 if (window._privateProfileCache?.data) _applyKycToDOM(window._privateProfileCache.data);
             }, 150);
             return `
@@ -4868,14 +4861,6 @@
                 </div>
             </div>
 
-            <div id="seller-statements-section" class="mt-5 fade-in">
-                <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                    <h4 class="font-extrabold text-gray-800 text-base flex items-center gap-2">📄 Roční přehled & faktury</h4>
-                    <select id="statements-year" onchange="_loadMyStatements(this.value)" class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400"></select>
-                </div>
-                <div id="statements-content"><div class="flex justify-center py-8"><div class="w-7 h-7 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div></div>
-            </div>
-
             <div id="pwa-install-section" class="hidden mt-6 border-t border-gray-100 pt-6">
                 <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-center gap-4">
                     <span class="text-3xl shrink-0">📲</span>
@@ -4910,13 +4895,7 @@
                 }
             }, 0);
             return `<div class="flex items-center justify-between mb-4 fade-in"><h3 class="text-xl font-bold text-gray-800">Historie transakcí</h3><span class="text-xs text-gray-400 font-semibold flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>Živé</span></div>
-            <div id="seller-statements-section" class="mb-6 fade-in">
-                <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                    <h4 class="font-extrabold text-gray-800 text-base flex items-center gap-2">📄 Roční přehled & faktury</h4>
-                    <select id="statements-year" onchange="_loadMyStatements(this.value)" class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400"></select>
-                </div>
-                <div id="statements-content"><div class="flex justify-center py-8"><div class="w-7 h-7 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div></div>
-            </div>
+            <div id="seller-statements-section" class="mb-4">${window._accordion('stmt_sec', '<span class="flex items-center gap-2">📄 Roční přehled &amp; faktury</span>', '<div class="flex justify-end mb-3"><select id="statements-year" onchange="_loadMyStatements(this.value)" class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400"></select></div><div id="statements-content"><div class="flex justify-center py-8"><div class="w-7 h-7 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div></div>', { closedDefault:true })}</div>
             <div id="tx-filter-bar" class="flex flex-wrap gap-1.5 mb-5"></div>
             <div id="transakce-content" class="text-gray-400 text-center py-10">⌛ Načítám transakce…</div>`;
         }
