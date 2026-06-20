@@ -3764,8 +3764,11 @@
             };
             window._formDirty = false;
             if (adData.kraj) { try { localStorage.setItem('ft_my_kraj', adData.kraj); } catch(e) {} }
-            if (isAuction) dataAukce.unshift(localItem);
-            else dataPevnaCena.unshift(localItem);
+            // Pozdržený inzerát (auto-moderace) NEpřidávat do veřejných polí — nesmí být vidět před schválením.
+            if (!heldByModeration) {
+                if (isAuction) dataAukce.unshift(localItem);
+                else dataPevnaCena.unshift(localItem);
+            }
             if (heldByModeration) {
                 showToast('⏳ Inzerát byl přijat a čeká na schválení moderátorem. Po kontrole se zveřejní — dáme vám vědět.', 'warning', 8000);
             } else {
@@ -6587,6 +6590,7 @@
             kategorieFilter = kategorieFilter || 'Vše';
             _currentCategory = kategorieFilter;
             const all = dataAukce.filter(i =>
+                (i.db_status || 'aktivní') === 'aktivní' &&
                 (kategorieFilter === 'Vše' || i.category === kategorieFilter) &&
                 (!_currentSubcategory || i.subcategory === _currentSubcategory)
             );
@@ -6715,7 +6719,7 @@
             kategorieFilter = kategorieFilter || 'Vše';
             _currentCategory = kategorieFilter;
             const all = dataPevnaCena.filter(i =>
-                i.db_status !== 'ceka_na_platbu' &&
+                (i.db_status || 'aktivní') === 'aktivní' &&
                 (kategorieFilter === 'Vše' || i.category === kategorieFilter) &&
                 (!_currentSubcategory || i.subcategory === _currentSubcategory)
             );
