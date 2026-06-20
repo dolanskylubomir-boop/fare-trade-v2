@@ -10050,15 +10050,29 @@
         const _prevView = (window.location.hash || '').replace(/^#/, '').split('/')[0] || 'home';
         const _keepScroll = viewName === 'profil' && _prevView === 'profil';
         const _prevScroll = window.scrollY;
-        if (!_keepScroll) window.scrollTo({ top: 0, behavior: 'instant' });
+
+        // Paměť scrollu pro katalog: při odchodu z výpisu (na detail) ulož pozici,
+        // při návratu z detailu zpět na ni naskroluj.
+        window._scrollMemory = window._scrollMemory || {};
+        const _catDetail = { 'pevna-cena':'pevna-cena-detail', 'aukce':'aukce-detail' };
+        const _leaving = window._lastRenderedView || _prevView;
+        if (_catDetail[_leaving]) window._scrollMemory[_leaving] = _prevScroll;   // ulož scroll opouštěného výpisu
+        let _restoreCatY = 0;
+        if (_catDetail[viewName] && window._lastRenderedView === _catDetail[viewName] && window._scrollMemory[viewName] != null) {
+            _restoreCatY = window._scrollMemory[viewName];
+        }
+
+        if (!_keepScroll && !_restoreCatY) window.scrollTo({ top: 0, behavior: 'instant' });
         const app = document.getElementById('app');
         app.innerHTML = views[viewName](idOrCategory);
-        if (_keepScroll) {
-            const _restore = () => window.scrollTo({ top: _prevScroll, behavior: 'instant' });
+        if (_keepScroll || _restoreCatY) {
+            const _target = _restoreCatY || _prevScroll;
+            const _restore = () => window.scrollTo({ top: _target, behavior: 'instant' });
             _restore();
             requestAnimationFrame(_restore);
             setTimeout(_restore, 250);   // znovu po doplnění async obsahu (aby se výška dorovnala)
         }
+        window._lastRenderedView = viewName;
         const fullUrl = idOrCategory && !vsechnyKategorie.includes(idOrCategory) ? `${viewName}/${idOrCategory}` : viewName;
         if (fullUrl !== 'home') history.pushState({ view:fullUrl, param:idOrCategory }, '', '#'+fullUrl);
         else history.pushState({ view:'home' }, '', window.location.pathname);
