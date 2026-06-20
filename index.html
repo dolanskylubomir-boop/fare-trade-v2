@@ -3602,7 +3602,7 @@
         if (Array.isArray(d._shipping)) document.querySelectorAll('input[name="shipping"]').forEach(el => { el.checked = d._shipping.includes(el.value); });
         const cn = document.getElementById('condition-notes-row'); if (cn && d['ad-condition'] && d['ad-condition'] !== 'Nové' && d['ad-condition'] !== '') cn.classList.remove('hidden');
         window._updateFeePreview && window._updateFeePreview();
-        window._updateShipHint && window._updateShipHint();
+        window._updateShipHint && window._updateShipHint(); window._updateKrajHint && window._updateKrajHint();
         window._loadPriceSuggestion && window._loadPriceSuggestion();
         const b = document.getElementById('ad-draft-banner'); if (b) b.innerHTML = '';
         showToast('Koncept obnoven ✏️', 'success');
@@ -3803,7 +3803,7 @@
                 document.querySelectorAll('input[name="shipping"]').forEach(el => { el.checked = d.shipping.includes(el.value); });
             }
             // Doporučení dopravy + cena dle hmotnosti (stejný výpočet jako u ruční změny)
-            window._updateShipHint && window._updateShipHint();
+            window._updateShipHint && window._updateShipHint(); window._updateKrajHint && window._updateKrajHint();
             if (btnText) btnText.innerText = 'Hotovo! (Upravte si text)';
         } catch(e) {
             console.warn('[AI generate-listing] výjimka:', e);
@@ -4182,6 +4182,12 @@
                 status: 'aktivní',
                 is_top: false, views_count: 0
             };
+            // Osobní předání → kraj je povinný (filtrování „v okolí")
+            if ((adData.shipping_methods || []).includes('Osobní předání') && !adData.kraj) {
+                window._updateKrajHint && window._updateKrajHint();
+                const _ks = document.getElementById('ad-kraj'); if (_ks) _ks.scrollIntoView({ behavior:'smooth', block:'center' });
+                throw new Error('U osobního předání je nutné vybrat kraj (lokalitu).');
+            }
             let tableName = isAuction ? 'aukce' : 'pevna_cena';
             if (isAuction) {
                 const startPrice = parseInt(document.getElementById('ad-starting-price').value, 10);
@@ -7356,7 +7362,7 @@
                 <button onclick="navigate('profil/kyc')" class="bg-red-500 hover:bg-red-600 text-white font-extrabold px-8 py-3 rounded-2xl transition-colors">Doplnit identifikaci →</button>
                 <button onclick="navigate('profil')" class="ml-3 text-gray-500 hover:text-gray-700 font-bold px-4 py-3">← Zpět</button>
             </div>`;
-        setTimeout(() => window._initAdDraftBanner && window._initAdDraftBanner(), 0);
+        setTimeout(() => { window._initAdDraftBanner && window._initAdDraftBanner(); window._updateKrajHint && window._updateKrajHint(); }, 0);
         return `
         <div class="w-full max-w-4xl mx-auto bg-white/90 backdrop-blur-xl p-6 md:p-10 rounded-[2.5rem] shadow-2xl fade-in border border-white/50 mb-10">
             <button onclick="navigate('profil')" class="mb-6 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2">← Zpět na profil</button>
@@ -7427,12 +7433,13 @@
                         <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Rozměry (cm)</label><input type="text" id="ad-dimensions" placeholder="D x Š x V" oninput="window._updateShipHint()" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
                     </div>
                     <div class="grid grid-cols-2 gap-4 mb-5">
-                        <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">📍 Kraj (lokalita)</label><select id="ad-kraj" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white"><option value="">Nevyplněno</option>${KRAJE.map(k=>`<option value="${k}">${k}</option>`).join('')}</select></div>
+                        <div class="flex flex-col gap-1"><label id="ad-kraj-label" class="text-xs font-bold text-gray-500 pl-1">📍 Kraj (lokalita)</label><select id="ad-kraj" onchange="window._updateKrajHint()" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white"><option value="">Nevyplněno</option>${KRAJE.map(k=>`<option value="${k}">${k}</option>`).join('')}</select></div>
                         <div class="flex flex-col gap-1"><label class="text-xs font-bold text-gray-500 pl-1">Město / PSČ (volitelné)</label><input type="text" id="ad-psc" maxlength="60" placeholder="Např. Brno nebo 602 00" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-sky-400"></div>
                     </div>
+                    <div id="ad-kraj-required" class="hidden mb-4 -mt-1"></div>
                     <label class="text-xs font-bold text-gray-500 pl-1 mb-2 block">Nabízené způsoby dopravy</label>
                     <div class="flex flex-wrap gap-2">
-                        ${['Zásilkovna','PPL','Česká pošta','Osobní předání'].map(m=>`<label class="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"><input type="checkbox" name="shipping" value="${m}" onchange="window._updateShipHint()" class="w-4 h-4 text-sky-500 rounded focus:ring-sky-400" checked><span class="text-xs font-semibold text-gray-700">${m}</span></label>`).join('')}
+                        ${['Zásilkovna','PPL','Česká pošta','Osobní předání'].map(m=>`<label class="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"><input type="checkbox" name="shipping" value="${m}" onchange="window._updateShipHint();window._updateKrajHint()" class="w-4 h-4 text-sky-500 rounded focus:ring-sky-400" checked><span class="text-xs font-semibold text-gray-700">${m}</span></label>`).join('')}
                     </div>
                     <div id="ai-ship-hint" class="mt-2"></div>
                 </div>
@@ -7915,6 +7922,38 @@
             + bad.map(r => '<span class="bg-white border border-amber-200 text-amber-700 rounded-lg px-2 py-1">' + esc(r.m) + ' · ' + (!r.fitsW ? 'nad limit váhy' : 'nadrozměr') + ' ⚠️</span>').join('')
             + '</div>' + (paid.length ? '<p class="mt-1.5">Nejlevnější vhodné doručení: <strong>' + esc(paid[0].m) + ' ' + paid[0].price + ' Kč</strong>.</p>' : '<p class="mt-1.5 text-amber-700">Pro tyto parametry není mezi vybranými vhodný dopravce — zvolte jiný nebo osobní předání.</p>')
             + '</div>';
+    };
+
+    // Kraj z profilu (uložený kraj nebo poslední použitý) — k předvyplnění
+    window._myKnownKraj = function() {
+        let k = (window._privateProfileCache && window._privateProfileCache.data && window._privateProfileCache.data.kraj) || '';
+        if (!k) { try { k = localStorage.getItem('ft_my_kraj') || ''; } catch(e) {} }
+        return KRAJE.includes(k) ? k : '';
+    };
+    // Osobní předání → kraj povinný (zvýraznění + nabídka kraje z profilu)
+    window._updateKrajHint = function() {
+        const box = document.getElementById('ad-kraj-required');
+        const sel = document.getElementById('ad-kraj');
+        const label = document.getElementById('ad-kraj-label');
+        if (!box || !sel) return;
+        const pickup = Array.from(document.querySelectorAll('input[name="shipping"]:checked')).some(el => el.value === 'Osobní předání');
+        if (!pickup) {
+            box.classList.add('hidden'); box.innerHTML = '';
+            sel.classList.remove('border-amber-400','ring-2','ring-amber-200');
+            if (label) label.innerHTML = '📍 Kraj (lokalita)';
+            return;
+        }
+        if (label) label.innerHTML = '📍 Kraj (lokalita) <span class="text-red-500">*</span>';
+        const filled = !!sel.value;
+        sel.classList.toggle('border-amber-400', !filled);
+        sel.classList.toggle('ring-2', !filled);
+        sel.classList.toggle('ring-amber-200', !filled);
+        const known = window._myKnownKraj();
+        box.classList.remove('hidden');
+        box.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-800 leading-relaxed">
+            🤝 U <strong>osobního předání</strong> je <strong>kraj povinný</strong> — kupující podle něj filtrují inzeráty „v okolí".
+            ${(known && sel.value !== known) ? `<button type="button" onclick="document.getElementById('ad-kraj').value='${esc(known)}';window._updateKrajHint()" class="mt-1.5 inline-flex items-center gap-1 bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 font-bold px-2.5 py-1 rounded-lg transition-colors">📍 Použít můj kraj: ${esc(known)}</button>` : ''}
+        </div>`;
     };
     function _trackingUrl(carrier, num) {
         if (!num) return null;
