@@ -2476,7 +2476,7 @@
         dispute_admin:  '🚨', auction_won:'🏆', new_review:'⭐', seller_reply:'💬',
         dac7_warning:   '⚠️', dac7_blocked:'🔒', dac7_verified:'✅',
         listing_deactivated:'🚫', listing_reactivated:'✅',
-        support_reply:'💬', news:'📢', account_banned:'🚫', nonpayment:'⏰', nonpayment_warning:'⚠️', ban_notice:'⚠️', order_cancelled:'❌', price_offer:'💬', price_drop:'🔻', saved_search:'🔔', order_message:'💬',
+        support_reply:'💬', news:'📢', account_banned:'🚫', nonpayment:'⏰', nonpayment_warning:'⚠️', ban_notice:'⚠️', order_cancelled:'❌', price_offer:'💬', price_drop:'🔻', saved_search:'🔔', order_message:'💬', referral:'🎁',
         default:'🔔'
     };
 
@@ -4804,6 +4804,7 @@
                     const _pb = document.getElementById('kyc-push-box'); if (_pb) _pb.classList.add('hidden');
                     const _vb = document.getElementById('kyc-vacation-box'); if (_vb) _vb.classList.add('hidden');
                 }
+                if (typeof _loadReferralCard === 'function') _loadReferralCard();
                 if (window._privateProfileCache?.data) _applyKycToDOM(window._privateProfileCache.data);
             }, 150);
             return `
@@ -4820,6 +4821,7 @@
                 </div>
             </div>`
             + `
+            <div id="referral-card" class="mb-4"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 bg-gray-50/50 p-5 rounded-3xl border border-gray-100 mb-4 fade-in">
                 <div class="sm:col-span-2"><p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Zobrazované jméno</p><p id="kyc-display-dname" class="font-bold text-sky-600 text-xl">⌛</p></div>
                 <div class="border-t border-gray-100 pt-4"><p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Skutečné jméno</p><p id="kyc-display-name" class="font-bold text-gray-800 text-lg">⌛</p></div>
@@ -5200,10 +5202,10 @@
         if (!supabaseClient) { showToast('Systém je dočasně nedostupný, zkuste to znovu.','error'); return false; }
         try {
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
-            if (!error && data?.session && data?.user) { window.currentUser = data.user; window._isAnonBuyer = false; return true; }
+            if (!error && data?.session && data?.user) { window.currentUser = data.user; window._isAnonBuyer = false; await window._applyStoredReferral(); return true; }
             // E-mail už existuje (error) NEBO je zapnuté potvrzení e-mailu (bez session) → zkus přihlásit
             const si = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (si.data?.session && si.data?.user) { window.currentUser = si.data.user; window._isAnonBuyer = false; return true; }
+            if (si.data?.session && si.data?.user) { window.currentUser = si.data.user; window._isAnonBuyer = false; await window._applyStoredReferral(); return true; }
             if (error && /registered|already|exist/i.test(error.message || '')) {
                 showToast('Tento e-mail už má účet — zadejte správné heslo, nebo se přihlaste.','warning',6000);
             } else if (!error && data?.user && !data?.session) {
@@ -5214,6 +5216,46 @@
             return false;
         } catch(e) { showToast('Chyba účtu: ' + e.message,'error'); return false; }
     }
+
+    // ── Referral program (pozvi kamaráda) ──
+    window._applyStoredReferral = async function() {
+        let code = '';
+        try { code = localStorage.getItem('ft_ref') || ''; } catch(e) {}
+        if (!code || !window.currentUser) return;
+        try {
+            const token = await _ensureValidToken();
+            await fetch(`${SUPABASE_URL}/rest/v1/rpc/apply_referral`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+                body: JSON.stringify({ p_code: code })
+            });
+            try { localStorage.removeItem('ft_ref'); } catch(e) {}
+        } catch(e) {}
+    };
+    window._loadReferralCard = async function() {
+        const box = document.getElementById('referral-card');
+        if (!box || !window.currentUser) return;
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_my_referrals`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' }, body:'{}'
+            });
+            if (!r.ok) { box.innerHTML = ''; return; }
+            const d = await r.json();
+            const link = location.origin + '/?ref=' + encodeURIComponent(d.code || '');
+            box.innerHTML = `<div class="bg-gradient-to-r from-emerald-50 to-sky-50 border border-emerald-200 rounded-2xl p-4 fade-in">
+                <h4 class="font-extrabold text-emerald-800 text-sm mb-1">🎁 Pozvi kamaráda — ${d.bonus} Kč pro oba</h4>
+                <p class="text-xs text-gray-500 mb-3">Když se kamarád přes tvůj odkaz zaregistruje a udělá první nákup, dostanete <strong>oba ${d.bonus} Kč</strong> do peněženky.</p>
+                <div class="flex gap-2 mb-2"><input id="ref-link" readonly value="${esc(link)}" onclick="this.select()" class="flex-1 px-3 py-2 rounded-xl border border-emerald-200 text-xs bg-white"><button onclick="_copyRefLink()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shrink-0">Kopírovat</button></div>
+                <p class="text-[11px] text-gray-400">Pozváno: <strong>${d.invited}</strong> · Odměněno bonusem: <strong>${d.rewarded}</strong></p>
+            </div>`;
+        } catch(e) { box.innerHTML = ''; }
+    };
+    window._copyRefLink = function() {
+        const i = document.getElementById('ref-link'); if (!i) return;
+        i.select();
+        try { navigator.clipboard.writeText(i.value); showToast('Odkaz zkopírován 📋','success'); }
+        catch(e) { try { document.execCommand('copy'); showToast('Odkaz zkopírován 📋','success'); } catch(_) {} }
+    };
 
     // Po vyplnění adresy + dopravy → platební brána (QR / karta / FIO test, případně peněženka).
     // Neregistrovaný kupující → z formuláře založíme light účet (kvůli sporu / potvrzení doručení).
@@ -11999,6 +12041,12 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        // Referral: zachyť ?ref=KÓD do localStorage; aplikuj, jakmile je uživatel přihlášen
+        try {
+            const _ref = new URLSearchParams(window.location.search).get('ref');
+            if (_ref) localStorage.setItem('ft_ref', _ref.trim());
+        } catch(e) {}
+        setTimeout(() => { if (window.currentUser && window._applyStoredReferral) window._applyStoredReferral(); }, 3500);
         const hash = window.location.hash.replace('#','');
         navigate(hash || 'home');
         _initGdprBanner();
