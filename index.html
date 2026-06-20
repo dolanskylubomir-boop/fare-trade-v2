@@ -1708,6 +1708,13 @@
         const grid = document.getElementById('listing-grid');
         if (grid) grid.innerHTML = fd.length ? fd.map(i => renderAdCard(i)).join('') : `<p class="col-span-full text-center text-gray-400 py-10">Nic nenalezeno pro zvolené filtry.</p>`;
         const cnt = document.getElementById('listing-count'); if (cnt) cnt.textContent = '(' + fd.length + ')';
+        // Při hledání ukázat výsledky NAD sekcí „Naposledy zobrazené"
+        const rrow = document.getElementById('recent-row');
+        if (rrow && grid && grid.parentNode) {
+            const searching = !!(_listState.search && _listState.search.trim());
+            if (searching) grid.parentNode.insertBefore(rrow, grid.nextSibling);
+            else grid.parentNode.insertBefore(rrow, grid);
+        }
     };
     window._debouncedListFilter = function(view) {
         clearTimeout(window._listFilterTimer);
@@ -7816,16 +7823,20 @@
             .slice(0, 12);
         if (items.length < 2) return '';
         const showArrows = items.length > 5;
+        let collapsed = false; try { collapsed = localStorage.getItem('ft_recent_collapsed') === '1'; } catch(e) {}
         return `<div class="rounded-2xl p-3 sm:p-4 mb-6 bg-gradient-to-br from-sky-50 via-indigo-50 to-purple-50 border border-sky-100 shadow-sm fade-in">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="font-extrabold text-indigo-900/80 text-sm sm:text-base flex items-center gap-2"><span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/70 shadow-sm">🕘</span> Naposledy zobrazené</h3>
+            <div class="flex items-center justify-between ${collapsed ? '' : 'mb-3'}">
+                <button onclick="_toggleRecent()" class="font-extrabold text-indigo-900/80 text-sm sm:text-base flex items-center gap-2"><span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/70 shadow-sm">🕘</span> Naposledy zobrazené</button>
                 <div class="flex items-center gap-2">
+                    <span id="recent-arrows" class="${collapsed ? 'hidden' : 'flex'} items-center gap-2">
                     ${showArrows ? `<button onclick="_scrollRecent(-1)" class="hidden lg:inline-flex w-8 h-8 items-center justify-center rounded-full bg-white/80 hover:bg-white text-indigo-500 shadow-sm transition-colors text-lg leading-none" title="Předchozí">‹</button>
                     <button onclick="_scrollRecent(1)" class="hidden lg:inline-flex w-8 h-8 items-center justify-center rounded-full bg-white/80 hover:bg-white text-indigo-500 shadow-sm transition-colors text-lg leading-none" title="Další">›</button>` : ''}
+                    </span>
                     <button onclick="_clearRecent()" class="text-xs text-indigo-400 hover:text-red-500 font-bold transition-colors bg-white/60 px-2.5 py-1 rounded-lg">✕ Vymazat vše</button>
+                    <button id="recent-collapse-btn" onclick="_toggleRecent()" class="inline-flex w-8 h-8 items-center justify-center rounded-full bg-white/60 hover:bg-white text-indigo-500 transition-all" title="Sbalit / rozbalit" style="${collapsed ? 'transform:rotate(-90deg)' : ''}"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg></button>
                 </div>
             </div>
-            <div id="recent-scroll" class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide scroll-smooth">${items.map(i => `<div class="w-40 sm:w-48 shrink-0 relative group">
+            <div id="recent-scroll" class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide scroll-smooth ${collapsed ? 'hidden' : ''}">${items.map(i => `<div class="w-40 sm:w-48 shrink-0 relative group">
                 <button onclick="event.stopPropagation();_removeRecent('${i.id}')" class="absolute top-1.5 left-1.5 z-20 w-6 h-6 rounded-full bg-black/50 hover:bg-red-500 text-white text-xs flex items-center justify-center transition-colors" title="Odebrat z naposledy zobrazených">✕</button>
                 ${renderAdCard(i)}
             </div>`).join('')}</div>
@@ -7853,6 +7864,16 @@
     window._scrollRecent = function(dir) {
         const el = document.getElementById('recent-scroll');
         if (el) el.scrollBy({ left: dir * Math.max(240, el.clientWidth * 0.8), behavior: 'smooth' });
+    };
+    window._toggleRecent = function() {
+        const sc = document.getElementById('recent-scroll');
+        const btn = document.getElementById('recent-collapse-btn');
+        const arrows = document.getElementById('recent-arrows');
+        if (!sc) return;
+        const collapsed = sc.classList.toggle('hidden');
+        try { localStorage.setItem('ft_recent_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+        if (btn) btn.style.transform = collapsed ? 'rotate(-90deg)' : '';
+        if (arrows) { arrows.classList.toggle('hidden', collapsed); arrows.classList.toggle('flex', !collapsed); }
     };
     window.loadSimilarItems = function(item) {
         const container = document.getElementById('similar-' + item.id);
