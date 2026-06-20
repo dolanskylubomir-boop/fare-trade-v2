@@ -767,6 +767,14 @@
                     </button>
                 </div>
                 <div>
+                    <p class="text-sm font-bold text-gray-700 mb-1.5">🎥 Video zásilky <span class="text-xs text-gray-400 font-normal">(volitelné, max 30 s / 40 MB)</span></p>
+                    <input type="file" id="ship-video-input" accept="video/mp4,video/webm,video/quicktime" capture="environment" class="hidden" onchange="_onShipVideoPick(this)">
+                    <div id="ship-video-area">
+                        <button type="button" onclick="document.getElementById('ship-video-input').click()" class="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-sky-400 hover:bg-sky-50 transition-colors text-gray-400 hover:text-sky-500 text-sm font-bold"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Natočit / nahrát video</button>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-1.5">🔒 Video uvidí <strong>pouze administrátor</strong> (např. při sporu). Po dokončení obchodu nebo vyřešení sporu se automaticky smaže.</p>
+                </div>
+                <div>
                     <label class="text-sm font-bold text-gray-700 mb-1.5 block">Číslo zásilky <span class="text-red-500">*</span></label>
                     <input id="ship-tracking-input" type="text" placeholder="Zadejte tracking číslo dopravce" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white">
                 </div>
@@ -6316,6 +6324,28 @@
         } catch(e) { showToast('Chyba spojení.', 'error'); }
     };
 
+    // Admin: přehrát privátní video důkazu o odeslání (signed URL, jen admin)
+    window.adminPlayShipVideo = async function(orderId) {
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?id=eq.${encodeURIComponent(orderId)}&select=ship_video_path`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token } });
+            const rows = await r.json().catch(() => []);
+            const path = Array.isArray(rows) && rows[0] && rows[0].ship_video_path;
+            if (!path) return showToast('K této objednávce není video (nebo už bylo smazáno).', 'info');
+            const { data, error } = await supabaseClient.storage.from('order-videos').createSignedUrl(path, 1800);
+            if (error || !data?.signedUrl) return showToast('Video se nepodařilo načíst (oprávnění / smazáno).', 'warning');
+            const ov = document.createElement('div');
+            ov.className = 'fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4';
+            ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+            ov.innerHTML = `<div class="relative w-full max-w-2xl">
+                <button onclick="this.closest('.fixed').remove()" class="absolute -top-9 right-0 text-white/80 hover:text-white text-sm font-bold">✕ Zavřít</button>
+                <video src="${data.signedUrl}" controls autoplay playsinline class="w-full rounded-2xl bg-black max-h-[80vh]"></video>
+                <p class="text-white/60 text-xs mt-2 text-center">🔒 Důkaz o odeslání — viditelné jen pro admina. Dočasný odkaz vyprší za 30 min.</p>
+            </div>`;
+            document.body.appendChild(ov);
+        } catch(e) { showToast('Chyba spojení.', 'error'); }
+    };
+
     // Admin: zobrazit nahlášený inzerát (z DB, funguje i pro neaktivní/skryté)
     window.adminViewReportedListing = async function(itemType, itemId) {
         const tbl = itemType === 'aukce' ? 'aukce' : 'pevna_cena';
@@ -8648,6 +8678,7 @@
             slot.style.backgroundSize  = '';
             slot.innerHTML = `<input type="file" accept="image/*" class="hidden ship-photo-input" data-slot="${i}" onchange="previewShipPhoto(this)"><svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg><span class="text-xs text-gray-400 mt-1">Foto ${i+1}</span>`;
         });
+        window._removeShipVideo && window._removeShipVideo();
         const btn = document.getElementById('ship-docs-submit-btn');
         if (btn) { btn.disabled = false; btn.textContent = 'Potvrdit odeslání zásilky'; }
         document.getElementById('modal-ship-docs').classList.remove('hidden');
@@ -8689,6 +8720,31 @@
         input.value = '';
     };
 
+    window._shipVideoFile = null;
+    window._onShipVideoPick = function(input) {
+        const file = input.files && input.files[0]; if (!file) return;
+        if (file.size > 41943040) { showToast('Video je příliš velké (max 40 MB).', 'warning'); input.value=''; return; }
+        if (!/^video\/(mp4|webm|quicktime)$/.test(file.type)) { showToast('Povolené formáty videa: mp4, webm.', 'warning'); input.value=''; return; }
+        const url = URL.createObjectURL(file);
+        const probe = document.createElement('video'); probe.preload = 'metadata';
+        probe.onloadedmetadata = function() {
+            if ((probe.duration || 0) > 31) { showToast('Video je delší než 30 s — zkraťte ho.', 'warning'); URL.revokeObjectURL(url); input.value=''; return; }
+            window._shipVideoFile = file;
+            const area = document.getElementById('ship-video-area');
+            if (area) area.innerHTML = `<div class="relative rounded-2xl overflow-hidden bg-black"><video src="${url}" controls muted playsinline class="w-full max-h-52"></video>
+                <button type="button" onclick="_removeShipVideo()" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 hover:bg-red-500 text-white flex items-center justify-center" title="Odebrat video"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                <span class="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">🎥 ${Math.round(probe.duration)} s · ${(file.size/1048576).toFixed(1)} MB</span></div>`;
+        };
+        probe.onerror = function() { showToast('Soubor se nepodařilo načíst jako video.', 'warning'); URL.revokeObjectURL(url); input.value=''; };
+        probe.src = url;
+    };
+    window._removeShipVideo = function() {
+        window._shipVideoFile = null;
+        const inp = document.getElementById('ship-video-input'); if (inp) inp.value = '';
+        const area = document.getElementById('ship-video-area');
+        if (area) area.innerHTML = `<button type="button" onclick="document.getElementById('ship-video-input').click()" class="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-sky-400 hover:bg-sky-50 transition-colors text-gray-400 hover:text-sky-500 text-sm font-bold"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Natočit / nahrát video</button>`;
+    };
+
     window.submitShipDocs = async function() {
         const tracking = document.getElementById('ship-tracking-input')?.value.trim();
         _shipCarrier = document.getElementById('ship-carrier-select')?.value || _shipCarrier;
@@ -8711,12 +8767,27 @@
                 if (data?.publicUrl) urls.push(data.publicUrl);
             }
             if (!urls.length) { showToast('Nepodařilo se nahrát fotky. Zkontrolujte Storage bucket "order-photos".', 'error'); reset(); return; }
+
+            // Volitelné video důkazu o odeslání → privátní bucket order-videos (přehraje jen admin)
+            let _shipVideoPath = null;
+            if (window._shipVideoFile) {
+                try {
+                    if (btn) btn.textContent = 'Nahrávám video…';
+                    const vf = window._shipVideoFile;
+                    const vext = vf.type === 'video/webm' ? 'webm' : (vf.type === 'video/quicktime' ? 'mov' : 'mp4');
+                    const vpath = window.currentUser.id + '/' + _shipOrderId + '-' + Date.now() + '.' + vext;
+                    const { error: vErr } = await supabaseClient.storage.from('order-videos').upload(vpath, vf, { upsert: true, contentType: vf.type });
+                    if (!vErr) _shipVideoPath = vpath;
+                    else showToast('Video se nepodařilo nahrát — odešlu bez videa.', 'warning');
+                } catch(_) { showToast('Video se nepodařilo nahrát — odešlu bez videa.', 'warning'); }
+            }
+
             if (btn) btn.textContent = 'Potvrzuji odeslání…';
             // return=representation → ověříme, že se objednávka opravdu změnila (0 řádků = RLS/stav blokuje)
             const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
             const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?id=eq.' + _shipOrderId + '&seller_id=eq.' + window.currentUser.id, {
                 method: 'PATCH', headers: hdrs,
-                body: JSON.stringify({ status: 'shipped', tracking_number: tracking, carrier: _shipCarrier || undefined, shipping_photos: urls, shipped_at: new Date().toISOString() })
+                body: JSON.stringify({ status: 'shipped', tracking_number: tracking, carrier: _shipCarrier || undefined, shipping_photos: urls, ship_video_path: _shipVideoPath || undefined, shipped_at: new Date().toISOString() })
             });
             if (!r.ok) {
                 const t = await r.text().catch(function() { return ''; });
@@ -11476,6 +11547,7 @@
                         <p class="text-sm text-gray-700">${esc(o.dispute_description || '—')}</p>
                     </div>
                     ${photoGrid(shipPhotos, '📦 Fotky zásilky od prodejce')}
+                    <button onclick="adminPlayShipVideo('${o.order_id}')" class="mb-3 inline-flex items-center gap-1.5 bg-gray-900 hover:bg-black text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">🎥 Přehrát video odeslání</button>
                     ${photoGrid(evPhotos, '📷 Důkazy kupujícího')}
                     ${o.return_status ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 text-xs">
                         <p class="font-bold text-amber-800">↩️ Vratka zboží — ${({label_ready:'štítek vydán, čeká na odeslání kupujícím',shipped:'na cestě k prodejci',received:'PŘIJATA / limit — připraveno k výplatě',refunded:'vyplaceno ✓',cancelled:'štítek zneplatněn (BAN)'})[o.return_status]||o.return_status}</p>
