@@ -6898,16 +6898,16 @@
                     <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm"><span class="w-9 h-9 rounded-full bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center text-lg shrink-0">🛒</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nakoupeno</p><p id="profile-spent" class="text-lg font-black text-fuchsia-600 leading-tight">0 Kč</p></div></div>
                 </div>
                 ${verified ? `<div class="flex flex-wrap gap-3 mb-4">
-                    <button onclick="navigate('penezenka')" class="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-2xl px-4 py-2.5 transition-colors">
-                        <span class="text-lg">💰</span>
+                    <button onclick="navigate('penezenka')" class="glass-tile flex items-center gap-2.5 rounded-2xl px-4 py-2.5 shadow-sm">
+                        <span class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg shrink-0">💰</span>
                         <div class="text-left"><p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Peněženka</p><p class="text-sm font-black text-emerald-700" id="profile-wallet-balance">0 Kč</p></div>
                     </button>
-                    <button onclick="navigate('escrow')" class="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-2xl px-4 py-2.5 transition-colors">
-                        <span class="text-lg">🔒</span>
+                    <button onclick="navigate('escrow')" class="glass-tile flex items-center gap-2.5 rounded-2xl px-4 py-2.5 shadow-sm">
+                        <span class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg shrink-0">🔒</span>
                         <div class="text-left"><p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Escrow prodej · úschova</p><p class="text-sm font-black text-indigo-700" id="profile-escrow-sell">—</p></div>
                     </button>
-                    <button onclick="navigate('escrow-nakup')" class="flex items-center gap-2 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-2xl px-4 py-2.5 transition-colors">
-                        <span class="text-lg">🛒</span>
+                    <button onclick="navigate('escrow-nakup')" class="glass-tile flex items-center gap-2.5 rounded-2xl px-4 py-2.5 shadow-sm">
+                        <span class="w-9 h-9 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-lg shrink-0">🛒</span>
                         <div class="text-left"><p class="text-[10px] font-bold text-violet-600 uppercase tracking-wide">Escrow nákup · úschova</p><p class="text-sm font-black text-violet-700" id="profile-escrow-buy">—</p></div>
                     </button>
                 </div>` : ''}
