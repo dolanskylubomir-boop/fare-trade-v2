@@ -692,7 +692,7 @@
                     </button>
                     <p class="text-xs text-gray-400 pl-1">Smazané fotky se po uložení odstraní z úložiště. Inzerát musí mít aspoň 1 fotku.</p>
                 </div>
-                <div class="flex flex-col gap-1">
+                <div class="flex flex-col gap-1" id="edit-video-section">
                     <label class="text-xs font-bold text-gray-500 pl-1">🎥 Krátké video <span class="text-gray-400 font-normal">(volitelné, max 30 s / 40 MB)</span></label>
                     <input type="file" id="edit-video-input" accept="video/mp4,video/webm,video/quicktime" class="hidden" onchange="_editVideoPick(this)">
                     <div id="edit-video-area"></div>
@@ -2480,6 +2480,7 @@
         };
         _renderEditPhotos();
         _renderEditVideo();
+        const _evSec = document.getElementById('edit-video-section'); if (_evSec) _evSec.style.display = window._videoEnabled() ? '' : 'none';
 
         document.getElementById('modal-edit').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
@@ -2560,11 +2561,8 @@
             if (_ev.newFile) {
                 btn.textContent = 'Nahrávám video…';
                 try {
-                    const _vext = _ev.newFile.type === 'video/webm' ? 'webm' : (_ev.newFile.type === 'video/quicktime' ? 'mov' : 'mp4');
-                    const _vName = `${window.currentUser.id}/${Date.now()}-${(crypto.randomUUID?.() || Math.random().toString(36).substring(7)).slice(0,8)}.${_vext}`;
-                    const { data: _vd, error: _verr } = await supabaseClient.storage.from('inzeraty-videa').upload(_vName, _ev.newFile, { cacheControl:'3600', upsert:false, contentType: _ev.newFile.type });
-                    if (!_verr && _vd) { const { data: _vpu } = supabaseClient.storage.from('inzeraty-videa').getPublicUrl(_vName); updateObj.video_url = _vpu?.publicUrl || null; updateObj.video_path = _vName; updateObj.video_status = 'pending'; }
-                    else if (_verr) showToast('Video se nepodařilo nahrát — ostatní změny uložím.', 'warning');
+                    const _vres = await window._videoUpload(_ev.newFile, window.currentUser.id);
+                    updateObj.video_url = _vres.url; updateObj.video_path = _vres.path; updateObj.video_status = 'pending';
                 } catch(_) { showToast('Video se nepodařilo nahrát — ostatní změny uložím.', 'warning'); }
             } else if (_ev.remove) {
                 updateObj.video_url = null; updateObj.video_path = null; updateObj.video_status = null;
@@ -2578,10 +2576,7 @@
             const paths = _editState.removed.map(u => { const m = String(u).match(/\/inzeraty\/(.+?)(\?|$)/); return m ? decodeURIComponent(m[1]) : null; }).filter(Boolean);
             if (paths.length) { try { await supabaseClient.storage.from('inzeraty').remove(paths); } catch(_) {} }
             // Smaž staré video z úložiště (při nahrazení / odebrání)
-            if ((_ev.newFile || _ev.remove) && _ev.currentUrl) {
-                const _ovm = String(_ev.currentUrl).match(/\/inzeraty-videa\/(.+?)(\?|$)/);
-                if (_ovm) { try { await supabaseClient.storage.from('inzeraty-videa').remove([decodeURIComponent(_ovm[1])]); } catch(_) {} }
-            }
+            if ((_ev.newFile || _ev.remove) && _ev.currentUrl) { await window._videoDeleteByUrl(_ev.currentUrl); }
 
             // Lokálně aktualizuj
             if (item) {
@@ -4247,16 +4242,12 @@
             }
             if (!uploadedImages.length) uploadedImages.push(FALLBACK_IMG);
 
-            // Volitelné krátké video → Supabase Storage (bucket inzeraty-videa)
+            // Volitelné krátké video → přes adaptér (Supabase / budoucí CDN)
             let _videoUrl = null, _videoPath = null;
-            if (window._adVideoFile) {
+            if (window._adVideoFile && window._videoEnabled()) {
                 try {
-                    const vf = window._adVideoFile;
-                    const vext = vf.type === 'video/webm' ? 'webm' : (vf.type === 'video/quicktime' ? 'mov' : 'mp4');
-                    const vName = `${user.id}/${Date.now()}-${(crypto.randomUUID?.() || Math.random().toString(36).substring(7)).slice(0,8)}.${vext}`;
-                    const { data: vd, error: verr } = await supabaseClient.storage.from('inzeraty-videa').upload(vName, vf, { cacheControl:'3600', upsert:false, contentType: vf.type });
-                    if (!verr && vd) { const { data: vpu } = supabaseClient.storage.from('inzeraty-videa').getPublicUrl(vName); _videoUrl = vpu?.publicUrl || null; _videoPath = vName; }
-                    else if (verr) showToast('Video se nepodařilo nahrát — inzerát uložím bez videa.', 'warning');
+                    const _vres = await window._videoUpload(window._adVideoFile, user.id);
+                    _videoUrl = _vres.url; _videoPath = _vres.path;
                 } catch(_) { showToast('Video se nepodařilo nahrát — inzerát uložím bez videa.', 'warning'); }
             }
 
@@ -4403,7 +4394,7 @@
                 ${item.is_top ? '<div class="top-badge"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>TOP</div>' : ''}
                 ${isReserved ? `<div class="absolute inset-0 bg-gray-900/55 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center z-10 pointer-events-none"><svg class="w-5 h-5 text-white mb-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg><span class="text-white font-extrabold text-xs tracking-wide">Rezervováno</span><span class="text-white/70 text-[10px] mt-0.5">${_reserveCountdown(item.reserved_until)}</span></div>` : ''}
                 <img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" loading="lazy" decoding="async" alt="${item.title}" class="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500">
-                ${(item.video_url && item.video_status==='approved') ? '<span class="absolute bottom-2 right-2 z-10 bg-black/60 text-white text-[11px] font-bold px-1.5 py-1 rounded-lg backdrop-blur-sm" title="Obsahuje video">🎥</span>' : ''}
+                ${(window._videoEnabled() && item.video_url && item.video_status==='approved') ? '<span class="absolute bottom-2 right-2 z-10 bg-black/60 text-white text-[11px] font-bold px-1.5 py-1 rounded-lg backdrop-blur-sm" title="Obsahuje video">🎥</span>' : ''}
                 <div class="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-lg backdrop-blur-sm leading-tight">
                     <div class="text-white/70 font-normal text-[9px]">Cena prodejce</div>
                     <span id="list-seller-${item.id}">${item.price.toLocaleString('cs-CZ')} Kč</span>
@@ -4470,7 +4461,7 @@
                 ${isReserved ? `<div class="absolute inset-0 bg-gray-900/55 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center z-10 pointer-events-none"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg><span class="text-white/80 text-[9px] mt-0.5">${_reserveCountdown(item.reserved_until)}</span></div>` : ''}
                 <img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" loading="lazy" decoding="async" alt="${item.title}" class="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500">
                 ${dropped ? `<div class="absolute bottom-1 left-1 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shadow">🔻 −${dropPct}%</div>` : ''}
-                ${(item.video_url && item.video_status==='approved') ? '<span class="absolute bottom-1 right-1 z-10 bg-black/60 text-white text-[10px] font-bold px-1 py-0.5 rounded-md backdrop-blur-sm" title="Obsahuje video">🎥</span>' : ''}
+                ${(window._videoEnabled() && item.video_url && item.video_status==='approved') ? '<span class="absolute bottom-1 right-1 z-10 bg-black/60 text-white text-[10px] font-bold px-1 py-0.5 rounded-md backdrop-blur-sm" title="Obsahuje video">🎥</span>' : ''}
                 <button onclick="event.stopPropagation();shareItem('${(item.title||'').replace(/'/g,'')}','${item.id}','${item.type==='aukce'?'aukce':'pevna-cena'}')" class="absolute top-1.5 right-9 w-7 h-7 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors" aria-label="Sdílet" title="Sdílet"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg></button>
                 <button onclick="toggleFavorite(event,'${item.id}','${item.type}')" data-id="${item.id}" class="fav-btn absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors ${isFav ? 'text-red-500' : 'text-white'}" aria-label="Oblíbené"><svg class="w-3.5 h-3.5" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg></button>
             </div>
@@ -6286,6 +6277,17 @@
             } else showToast('Schválení se nezdařilo.','error');
         } catch(e) { showToast('Chyba spojení.','error'); }
     };
+    // Admin: globální zapnutí / vypnutí videí
+    window._adminToggleVideo = async function(enable) {
+        try {
+            const token = await _ensureValidToken();
+            const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/set_app_config`, { method:'POST', headers: hdrs, body: JSON.stringify({ p_key:'video_enabled', p_value: enable ? 'true' : 'false' }) });
+            if (r.ok) { window._appConfig.video_enabled = !!enable; showToast(enable ? '🎥 Videa zapnuta.' : 'Videa vypnuta.', 'success'); if (window._loadAdminTab) window._loadAdminTab('videa'); }
+            else { const t = await r.text().catch(()=> ''); showToast(t.includes('PGRST202')?'Spusťte app-config.sql v Supabase.':'Změna se nezdařila.', 'warning'); }
+        } catch(e) { showToast('Chyba spojení.', 'error'); }
+    };
+
     // Admin: schválit / zamítnout video
     window.adminApproveVideo = async function(itemId, itemType) {
         try {
@@ -7568,7 +7570,7 @@
                     </div>
                     <div id="ai-ship-hint" class="mt-2"></div>
                 </div>
-                <div class="bg-white/70 rounded-3xl border border-gray-100 p-5 mb-2 shadow-sm">
+                ${window._videoEnabled() ? `<div class="bg-white/70 rounded-3xl border border-gray-100 p-5 mb-2 shadow-sm">
                     <h3 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">🎥 Krátké video <span class="text-xs font-normal text-gray-400">(volitelné)</span></h3>
                     <p class="text-xs text-gray-400 mb-3 leading-relaxed">Až <strong>30 s</strong>, do <strong>40 MB</strong> (mp4/webm). Zvyšuje důvěru a snižuje spory. <strong>Po dokončení prodeje se video automaticky smaže.</strong></p>
                     <input type="file" id="ad-video" accept="video/mp4,video/webm,video/quicktime" class="hidden" onchange="window._onAdVideoPick(this)">
@@ -7578,7 +7580,7 @@
                             <span class="text-sm font-bold">Nahrát video</span>
                         </button>
                     </div>
-                </div>
+                </div>` : ''}
                 <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-black py-5 rounded-2xl transition-all shadow-lg text-lg uppercase tracking-wider mt-2">Vložit inzerát na tržiště</button>
                 <p class="text-center text-xs text-gray-400 -mt-3">Vložením inzerátu souhlasíte s VOP tržiště FairTrade.</p>
             </form>
@@ -7659,7 +7661,7 @@
                             ${item.has360 ? `<div class="absolute bottom-5 left-1/2 -translate-x-1/2"><button onclick="open360('${item.img}')" class="bg-white/95 backdrop-blur-md text-gray-800 px-5 py-2.5 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 hover:scale-105 transition-all"><svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>360° pohled</button></div>` : ''}
                         </div>
                         ${item.images&&item.images.length>1 ? `<div class="flex gap-2 mt-3 overflow-x-auto scrollbar-hide">${item.images.map(u=>`<div class="w-16 h-16 rounded-xl border-2 border-transparent hover:border-sky-500 cursor-pointer overflow-hidden shrink-0" onclick="document.getElementById('main-img-${item.id}').src='${u}'"><img src="${u}" class="w-full h-full object-cover"></div>`).join('')}</div>` : ''}
-                        ${(item.video_url && (item.video_status==='approved' || isOwner)) ? `<div class="mt-3">${item.video_status!=='approved' ? '<p class="text-[11px] text-amber-600 font-bold mb-1.5">⏳ Video čeká na schválení adminem — veřejně se zobrazí až po schválení.</p>' : '<p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎥 Video</p>'}<video controls muted playsinline preload="metadata" poster="${safeUrl(item.img)}" class="w-full rounded-2xl bg-black max-h-[420px]"><source src="${safeUrl(item.video_url)}"></video></div>` : ''}
+                        ${(window._videoEnabled() && item.video_url && (item.video_status==='approved' || isOwner)) ? `<div class="mt-3">${item.video_status!=='approved' ? '<p class="text-[11px] text-amber-600 font-bold mb-1.5">⏳ Video čeká na schválení adminem — veřejně se zobrazí až po schválení.</p>' : '<p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎥 Video</p>'}${window._videoEmbed(item.video_url, item.img)}</div>` : ''}
                     </div>
                     <div class="flex flex-col">
                         ${isHighest&&!isOwner ? `<div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-2xl flex items-center gap-2 mb-4 font-bold text-sm"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Aktuálně vyhráváte tuto aukci!</div>` : ''}
@@ -7811,7 +7813,7 @@
                             <img id="main-img-${item.id}" src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" onclick="openImgZoom(this.src)" class="img-zoomable rounded-2xl object-contain w-full h-[280px] md:h-[420px] transition-all duration-300 bg-gray-50">
                         </div>
                         ${item.images&&item.images.length>1 ? `<div class="flex gap-2 mt-3 overflow-x-auto scrollbar-hide">${item.images.map(u=>`<div class="w-16 h-16 rounded-xl border-2 border-transparent hover:border-pink-500 cursor-pointer overflow-hidden shrink-0" onclick="document.getElementById('main-img-${item.id}').src='${u}'"><img src="${u}" class="w-full h-full object-cover"></div>`).join('')}</div>` : ''}
-                        ${(item.video_url && (item.video_status==='approved' || isOwner)) ? `<div class="mt-3">${item.video_status!=='approved' ? '<p class="text-[11px] text-amber-600 font-bold mb-1.5">⏳ Video čeká na schválení adminem — veřejně se zobrazí až po schválení.</p>' : '<p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎥 Video</p>'}<video controls muted playsinline preload="metadata" poster="${safeUrl(item.img)}" class="w-full rounded-2xl bg-black max-h-[420px]"><source src="${safeUrl(item.video_url)}"></video></div>` : ''}
+                        ${(window._videoEnabled() && item.video_url && (item.video_status==='approved' || isOwner)) ? `<div class="mt-3">${item.video_status!=='approved' ? '<p class="text-[11px] text-amber-600 font-bold mb-1.5">⏳ Video čeká na schválení adminem — veřejně se zobrazí až po schválení.</p>' : '<p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎥 Video</p>'}${window._videoEmbed(item.video_url, item.img)}</div>` : ''}
                     </div>
                     <div class="flex flex-col">
                         <div class="flex flex-wrap gap-2 mb-4">
@@ -8093,6 +8095,49 @@
             ${(known && sel.value !== known) ? `<button type="button" onclick="document.getElementById('ad-kraj').value='${esc(known)}';window._updateKrajHint()" class="mt-1.5 inline-flex items-center gap-1 bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 font-bold px-2.5 py-1 rounded-lg transition-colors">📍 Použít můj kraj: ${esc(known)}</button>` : ''}
         </div>`;
     };
+    // ── Konfigurace videa + provider-adaptér (připraveno na Cloudflare Stream) ──
+    window.VIDEO_CFG  = { provider: 'supabase', bucket: 'inzeraty-videa', maxMB: 40, maxSec: 30 };
+    window._appConfig = { video_enabled: true };
+    window._videoEnabled = function() { return !!(window._appConfig && window._appConfig.video_enabled !== false); };
+    window._loadAppConfig = async function() {
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/app_config?select=key,value`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } });
+            if (!r.ok) return;
+            const rows = await r.json();
+            if (Array.isArray(rows)) {
+                const map = {}; rows.forEach(x => { map[x.key] = x.value; });
+                window._appConfig.video_enabled = map.video_enabled !== 'false';
+                if (map.video_provider) window.VIDEO_CFG.provider = map.video_provider;
+            }
+        } catch(e) {}
+    };
+    // Upload → {url, path}. Switch na jiný provider = jen tato funkce + _videoDeleteByUrl + _videoEmbed.
+    window._videoUpload = async function(file, uid) {
+        if (window.VIDEO_CFG.provider === 'cloudflare') {
+            // TODO: Cloudflare Stream — POST na vlastní /api/video-upload (server-side token), vrátit {url, path}
+            throw new Error('cloudflare_not_configured');
+        }
+        const ext = file.type === 'video/webm' ? 'webm' : (file.type === 'video/quicktime' ? 'mov' : 'mp4');
+        const name = `${uid}/${Date.now()}-${(crypto.randomUUID?.() || Math.random().toString(36).substring(7)).slice(0,8)}.${ext}`;
+        const { data, error } = await supabaseClient.storage.from(window.VIDEO_CFG.bucket).upload(name, file, { cacheControl:'3600', upsert:false, contentType: file.type });
+        if (error || !data) throw new Error(error?.message || 'upload_failed');
+        const { data: pu } = supabaseClient.storage.from(window.VIDEO_CFG.bucket).getPublicUrl(name);
+        return { url: pu?.publicUrl || null, path: name };
+    };
+    window._videoDeleteByUrl = async function(url) {
+        if (!url) return;
+        if (window.VIDEO_CFG.provider === 'cloudflare') { /* TODO: Cloudflare delete přes API */ return; }
+        const m = String(url).match(new RegExp('/' + window.VIDEO_CFG.bucket + '/(.+?)(\\?|$)'));
+        if (m) { try { await supabaseClient.storage.from(window.VIDEO_CFG.bucket).remove([decodeURIComponent(m[1])]); } catch(_) {} }
+    };
+    window._videoEmbed = function(url, poster) {
+        if (!url) return '';
+        if (window.VIDEO_CFG.provider === 'cloudflare') {
+            return `<iframe src="${safeUrl(url)}" class="w-full rounded-2xl bg-black max-h-[420px]" style="aspect-ratio:16/9;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+        }
+        return `<video controls muted playsinline preload="metadata" poster="${safeUrl(poster||'')}" class="w-full rounded-2xl bg-black max-h-[420px]"><source src="${safeUrl(url)}"></video>`;
+    };
+
     // ── Krátké video u inzerátu ────────────────────────────────
     window._adVideoFile = null;
     window._onAdVideoPick = function(input) {
@@ -11319,11 +11364,16 @@
                 setTimeout(() => { if (window._loadBlocklist) window._loadBlocklist(); }, 0);
             }
             else if (tab === 'videa') {
+                const _ven = window._videoEnabled();
+                const toggleBar = `<div class="flex items-center justify-between gap-3 bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-4">
+                    <div><p class="font-bold text-gray-800 text-sm">Videa u inzerátů</p><p class="text-xs text-gray-400">${_ven ? 'Zapnuto — prodejci mohou přidat video, po schválení je veřejné.' : 'Vypnuto — pole je skryté ve formuláři a videa se nezobrazují.'}</p></div>
+                    <button onclick="_adminToggleVideo(${_ven ? 'false' : 'true'})" class="shrink-0 font-bold px-4 py-2 rounded-xl text-sm transition-colors ${_ven ? 'bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600' : 'bg-green-500 hover:bg-green-600 text-white'}">${_ven ? '⏻ Vypnout videa' : '⏻ Zapnout videa'}</button>
+                </div>`;
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_pending_videos`, { method: 'POST', headers: hdrs, body: '{}' });
                 const rows = await r.json();
-                if (!r.ok) { container.innerHTML = `<p class="text-red-500 text-center py-8 text-sm">Chyba: ${esc((rows&&(rows.message||rows.hint))||(r.status===404?'Spusťte listing-video-moderation.sql.':JSON.stringify(rows)))}</p>`; return; }
-                if (!Array.isArray(rows) || !rows.length) { container.innerHTML = '<p class="text-gray-400 text-center py-8">Žádná videa čekající na schválení. ✓</p>'; return; }
-                container.innerHTML = rows.map(o => `<div class="border border-gray-100 rounded-2xl p-4 mb-3 fade-in">
+                if (!r.ok) { container.innerHTML = toggleBar + `<p class="text-red-500 text-center py-8 text-sm">Chyba: ${esc((rows&&(rows.message||rows.hint))||(r.status===404?'Spusťte listing-video-moderation.sql.':JSON.stringify(rows)))}</p>`; return; }
+                if (!Array.isArray(rows) || !rows.length) { container.innerHTML = toggleBar + '<p class="text-gray-400 text-center py-8">Žádná videa čekající na schválení. ✓</p>'; return; }
+                container.innerHTML = toggleBar + rows.map(o => `<div class="border border-gray-100 rounded-2xl p-4 mb-3 fade-in">
                     <div class="flex items-center justify-between gap-2 mb-3">
                         <div class="min-w-0"><p class="font-bold text-gray-800 truncate">${esc(o.title||'Inzerát')}</p><p class="text-xs text-gray-400">${o.item_type==='aukce'?'Aukce':'Pevná cena'} · ${esc(o.seller_name||'Prodejce')} · ${new Date(o.created_at).toLocaleDateString('cs-CZ')}</p></div>
                         <button onclick="navigate('${o.item_type==='aukce'?'aukce-detail':'pevna-cena-detail'}/${o.item_id}')" class="shrink-0 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 font-bold px-3 py-2 rounded-xl text-xs transition-colors">🔗 Inzerát</button>
@@ -13157,6 +13207,7 @@
         } catch(e) {}
         setTimeout(() => { if (window.currentUser && window._applyStoredReferral) window._applyStoredReferral(); }, 3500);
         const hash = window.location.hash.replace('#','');
+        window._loadAppConfig && window._loadAppConfig();
         navigate(hash || 'home');
         _initGdprBanner();
         window._initThemeIcon && window._initThemeIcon();
