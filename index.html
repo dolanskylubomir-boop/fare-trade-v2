@@ -82,8 +82,22 @@
         html.dark .text-pink-900, html.dark .text-pink-800, html.dark .text-pink-700, html.dark .text-rose-900, html.dark .text-rose-800, html.dark .text-rose-700, html.dark .text-fuchsia-700 { color:#f9a8d4 !important; }
         html.dark .text-indigo-900, html.dark .text-indigo-800, html.dark .text-indigo-700, html.dark .text-violet-900, html.dark .text-violet-800, html.dark .text-violet-700, html.dark .text-purple-700 { color:#c4b5fd !important; }
         html.dark .text-orange-900, html.dark .text-orange-800, html.dark .text-orange-700 { color:#fdba74 !important; }
-        /* Pilulky se světlým pozadím (-100) — v dark módu drž tmavý text (příhozy, prodejce, čas aukce) */
-        html.dark .chip-keepdark, html.dark .chip-keepdark * { color:#1f2937 !important; }
+        /* střední akcentové texty (-400/-500/-600) → také zesvětlit (ceny, odkazy, labely na tmavém) */
+        html.dark .text-sky-600, html.dark .text-sky-500, html.dark .text-sky-400, html.dark .text-blue-600, html.dark .text-blue-500 { color:#7dd3fc !important; }
+        html.dark .text-emerald-600, html.dark .text-emerald-500, html.dark .text-green-600, html.dark .text-green-500 { color:#6ee7b7 !important; }
+        html.dark .text-amber-600, html.dark .text-amber-500, html.dark .text-yellow-600, html.dark .text-yellow-500 { color:#fcd34d !important; }
+        html.dark .text-red-500 { color:#fca5a5 !important; }
+        html.dark .text-pink-600, html.dark .text-pink-500, html.dark .text-rose-600, html.dark .text-rose-500, html.dark .text-fuchsia-600, html.dark .text-fuchsia-500 { color:#f9a8d4 !important; }
+        html.dark .text-indigo-600, html.dark .text-indigo-500, html.dark .text-violet-600, html.dark .text-violet-500, html.dark .text-purple-600, html.dark .text-purple-500 { color:#c4b5fd !important; }
+        html.dark .text-orange-600, html.dark .text-orange-500 { color:#fdba74 !important; }
+        /* barevná -100 pozadí (pilulky/odznaky) → tmavý tint, ať na nich funguje světlý text */
+        html.dark .bg-sky-100, html.dark .bg-blue-100 { background-color:rgba(14,165,233,.18) !important; }
+        html.dark .bg-emerald-100, html.dark .bg-green-100 { background-color:rgba(16,185,129,.18) !important; }
+        html.dark .bg-amber-100, html.dark .bg-yellow-100 { background-color:rgba(245,158,11,.18) !important; }
+        html.dark .bg-red-100 { background-color:rgba(239,68,68,.18) !important; }
+        html.dark .bg-pink-100, html.dark .bg-rose-100, html.dark .bg-fuchsia-100 { background-color:rgba(236,72,153,.18) !important; }
+        html.dark .bg-indigo-100, html.dark .bg-violet-100, html.dark .bg-purple-100 { background-color:rgba(139,92,246,.18) !important; }
+        html.dark .bg-orange-100 { background-color:rgba(249,115,22,.18) !important; }
         .bg-animated { background: #F8F4F0; }
         @media (prefers-reduced-motion:reduce) {
             *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
@@ -12737,8 +12751,9 @@
             if (!r.ok || result?.error) {
                 if (result?.error === 'max_too_low') return showToast(`Limit musí být alespoň ${Number(result.min||0).toLocaleString('cs-CZ')} Kč.`, 'warning');
                 if (r.status === 404) return showToast('Funkce automatického přihazování není v databázi — je potřeba spustit auto-bid.sql v Supabase.', 'warning', 7000);
+                if (r.status === 403) return showToast('Přístup k funkci byl odepřen (403) — chybí oprávnění. ' + (result?.message || ''), 'warning', 8000);
                 const M = { not_authenticated:'Musíte se přihlásit.', auction_not_found:'Aukce nenalezena.', auction_not_active:'Aukce není aktivní.', auction_ended:'Čas aukce vypršel.', cannot_bid_own_auction:'Na vlastní aukci nelze přihazovat.', price_too_high:'Částka je příliš vysoká.' };
-                return showToast(M[result?.error] || result?.message || 'Limit se nepodařilo nastavit.', 'warning');
+                return showToast(M[result?.error] || result?.detail || result?.message || 'Limit se nepodařilo nastavit.', 'warning', 8000);
             }
             window._myMaxBids = window._myMaxBids || {};
             window._myMaxBids[id] = max;
