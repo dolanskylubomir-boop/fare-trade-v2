@@ -43,6 +43,13 @@
         /* === Animace === */
         .fade-in { animation: fadeIn .2s ease-in; }
         @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        /* Pomalý posun barev gradientu (hero cover) */
+        @keyframes ftGradient { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+        .hero-anim { background-size:200% 200% !important; animation: ftGradient 14s ease infinite; }
+        /* Glass dlaždice */
+        .glass-tile { background: rgba(255,255,255,.65); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.6); }
+        .glass-tile:hover { background: rgba(255,255,255,.85); transform: translateY(-2px); }
+        .glass-tile { transition: transform .15s ease, background .2s ease; }
         .bg-animated { background: #F8F4F0; }
         @media (prefers-reduced-motion:reduce) {
             *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
@@ -4471,7 +4478,11 @@
         const nameEl = document.getElementById('profile-name');
         if (nameEl) nameEl.innerText = displayName;
         const ratingEl = document.getElementById('profile-rating');
-        if (ratingEl) ratingEl.innerText = (data.rating||0).toFixed(1);
+        if (ratingEl) {
+            const rv = Number(data.rating) || 0;
+            ratingEl.innerText = rv.toFixed(1);
+            ratingEl.className = 'text-lg font-black leading-tight ' + (rv>=4.5?'text-green-600':rv>=3.5?'text-yellow-600':rv>=1?'text-orange-500':'text-gray-400');
+        }
         if (data.is_verified) {
             const badge = document.getElementById('profile-verified-badge');
             if (badge) { badge.classList.remove('hidden'); badge.classList.add('inline-flex'); }
@@ -6856,7 +6867,7 @@
             return `
             <div class="w-full max-w-5xl mx-auto fade-in">
                 <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 mb-6 overflow-hidden">
-                    <div class="h-28 sm:h-36 bg-gradient-to-r from-sky-400 via-indigo-500 to-fuchsia-500 relative overflow-hidden">
+                    <div class="hero-anim h-28 sm:h-36 bg-gradient-to-r from-sky-400 via-indigo-500 to-fuchsia-500 relative overflow-hidden">
                         <div class="absolute inset-0 opacity-25" style="background-image:radial-gradient(circle at 25% 30%, white 1.5px, transparent 1.5px);background-size:26px 26px"></div>
                         <div class="absolute -bottom-10 -left-6 w-44 h-44 bg-white/15 rounded-full blur-2xl"></div>
                         <div class="absolute -top-10 right-10 w-56 h-56 bg-fuchsia-300/30 rounded-full blur-3xl"></div>
@@ -6879,12 +6890,12 @@
                     </div>
                 </div>
                 <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-3">
-                    <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Aktivní</span><span id="profile-active-ads-count" class="text-xl font-black text-sky-600">0</span></div>
-                    <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Prodejů</span><span id="profile-sales-count" class="text-xl font-black text-green-600">0</span></div>
-                    <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Nákupů</span><span id="profile-purchase-count" class="text-xl font-black text-pink-600">0</span></div>
-                    <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Hodnocení</span><span id="profile-rating" class="text-xl font-black text-gray-800">0.0</span></div>
-                    <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Prodáno</span><span id="profile-earned" class="text-xl font-black text-green-600">0 Kč</span></div>
-                    <div class="bg-white/90 backdrop-blur-xl p-4 rounded-[1.25rem] shadow-sm border border-gray-100 flex flex-col"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Nakoupeno</span><span id="profile-spent" class="text-xl font-black text-pink-600">0 Kč</span></div>
+                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm"><span class="w-9 h-9 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-lg shrink-0">📦</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Aktivní</p><p id="profile-active-ads-count" class="text-lg font-black text-sky-600 leading-tight">0</p></div></div>
+                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm"><span class="w-9 h-9 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-lg shrink-0">🤝</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Prodejů</p><p id="profile-sales-count" class="text-lg font-black text-green-600 leading-tight">0</p></div></div>
+                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm"><span class="w-9 h-9 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-lg shrink-0">🛍️</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nákupů</p><p id="profile-purchase-count" class="text-lg font-black text-pink-600 leading-tight">0</p></div></div>
+                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm"><span class="w-9 h-9 rounded-full bg-yellow-100 text-yellow-500 flex items-center justify-center text-lg shrink-0">★</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Hodnocení</p><p id="profile-rating" class="text-lg font-black text-gray-800 leading-tight">0.0</p></div></div>
+                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm"><span class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg shrink-0">💰</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Prodáno</p><p id="profile-earned" class="text-lg font-black text-emerald-600 leading-tight">0 Kč</p></div></div>
+                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm"><span class="w-9 h-9 rounded-full bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center text-lg shrink-0">🛒</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nakoupeno</p><p id="profile-spent" class="text-lg font-black text-fuchsia-600 leading-tight">0 Kč</p></div></div>
                 </div>
                 ${verified ? `<div class="flex flex-wrap gap-3 mb-4">
                     <button onclick="navigate('penezenka')" class="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-2xl px-4 py-2.5 transition-colors">
