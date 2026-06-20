@@ -253,10 +253,13 @@
 <body class="bg-animated text-pastel-text font-sans min-h-screen flex flex-col selection:bg-sky-200">
 
     <!-- ===== HEADER ===== -->
-    <header class="w-full py-3 sm:py-4 px-4 sm:px-6 bg-white/85 backdrop-blur-md shadow-sm z-40 sticky top-0 transition-all">
+    <header class="w-full py-3 sm:py-3.5 px-4 sm:px-6 bg-white/80 backdrop-blur-xl border-b border-gray-100 shadow-[0_2px_14px_-10px_rgba(0,0,0,0.25)] z-40 sticky top-0 transition-all">
         <div class="max-w-6xl mx-auto flex items-center gap-3 sm:gap-4">
-            <div class="cursor-pointer shrink-0" onclick="navigate('home')">
-                <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-pastel-text leading-none">
+            <div class="cursor-pointer shrink-0 flex items-center gap-2.5" onclick="navigate('home')">
+                <span class="hidden sm:flex w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 items-center justify-center shadow-md shadow-sky-500/30 shrink-0">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+                <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-pastel-text leading-none">
                     Fair<span class="text-sky-400">Trade</span>
                 </h1>
             </div>
@@ -274,22 +277,24 @@
                 </button>
             </div>
 
-            <nav class="hidden lg:flex items-center gap-2 text-sm font-bold ml-auto">
-                <button onclick="navigate('pevna-cena','Vše')" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-50 hover:bg-sky-50 text-gray-600 hover:text-sky-600 border border-gray-200 hover:border-sky-300 transition-all">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                    Inzerce
-                </button>
-                <button onclick="navigate('aukce','Vše')" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-50 hover:bg-amber-50 text-gray-600 hover:text-amber-600 border border-gray-200 hover:border-amber-300 transition-all">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"/></svg>
-                    Aukce
-                </button>
-                <div class="w-px h-5 bg-gray-200 mx-1"></div>
-                <button onclick="navigate('jak-to-funguje')" class="px-3 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wider text-xs">Jak to funguje</button>
-                <button onclick="navigate('bezpecnost')" class="px-3 py-2 text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wider text-xs font-bold flex items-center gap-1">🛡️ Bezpečnost</button>
-                <button onclick="navigate('kontakt')" class="px-3 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wider text-xs">Kontakt</button>
-                <button onclick="navigate('vop')" class="px-3 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wider text-xs">VOP</button>
+            <nav class="hidden lg:flex items-center gap-1 text-sm font-bold ml-auto">
+                <div class="flex items-center gap-1 bg-gray-50 rounded-2xl p-1 border border-gray-100">
+                    <button onclick="navigate('pevna-cena','Vše')" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-gray-600 hover:bg-white hover:text-sky-600 hover:shadow-sm transition-all">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                        Inzerce
+                    </button>
+                    <button onclick="navigate('aukce','Vše')" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-gray-600 hover:bg-white hover:text-amber-600 hover:shadow-sm transition-all">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"/></svg>
+                        Aukce
+                    </button>
+                </div>
+                <div class="w-px h-5 bg-gray-200 mx-2"></div>
+                <button onclick="navigate('jak-to-funguje')" class="px-2.5 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wide text-xs">Jak to funguje</button>
+                <button onclick="navigate('bezpecnost')" class="px-2.5 py-2 text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wide text-xs font-bold flex items-center gap-1">🛡️ Bezpečnost</button>
+                <button onclick="navigate('kontakt')" class="px-2.5 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wide text-xs">Kontakt</button>
+                <button onclick="navigate('vop')" class="px-2.5 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wide text-xs">VOP</button>
             </nav>
-            <div class="flex items-center gap-2 sm:gap-3 ml-auto md:ml-0">
+            <div class="flex items-center gap-1.5 sm:gap-2 ml-auto lg:ml-2">
                 <button id="theme-toggle" onclick="_toggleTheme()" class="flex items-center justify-center w-9 h-9 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-sky-500 transition-colors text-lg" aria-label="Přepnout světlý/tmavý režim" title="Světlý / tmavý režim">🌙</button>
                 <!-- Košík ikona -->
                 <button id="nav-cart-btn" onclick="navigate('kosik')" style="display:none" class="relative flex items-center justify-center w-9 h-9 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-sky-500 transition-colors" aria-label="Košík">
@@ -300,10 +305,11 @@
                 <button onclick="openMobileMenu()" class="lg:hidden flex items-center justify-center w-9 h-9 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors" aria-label="Menu">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
+                <div class="hidden sm:block w-px h-6 bg-gray-200 mx-0.5"></div>
                 <button id="btn-register-top" onclick="navigate('login')"
-                    class="hidden sm:block text-gray-600 hover:text-sky-500 font-bold transition-colors text-sm">Registrovat</button>
+                    class="hidden sm:block px-4 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 hover:text-sky-600 font-bold transition-all text-sm">Registrovat</button>
                 <button onclick="navigate('novy-inzerat')"
-                    class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-3 sm:px-5 rounded-xl transition-all shadow-md flex items-center gap-1.5 text-sm">
+                    class="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold py-2 px-3 sm:px-5 rounded-xl transition-all shadow-lg shadow-sky-500/25 active:scale-95 flex items-center gap-1.5 text-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
                     <span class="hidden sm:inline">Vložit inzerát</span>
                     <span class="sm:hidden">Přidat</span>
