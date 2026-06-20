@@ -2975,6 +2975,15 @@
                 if (!window.auctionParticipants[b.auction_id]) window.auctionParticipants[b.auction_id] = new Set();
                 window.auctionParticipants[b.auction_id].add(window.currentUser.id);
             });
+            // Vlastní automatické (proxy) limity
+            window._myMaxBids = window._myMaxBids || {};
+            const rm = await fetch(`${SUPABASE_URL}/rest/v1/auction_max_bids?bidder_id=eq.${window.currentUser.id}&select=auction_id,max_amount`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` }
+            });
+            if (rm.ok) {
+                const mx = await rm.json();
+                if (Array.isArray(mx)) mx.forEach(m => { window._myMaxBids[m.auction_id] = m.max_amount; });
+            }
         } catch(e) {}
     };
 
@@ -5419,12 +5428,14 @@
                 bidsBody += '<div class="flex flex-col gap-3">';
                 myBids.forEach(item => {
                     const winning = item.last_bidder_id === window.currentUser.id;
+                    const myMax = (window._myMaxBids && window._myMaxBids[item.id]) || 0;
                     bidsBody += `<div onclick="navigate('aukce-detail/${item.id}')" class="flex items-center gap-3 p-3.5 border ${winning?'border-sky-100 bg-sky-50/40':'border-red-100 bg-red-50/40'} rounded-2xl hover:shadow-md transition-shadow cursor-pointer fade-in group relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1 h-full ${winning?'bg-sky-400':'bg-red-500'}"></div>
                         <div class="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0"><img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" class="w-full h-full object-cover group-hover:scale-110 transition-transform"></div>
                         <div class="flex-grow min-w-0">
                             <div class="text-[11px] ${winning?'text-sky-600':'text-red-500'} font-bold mb-0.5 uppercase">${winning?'Váš příhoz vede':'Byli jste přeplaceni!'}</div>
                             <h4 class="font-bold text-gray-800 truncate text-sm">${item.title}</h4>
+                            ${myMax ? `<div class="text-[10px] text-indigo-600 font-bold mt-0.5">🤖 Auto až do ${myMax.toLocaleString('cs-CZ')} Kč</div>` : ''}
                         </div>
                         <div class="text-right shrink-0"><div class="font-bold text-base text-gray-800">${item.price.toLocaleString('cs-CZ')} Kč</div></div>
                     </div>`;
@@ -7459,6 +7470,7 @@
                                     <button onclick="toggleBidMenu('${item.id}')" class="absolute -top-3 -right-3 bg-white shadow-md rounded-full p-1 text-gray-400 hover:text-red-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
                                 </div>
                                 </div>
+                                <div id="maxbid-panel-${item.id}">${window._maxBidPanel(item)}</div>
                                 ${window._isSellerVerified() ? `<button onclick="showMessageModal('${item.id}','${item.seller_id}',\`${item.title.replace(/`/g,'')}\`,'aukce')" class="w-full bg-white border border-sky-200 hover:border-sky-400 hover:bg-sky-50 text-sky-600 font-bold py-3 px-8 rounded-2xl transition-all text-sm flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3-3-3z"/></svg>Dotaz prodejci</button>` : ''}
                 <button onclick="shareItem('${item.title}','${item.id}','aukce')" class="w-full bg-white border border-gray-200 hover:border-gray-400 hover:bg-gray-50 text-gray-500 hover:text-sky-600 font-bold py-3 px-8 rounded-2xl transition-all text-sm flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>Sdílet</button>
                             </div>`}
@@ -12674,15 +12686,74 @@
             }
 
             const newPrice = result.new_price;
+            const leader = result.leader || window.currentUser.id;
+            const iLead = leader === window.currentUser.id;
             let localBids = safeParse(localStorage.getItem('ft_local_bids'), {});
-            localBids[id] = { price: newPrice, last_bidder_id: window.currentUser.id };
+            localBids[id] = { price: newPrice, last_bidder_id: leader };
             localStorage.setItem('ft_local_bids', JSON.stringify(localBids));
 
-            showToast(`Váš příhoz ${newPrice.toLocaleString('cs-CZ')} Kč byl úspěšně přijat!`, 'success');
+            if (iLead) showToast(`Váš příhoz ${newPrice.toLocaleString('cs-CZ')} Kč vede!`, 'success');
+            else showToast(`Soupeř má automatický příhoz — okamžitě vás přeplatil na ${newPrice.toLocaleString('cs-CZ')} Kč. Zvyšte svůj limit.`, 'warning', 6000);
             toggleBidMenu(id);
-            handleRealtimeAuctionUpdate({ id, current_price: newPrice, last_bidder_id: window.currentUser.id });
+            handleRealtimeAuctionUpdate({ id, current_price: newPrice, last_bidder_id: leader });
         } catch(e) {
             showToast('Chyba sítě — příhoz nebyl uložen.', 'error');
+        }
+    };
+
+    // ── Automatické přihazování (proxy / max příhoz) ──────────────
+    window._maxBidPanel = function(item) {
+        const my = (window._myMaxBids && window._myMaxBids[item.id]) || 0;
+        const cur = my
+            ? `<div class="flex items-center justify-between gap-2 mb-2 text-sm"><span class="text-indigo-700 font-bold">🤖 Váš limit: ${my.toLocaleString('cs-CZ')} Kč</span><span class="text-[11px] text-indigo-400 font-semibold">přihazujeme za vás</span></div>`
+            : `<div class="flex items-center gap-1.5 mb-2 text-sm font-bold text-indigo-700">🤖 Automatické přihazování</div>`;
+        return `<div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-3.5">
+            ${cur}
+            <p class="text-[11px] text-indigo-500/80 mb-2 leading-snug">Zadejte nejvyšší částku, kterou jste ochotni zaplatit. Přihazujeme za vás jen o nutné minimum — soupeři neuvidí váš limit.</p>
+            <div class="flex gap-2">
+                <div class="relative flex-1">
+                    <input id="maxbid-input-${item.id}" type="number" min="0" inputmode="numeric" placeholder="${my ? my : 'např. '+(Number(item.price)+500)}" value="${my || ''}"
+                        class="w-full pl-3 pr-9 py-2.5 rounded-xl border border-indigo-200 text-sm font-bold focus:outline-indigo-400 bg-white">
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-300 text-xs font-bold">Kč</span>
+                </div>
+                <button onclick="setMaxBid('${item.id}')" class="shrink-0 bg-indigo-500 hover:bg-indigo-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors">${my ? 'Upravit' : 'Nastavit'}</button>
+            </div>
+        </div>`;
+    };
+    window.setMaxBid = async function(id) {
+        if (!window.currentUser) { showToast('Pro automatické přihazování se musíte přihlásit.', 'warning'); navigate('login'); return; }
+        if (!window._isSellerVerified()) { showToast('Pro účast v aukcích je nutné ověření přes BankID (Profil → KYC).', 'warning'); navigate('kyc'); return; }
+        const el = document.getElementById('maxbid-input-' + id);
+        const max = parseInt(el && el.value, 10);
+        if (!Number.isFinite(max) || max <= 0) return showToast('Zadejte platnou maximální částku.', 'warning');
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/set_max_bid`, {
+                method: 'POST',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ p_auction_id: id, p_max: max })
+            });
+            const result = await r.json();
+            if (!r.ok || result?.error) {
+                if (result?.error === 'max_too_low') return showToast(`Limit musí být alespoň ${Number(result.min||0).toLocaleString('cs-CZ')} Kč.`, 'warning');
+                const M = { not_authenticated:'Musíte se přihlásit.', auction_not_found:'Aukce nenalezena.', auction_not_active:'Aukce není aktivní.', auction_ended:'Čas aukce vypršel.', cannot_bid_own_auction:'Na vlastní aukci nelze přihazovat.', price_too_high:'Částka je příliš vysoká.' };
+                return showToast(M[result?.error] || 'Limit se nepodařilo nastavit.', 'warning');
+            }
+            window._myMaxBids = window._myMaxBids || {};
+            window._myMaxBids[id] = max;
+            const leader = result.leader || window.currentUser.id;
+            const price = result.price || 0;
+            // zaznamenej účast i lokálně (pro „Aukce, kde přihazuji")
+            let localBids = safeParse(localStorage.getItem('ft_local_bids'), {});
+            localBids[id] = { price, last_bidder_id: leader };
+            localStorage.setItem('ft_local_bids', JSON.stringify(localBids));
+            if (leader === window.currentUser.id) showToast(`Limit ${max.toLocaleString('cs-CZ')} Kč nastaven — vedete za ${price.toLocaleString('cs-CZ')} Kč. 🤖`, 'success', 5000);
+            else showToast(`Limit nastaven, ale soupeřův limit je vyšší — aktuální cena ${price.toLocaleString('cs-CZ')} Kč.`, 'warning', 6000);
+            handleRealtimeAuctionUpdate({ id, current_price: price, last_bidder_id: leader });
+            const panel = document.getElementById('maxbid-panel-' + id);
+            if (panel) panel.innerHTML = window._maxBidPanel(dataAukce.find(i => String(i.id) === String(id)) || { id, price });
+        } catch(e) {
+            showToast('Chyba sítě — limit nebyl nastaven.', 'error');
         }
     };
 
