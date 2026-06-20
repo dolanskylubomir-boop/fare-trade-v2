@@ -2672,15 +2672,19 @@
             let [r1, r2, r3, r4] = await Promise.all([
                 db.from('aukce').select('*').eq('status','aktivní').order('is_top', { ascending:false }),
                 db.from('pevna_cena').select('*').eq('status','aktivní').order('is_top', { ascending:false }),
-                db.from('profiles').select(_PROFILE_COLS_BASE + ',satisfaction_pct,avg_ship_hours'),
+                // profiles vyžadují auth práva → přihlášený klient (anon dostává 401); host má fallback níže
+                (supabaseClient || db).from('profiles').select(_PROFILE_COLS_BASE + ',satisfaction_pct,avg_ship_hours'),
                 db.from('bids').select('auction_id,amount')
             ]);
 
-            // Pojistka: kdyby reputační sloupce v DB ještě nebyly (reputation-badges.sql
-            // nenasazen), dotaz výše selže — načteme profily bez nich, ať se nerozbijí prodejci.
+            // Pojistka proti chybě profiles dotazu:
+            //  - 400: reputační sloupce ještě nejsou (reputation-badges.sql nenasazen)
+            //  - 401: anon (publicClient) nemá práva číst profiles → zkus přihlášený klient
             if (r3.error || !r3.data) {
-                const rb = await db.from('profiles').select(_PROFILE_COLS_BASE);
-                if (rb.data) r3 = rb;
+                let rb = await supabaseClient.from('profiles').select(_PROFILE_COLS_BASE + ',satisfaction_pct,avg_ship_hours');
+                if (rb.error || !rb.data) rb = await supabaseClient.from('profiles').select(_PROFILE_COLS_BASE);
+                if (rb.error || !rb.data) rb = await db.from('profiles').select(_PROFILE_COLS_BASE);
+                if (rb && rb.data) r3 = rb;
             }
 
             const profilesMap = {};
@@ -7548,21 +7552,46 @@
             localStorage.setItem('ft_recent', JSON.stringify(arr.slice(0, 12)));
         } catch(e) {}
     };
-    window._renderRecentRow = function(excludeId) {
+    function _recentRowInner() {
         let arr = [];
         try { arr = JSON.parse(localStorage.getItem('ft_recent') || '[]'); } catch(e) {}
-        if (!arr.length) return '';
+        const exclude = String(window._recentExclude || '');
         const items = arr
             .map(x => [...dataPevnaCena, ...dataAukce].find(i => String(i.id) === String(x.id)))
             .filter(Boolean)
-            .filter(i => String(i.id) !== String(excludeId||''))
+            .filter(i => String(i.id) !== exclude)
             .filter(i => !window.currentUser || i.seller_id !== window.currentUser.id)
             .slice(0, 8);
         if (items.length < 2) return '';
-        return `<div class="mb-6 fade-in">
-            <h3 class="font-bold text-pastel-text text-base mb-3 flex items-center gap-2">🕘 Naposledy zobrazené</h3>
-            <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">${items.map(i => `<div class="w-40 sm:w-48 shrink-0">${renderAdCard(i)}</div>`).join('')}</div>
+        return `<div class="border border-gray-200 rounded-2xl p-3 sm:p-4 mb-6 bg-gray-50/60 fade-in">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-pastel-text text-sm sm:text-base flex items-center gap-2">🕘 Naposledy zobrazené</h3>
+                <button onclick="_clearRecent()" class="text-xs text-gray-400 hover:text-red-500 font-bold transition-colors">✕ Vymazat vše</button>
+            </div>
+            <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">${items.map(i => `<div class="w-40 sm:w-48 shrink-0 relative group">
+                <button onclick="event.stopPropagation();_removeRecent('${i.id}')" class="absolute top-1.5 left-1.5 z-20 w-6 h-6 rounded-full bg-black/50 hover:bg-red-500 text-white text-xs flex items-center justify-center transition-colors" title="Odebrat z naposledy zobrazených">✕</button>
+                ${renderAdCard(i)}
+            </div>`).join('')}</div>
         </div>`;
+    }
+    window._renderRecentRow = function(excludeId) {
+        window._recentExclude = excludeId || '';
+        const inner = _recentRowInner();
+        return inner ? `<div id="recent-row">${inner}</div>` : '<div id="recent-row"></div>';
+    };
+    window._removeRecent = function(id) {
+        try {
+            let arr = JSON.parse(localStorage.getItem('ft_recent') || '[]');
+            arr = arr.filter(x => String(x.id) !== String(id));
+            localStorage.setItem('ft_recent', JSON.stringify(arr));
+        } catch(e) {}
+        const el = document.getElementById('recent-row');
+        if (el) el.innerHTML = _recentRowInner();
+    };
+    window._clearRecent = function() {
+        try { localStorage.removeItem('ft_recent'); } catch(e) {}
+        const el = document.getElementById('recent-row');
+        if (el) el.innerHTML = '';
     };
     window.loadSimilarItems = function(item) {
         const container = document.getElementById('similar-' + item.id);
