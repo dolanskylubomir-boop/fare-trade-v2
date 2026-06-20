@@ -3026,7 +3026,7 @@
                         starting_price: Number(item.starting_price)||0, current_price: Number(currentPrice)||0,
                         category: esc(item.category), subcategory: esc(item.subcategory || ''), img: safeImage(item),
                         images: (item.images || [safeImage(item)]).map(u => safeUrl(u)),
-                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[], kraj: esc(item.kraj||''), mesto: esc(item.mesto||''), video_url: item.video_url ? safeUrl(item.video_url) : '',
+                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[], kraj: esc(item.kraj||''), mesto: esc(item.mesto||''), video_url: item.video_url ? safeUrl(item.video_url) : '', video_status: item.video_status || '',
                         has360: item.has_360 || false, seller: seller.name,
                         verified: seller.verified, rating: seller.rating, rating_count: seller.rating_count || 0,
                         seller_total_sold: seller.total_sold_count || 0, seller_satisfaction: seller.satisfaction_pct || 0, seller_ship_hours: seller.avg_ship_hours || 0,
@@ -3049,7 +3049,7 @@
                         title: esc(item.title), price: Number(item.price)||0,
                         category: esc(item.category), subcategory: esc(item.subcategory || ''), img: safeImage(item),
                         images: (item.images || [safeImage(item)]).map(u => safeUrl(u)),
-                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[], kraj: esc(item.kraj||''), mesto: esc(item.mesto||''), video_url: item.video_url ? safeUrl(item.video_url) : '',
+                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[], kraj: esc(item.kraj||''), mesto: esc(item.mesto||''), video_url: item.video_url ? safeUrl(item.video_url) : '', video_status: item.video_status || '',
                         has360: item.has_360 || false, seller: seller.name,
                         verified: seller.verified, rating: seller.rating, rating_count: seller.rating_count || 0,
                         seller_total_sold: seller.total_sold_count || 0, seller_satisfaction: seller.satisfaction_pct || 0, seller_ship_hours: seller.avg_ship_hours || 0,
@@ -4189,7 +4189,7 @@
                 dimensions: document.getElementById('ad-dimensions').value || null,
                 kraj: (document.getElementById('ad-kraj')?.value || '').trim() || null,
                 mesto: (document.getElementById('ad-psc')?.value || '').trim() || null,
-                video_url: _videoUrl, video_path: _videoPath,
+                video_url: _videoUrl, video_path: _videoPath, video_status: _videoUrl ? 'pending' : null,
                 shipping_methods: Array.from(document.querySelectorAll('input[name="shipping"]:checked')).map(el=>el.value),
                 images: uploadedImages, has_360: (uploadedImages.length >= 4),
                 payment_type: 'escrow',
@@ -4235,7 +4235,7 @@
                 images: uploadedImages.map(u => safeUrl(u)),
                 condition: esc(adData.condition),
                 brand: esc(adData.brand || ''),
-                kraj: esc(adData.kraj || ''), mesto: esc(adData.mesto || ''), video_url: safeUrl(adData.video_url || ''), shipping_methods: adData.shipping_methods || [],
+                kraj: esc(adData.kraj || ''), mesto: esc(adData.mesto || ''), video_url: safeUrl(adData.video_url || ''), video_status: adData.video_status || '', shipping_methods: adData.shipping_methods || [],
                 has360: adData.has_360 || false,
                 seller: esc(sellerProfile.display_name || user.email?.split('@')[0] || ''),
                 verified: sellerProfile.kyc_status === 'verified',
@@ -4324,7 +4324,7 @@
                 ${item.is_top ? '<div class="top-badge"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>TOP</div>' : ''}
                 ${isReserved ? `<div class="absolute inset-0 bg-gray-900/55 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center z-10 pointer-events-none"><svg class="w-5 h-5 text-white mb-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg><span class="text-white font-extrabold text-xs tracking-wide">Rezervováno</span><span class="text-white/70 text-[10px] mt-0.5">${_reserveCountdown(item.reserved_until)}</span></div>` : ''}
                 <img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" loading="lazy" decoding="async" alt="${item.title}" class="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500">
-                ${item.video_url ? '<span class="absolute bottom-2 right-2 z-10 bg-black/60 text-white text-[11px] font-bold px-1.5 py-1 rounded-lg backdrop-blur-sm" title="Obsahuje video">🎥</span>' : ''}
+                ${(item.video_url && item.video_status==='approved') ? '<span class="absolute bottom-2 right-2 z-10 bg-black/60 text-white text-[11px] font-bold px-1.5 py-1 rounded-lg backdrop-blur-sm" title="Obsahuje video">🎥</span>' : ''}
                 <div class="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-lg backdrop-blur-sm leading-tight">
                     <div class="text-white/70 font-normal text-[9px]">Cena prodejce</div>
                     <span id="list-seller-${item.id}">${item.price.toLocaleString('cs-CZ')} Kč</span>
@@ -4391,7 +4391,7 @@
                 ${isReserved ? `<div class="absolute inset-0 bg-gray-900/55 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center z-10 pointer-events-none"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg><span class="text-white/80 text-[9px] mt-0.5">${_reserveCountdown(item.reserved_until)}</span></div>` : ''}
                 <img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" loading="lazy" decoding="async" alt="${item.title}" class="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500">
                 ${dropped ? `<div class="absolute bottom-1 left-1 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shadow">🔻 −${dropPct}%</div>` : ''}
-                ${item.video_url ? '<span class="absolute bottom-1 right-1 z-10 bg-black/60 text-white text-[10px] font-bold px-1 py-0.5 rounded-md backdrop-blur-sm" title="Obsahuje video">🎥</span>' : ''}
+                ${(item.video_url && item.video_status==='approved') ? '<span class="absolute bottom-1 right-1 z-10 bg-black/60 text-white text-[10px] font-bold px-1 py-0.5 rounded-md backdrop-blur-sm" title="Obsahuje video">🎥</span>' : ''}
                 <button onclick="event.stopPropagation();shareItem('${(item.title||'').replace(/'/g,'')}','${item.id}','${item.type==='aukce'?'aukce':'pevna-cena'}')" class="absolute top-1.5 right-9 w-7 h-7 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors" aria-label="Sdílet" title="Sdílet"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg></button>
                 <button onclick="toggleFavorite(event,'${item.id}','${item.type}')" data-id="${item.id}" class="fav-btn absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors ${isFav ? 'text-red-500' : 'text-white'}" aria-label="Oblíbené"><svg class="w-3.5 h-3.5" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg></button>
             </div>
@@ -5376,6 +5376,7 @@
                     <button onclick="window._loadAdminTab('dac7')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors">🇪🇺 DAC7 report</button>
                     <button onclick="window._loadAdminTab('inzeraty')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 transition-colors">📋 Inzeráty</button>
                     <button onclick="window._loadAdminTab('reports')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors">🚩 Nahlášení<span id="admin-badge-reports" class="${(window._adminCounts&&window._adminCounts.reports>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-rose-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.reports>0)?(window._adminCounts.reports>99?'99+':window._adminCounts.reports):''}</span></button>
+                    <button onclick="window._loadAdminTab('videa')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100 border border-fuchsia-200 transition-colors">🎥 Videa<span id="admin-badge-videa" class="${(window._adminCounts&&window._adminCounts.videa>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-fuchsia-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.videa>0)?(window._adminCounts.videa>99?'99+':window._adminCounts.videa):''}</span></button>
                     <button onclick="window._loadAdminTab('blocklist')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">🛡️ Zakázaná slova</button>
                     <button onclick="window._loadAdminTab('ban')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200 transition-colors">🚫 Ruční BAN</button>
                     <button onclick="window._loadAdminTab('podpora')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors">💬 Podpora<span id="admin-badge-podpora" class="${(window._adminCounts&&window._adminCounts.podpora>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-sky-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.podpora>0)?(window._adminCounts.podpora>99?'99+':window._adminCounts.podpora):''}</span></button>
@@ -6206,6 +6207,34 @@
             } else showToast('Schválení se nezdařilo.','error');
         } catch(e) { showToast('Chyba spojení.','error'); }
     };
+    // Admin: schválit / zamítnout video
+    window.adminApproveVideo = async function(itemId, itemType) {
+        try {
+            const token = await _ensureValidToken();
+            const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/approve_video`, { method:'POST', headers: hdrs, body: JSON.stringify({ p_item_id: itemId, p_item_type: itemType }) });
+            if (r.ok) {
+                showToast('✅ Video schváleno.', 'success');
+                const it = [...dataPevnaCena, ...dataAukce].find(i => String(i.id) === String(itemId)); if (it) it.video_status = 'approved';
+                if (window._loadAdminTab) window._loadAdminTab('videa'); if (window._checkAdminBadge) window._checkAdminBadge();
+            } else { const t = await r.text().catch(()=> ''); showToast(t.includes('PGRST202')?'Spusťte listing-video-moderation.sql.':'Schválení selhalo.', 'warning'); }
+        } catch(e) { showToast('Chyba spojení.', 'error'); }
+    };
+    window.adminRejectVideo = async function(itemId, itemType) {
+        const reason = prompt('Důvod zamítnutí videa (uvidí prodejce):', 'Video nesplňuje pravidla tržiště');
+        if (reason === null) return;
+        try {
+            const token = await _ensureValidToken();
+            const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/reject_video`, { method:'POST', headers: hdrs, body: JSON.stringify({ p_item_id: itemId, p_item_type: itemType, p_reason: reason }) });
+            if (r.ok) {
+                showToast('Video zamítnuto a smazáno.', 'success');
+                const it = [...dataPevnaCena, ...dataAukce].find(i => String(i.id) === String(itemId)); if (it) { it.video_status = 'rejected'; it.video_url = ''; }
+                if (window._loadAdminTab) window._loadAdminTab('videa'); if (window._checkAdminBadge) window._checkAdminBadge();
+            } else { showToast('Zamítnutí selhalo.', 'warning'); }
+        } catch(e) { showToast('Chyba spojení.', 'error'); }
+    };
+
     // Admin: zobrazit nahlášený inzerát (z DB, funguje i pro neaktivní/skryté)
     window.adminViewReportedListing = async function(itemType, itemId) {
         const tbl = itemType === 'aukce' ? 'aukce' : 'pevna_cena';
@@ -7551,7 +7580,7 @@
                             ${item.has360 ? `<div class="absolute bottom-5 left-1/2 -translate-x-1/2"><button onclick="open360('${item.img}')" class="bg-white/95 backdrop-blur-md text-gray-800 px-5 py-2.5 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 hover:scale-105 transition-all"><svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>360° pohled</button></div>` : ''}
                         </div>
                         ${item.images&&item.images.length>1 ? `<div class="flex gap-2 mt-3 overflow-x-auto scrollbar-hide">${item.images.map(u=>`<div class="w-16 h-16 rounded-xl border-2 border-transparent hover:border-sky-500 cursor-pointer overflow-hidden shrink-0" onclick="document.getElementById('main-img-${item.id}').src='${u}'"><img src="${u}" class="w-full h-full object-cover"></div>`).join('')}</div>` : ''}
-                        ${item.video_url ? `<div class="mt-3"><p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎥 Video</p><video controls muted playsinline preload="metadata" poster="${safeUrl(item.img)}" class="w-full rounded-2xl bg-black max-h-[420px]"><source src="${safeUrl(item.video_url)}"></video></div>` : ''}
+                        ${(item.video_url && (item.video_status==='approved' || isOwner)) ? `<div class="mt-3">${item.video_status!=='approved' ? '<p class="text-[11px] text-amber-600 font-bold mb-1.5">⏳ Video čeká na schválení adminem — veřejně se zobrazí až po schválení.</p>' : '<p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎥 Video</p>'}<video controls muted playsinline preload="metadata" poster="${safeUrl(item.img)}" class="w-full rounded-2xl bg-black max-h-[420px]"><source src="${safeUrl(item.video_url)}"></video></div>` : ''}
                     </div>
                     <div class="flex flex-col">
                         ${isHighest&&!isOwner ? `<div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-2xl flex items-center gap-2 mb-4 font-bold text-sm"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Aktuálně vyhráváte tuto aukci!</div>` : ''}
@@ -7703,7 +7732,7 @@
                             <img id="main-img-${item.id}" src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" onclick="openImgZoom(this.src)" class="img-zoomable rounded-2xl object-contain w-full h-[280px] md:h-[420px] transition-all duration-300 bg-gray-50">
                         </div>
                         ${item.images&&item.images.length>1 ? `<div class="flex gap-2 mt-3 overflow-x-auto scrollbar-hide">${item.images.map(u=>`<div class="w-16 h-16 rounded-xl border-2 border-transparent hover:border-pink-500 cursor-pointer overflow-hidden shrink-0" onclick="document.getElementById('main-img-${item.id}').src='${u}'"><img src="${u}" class="w-full h-full object-cover"></div>`).join('')}</div>` : ''}
-                        ${item.video_url ? `<div class="mt-3"><p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎥 Video</p><video controls muted playsinline preload="metadata" poster="${safeUrl(item.img)}" class="w-full rounded-2xl bg-black max-h-[420px]"><source src="${safeUrl(item.video_url)}"></video></div>` : ''}
+                        ${(item.video_url && (item.video_status==='approved' || isOwner)) ? `<div class="mt-3">${item.video_status!=='approved' ? '<p class="text-[11px] text-amber-600 font-bold mb-1.5">⏳ Video čeká na schválení adminem — veřejně se zobrazí až po schválení.</p>' : '<p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎥 Video</p>'}<video controls muted playsinline preload="metadata" poster="${safeUrl(item.img)}" class="w-full rounded-2xl bg-black max-h-[420px]"><source src="${safeUrl(item.video_url)}"></video></div>` : ''}
                     </div>
                     <div class="flex flex-col">
                         <div class="flex flex-wrap gap-2 mb-4">
@@ -11210,6 +11239,23 @@
                 container.innerHTML = '<div id="blocklist-mgr"></div>';
                 setTimeout(() => { if (window._loadBlocklist) window._loadBlocklist(); }, 0);
             }
+            else if (tab === 'videa') {
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_pending_videos`, { method: 'POST', headers: hdrs, body: '{}' });
+                const rows = await r.json();
+                if (!r.ok) { container.innerHTML = `<p class="text-red-500 text-center py-8 text-sm">Chyba: ${esc((rows&&(rows.message||rows.hint))||(r.status===404?'Spusťte listing-video-moderation.sql.':JSON.stringify(rows)))}</p>`; return; }
+                if (!Array.isArray(rows) || !rows.length) { container.innerHTML = '<p class="text-gray-400 text-center py-8">Žádná videa čekající na schválení. ✓</p>'; return; }
+                container.innerHTML = rows.map(o => `<div class="border border-gray-100 rounded-2xl p-4 mb-3 fade-in">
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <div class="min-w-0"><p class="font-bold text-gray-800 truncate">${esc(o.title||'Inzerát')}</p><p class="text-xs text-gray-400">${o.item_type==='aukce'?'Aukce':'Pevná cena'} · ${esc(o.seller_name||'Prodejce')} · ${new Date(o.created_at).toLocaleDateString('cs-CZ')}</p></div>
+                        <button onclick="navigate('${o.item_type==='aukce'?'aukce-detail':'pevna-cena-detail'}/${o.item_id}')" class="shrink-0 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 font-bold px-3 py-2 rounded-xl text-xs transition-colors">🔗 Inzerát</button>
+                    </div>
+                    <video controls muted playsinline preload="metadata" class="w-full rounded-2xl bg-black max-h-72 mb-3"><source src="${safeUrl(o.video_url)}"></video>
+                    <div class="flex gap-2">
+                        <button onclick="adminApproveVideo('${o.item_id}','${o.item_type}')" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 rounded-xl text-sm transition-colors">✓ Schválit</button>
+                        <button onclick="adminRejectVideo('${o.item_id}','${o.item_type}')" class="flex-1 bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold py-2.5 rounded-xl text-sm transition-colors">✗ Zamítnout (smaže)</button>
+                    </div>
+                </div>`).join('');
+            }
             else if (tab === 'metrics') {
                 const rm = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_admin_metrics`, { method:'POST', headers: hdrs, body:'{}' });
                 const m = await rm.json();
@@ -12480,28 +12526,31 @@
         if (!token) return;
         const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
         try {
-            const [r1, r2, r3, r4, r5] = await Promise.all([
+            const [r1, r2, r3, r4, r5, r6] = await Promise.all([
                 fetch(SUPABASE_URL + '/rest/v1/rpc/get_pending_kyc',      { method: 'POST', headers: hdrs, body: '{}' }),
                 fetch(SUPABASE_URL + '/rest/v1/rpc/get_disputed_orders',   { method: 'POST', headers: hdrs, body: '{}' }),
                 fetch(SUPABASE_URL + '/rest/v1/support_tickets?status=eq.open&select=id', { headers: hdrs }),
                 fetch(SUPABASE_URL + '/rest/v1/rpc/get_aml_dashboard',     { method: 'POST', headers: hdrs, body: '{}' }),
-                fetch(SUPABASE_URL + '/rest/v1/rpc/count_open_reports',    { method: 'POST', headers: hdrs, body: '{}' })
+                fetch(SUPABASE_URL + '/rest/v1/rpc/count_open_reports',    { method: 'POST', headers: hdrs, body: '{}' }),
+                fetch(SUPABASE_URL + '/rest/v1/rpc/count_pending_videos',  { method: 'POST', headers: hdrs, body: '{}' })
             ]);
-            const [kyc, disputes, tickets, aml, reports] = await Promise.all([
+            const [kyc, disputes, tickets, aml, reports, videos] = await Promise.all([
                 r1.ok ? r1.json().catch(function() { return []; }) : Promise.resolve([]),
                 r2.ok ? r2.json().catch(function() { return []; }) : Promise.resolve([]),
                 r3.ok ? r3.json().catch(function() { return []; }) : Promise.resolve([]),
                 r4.ok ? r4.json().catch(function() { return {}; }) : Promise.resolve({}),
-                r5.ok ? r5.json().catch(function() { return 0; }) : Promise.resolve(0)
+                r5.ok ? r5.json().catch(function() { return 0; }) : Promise.resolve(0),
+                r6.ok ? r6.json().catch(function() { return 0; }) : Promise.resolve(0)
             ]);
             const counts = {
                 kyc:        Array.isArray(kyc)      ? kyc.length      : 0,
                 spory:      Array.isArray(disputes) ? disputes.length : 0,
                 podpora:    Array.isArray(tickets)  ? tickets.length  : 0,
                 compliance: (aml && typeof aml.alerts_open === 'number') ? aml.alerts_open : 0,
-                reports:    (typeof reports === 'number') ? reports : 0
+                reports:    (typeof reports === 'number') ? reports : 0,
+                videa:      (typeof videos === 'number') ? videos : 0
             };
-            const total = counts.kyc + counts.spory + counts.podpora + counts.compliance + counts.reports;
+            const total = counts.kyc + counts.spory + counts.podpora + counts.compliance + counts.reports + counts.videa;
             window._adminBadgeCount = total;
             window._adminCounts     = counts;
             // Helper: update badge element
@@ -12517,6 +12566,7 @@
             upd('admin-badge-podpora', counts.podpora);
             upd('admin-badge-compliance', counts.compliance);
             upd('admin-badge-reports', counts.reports);
+            upd('admin-badge-videa', counts.videa);
         } catch(e) { /* silent */ }
     };
 
