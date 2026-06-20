@@ -4817,8 +4817,23 @@
 
         if (tab === 'transakce') {
             window._txFilter = window._txFilter || 'vse';
-            setTimeout(() => loadTransakceTab(), 0);
+            setTimeout(() => {
+                loadTransakceTab();
+                const yrSel = document.getElementById('statements-year');
+                if (yrSel && !yrSel.options.length) {
+                    const yNow = new Date().getFullYear();
+                    for (let y = yNow; y >= yNow - 4; y--) { const o = document.createElement('option'); o.value = y; o.textContent = y; yrSel.appendChild(o); }
+                    _loadMyStatements(yNow);
+                }
+            }, 0);
             return `<div class="flex items-center justify-between mb-4 fade-in"><h3 class="text-xl font-bold text-gray-800">Historie transakcí</h3><span class="text-xs text-gray-400 font-semibold flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>Živé</span></div>
+            <div id="seller-statements-section" class="mb-6 fade-in">
+                <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                    <h4 class="font-extrabold text-gray-800 text-base flex items-center gap-2">📄 Roční přehled & faktury</h4>
+                    <select id="statements-year" onchange="_loadMyStatements(this.value)" class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400"></select>
+                </div>
+                <div id="statements-content"><div class="flex justify-center py-8"><div class="w-7 h-7 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div></div>
+            </div>
             <div id="tx-filter-bar" class="flex flex-wrap gap-1.5 mb-5"></div>
             <div id="transakce-content" class="text-gray-400 text-center py-10">⌛ Načítám transakce…</div>`;
         }
