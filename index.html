@@ -82,6 +82,8 @@
         html.dark .text-pink-900, html.dark .text-pink-800, html.dark .text-pink-700, html.dark .text-rose-900, html.dark .text-rose-800, html.dark .text-rose-700, html.dark .text-fuchsia-700 { color:#f9a8d4 !important; }
         html.dark .text-indigo-900, html.dark .text-indigo-800, html.dark .text-indigo-700, html.dark .text-violet-900, html.dark .text-violet-800, html.dark .text-violet-700, html.dark .text-purple-700 { color:#c4b5fd !important; }
         html.dark .text-orange-900, html.dark .text-orange-800, html.dark .text-orange-700 { color:#fdba74 !important; }
+        /* Pilulky se světlým pozadím (-100) — v dark módu drž tmavý text (příhozy, prodejce, čas aukce) */
+        html.dark .chip-keepdark, html.dark .chip-keepdark * { color:#1f2937 !important; }
         .bg-animated { background: #F8F4F0; }
         @media (prefers-reduced-motion:reduce) {
             *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
@@ -4149,7 +4151,7 @@
         // ⚡ Rychlý odesílatel — jen je-li změřeno
         if (ship > 0 && ship <= 48) badges.push(['⚡','Rychlý odesílatel','bg-sky-100 text-sky-700 border-sky-200']);
         if (!badges.length) return '';
-        return `<div class="flex flex-wrap gap-1 mt-1.5">${badges.map(b => `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${b[2]} whitespace-nowrap">${b[0]} ${b[1]}</span>`).join('')}</div>`;
+        return `<div class="flex flex-wrap gap-1 mt-1.5">${badges.map(b => `<span class="chip-keepdark text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${b[2]} whitespace-nowrap">${b[0]} ${b[1]}</span>`).join('')}</div>`;
     };
 
     window.renderAdCard = function(item) {
@@ -7980,11 +7982,11 @@
     // ── Aukce: zvýrazněný čas + počet příhozů + časová osa ──
     window._plurPrihoz = function(n) { n = Number(n) || 0; return n === 1 ? 'příhoz' : (n >= 2 && n <= 4 ? 'příhozy' : 'příhozů'); };
     window._auctionTimePill = function(timeInfo) {
-        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${timeInfo.urgent ? 'bg-red-100 text-red-600 countdown-urgent' : 'bg-sky-100 text-sky-700'}">⏱ ${timeInfo.text}</span>`;
+        return `<span class="chip-keepdark inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${timeInfo.urgent ? 'bg-red-100 text-red-600 countdown-urgent' : 'bg-sky-100 text-sky-700'}">⏱ ${timeInfo.text}</span>`;
     };
     window._bidChip = function(item) {
         const c = (window._auctionBidCounts && window._auctionBidCounts[item.id]) || 0;
-        return `<button onclick="event.stopPropagation();showBidTimeline('${item.id}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors" title="Časová osa příhozů">🔨 ${c} ${window._plurPrihoz(c)}</button>`;
+        return `<button onclick="event.stopPropagation();showBidTimeline('${item.id}')" class="chip-keepdark inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors" title="Časová osa příhozů">🔨 ${c} ${window._plurPrihoz(c)}</button>`;
     };
     window._bidAgo = function(iso) {
         try {
