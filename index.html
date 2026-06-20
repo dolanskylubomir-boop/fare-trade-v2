@@ -692,6 +692,12 @@
                     </button>
                     <p class="text-xs text-gray-400 pl-1">Smazané fotky se po uložení odstraní z úložiště. Inzerát musí mít aspoň 1 fotku.</p>
                 </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-bold text-gray-500 pl-1">🎥 Krátké video <span class="text-gray-400 font-normal">(volitelné, max 30 s / 40 MB)</span></label>
+                    <input type="file" id="edit-video-input" accept="video/mp4,video/webm,video/quicktime" class="hidden" onchange="_editVideoPick(this)">
+                    <div id="edit-video-area"></div>
+                    <p class="text-xs text-gray-400 pl-1">Nové nebo nahrazené video projde znovu schválením; po dokončení prodeje se smaže.</p>
+                </div>
                 <div class="flex gap-3 pt-2">
                     <button type="button" onclick="closeEditModal()" class="flex-1 border border-gray-200 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-50 transition-colors">Zrušit</button>
                     <button type="submit" id="edit-submit-btn" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl transition-all shadow-md">Uložit změny</button>
@@ -2394,6 +2400,56 @@
         _renderEditPhotos();
     };
 
+    // ── Video v editaci ─────────────────────────────────────────
+    function _renderEditVideo() {
+        const box = document.getElementById('edit-video-area'); if (!box) return;
+        const v = _editState.video || {};
+        if (v.newUrl) {
+            box.innerHTML = `<div class="relative rounded-2xl overflow-hidden bg-black"><video src="${v.newUrl}" controls muted playsinline class="w-full max-h-60"></video>
+                <button type="button" onclick="_editVideoCancelNew()" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 hover:bg-red-500 text-white flex items-center justify-center" title="Zrušit výběr"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                <span class="absolute bottom-2 left-2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">Nové — půjde znovu ke schválení</span></div>`;
+        } else if (v.currentUrl && !v.remove) {
+            const st = v.currentStatus === 'approved'
+                ? '<span class="text-[11px] font-bold text-green-600">✅ Schváleno</span>'
+                : (v.currentStatus === 'rejected' ? '<span class="text-[11px] font-bold text-red-500">❌ Zamítnuto</span>' : '<span class="text-[11px] font-bold text-amber-600">⏳ Čeká na schválení</span>');
+            box.innerHTML = `<div class="rounded-2xl overflow-hidden bg-black"><video src="${safeUrl(v.currentUrl)}" controls muted playsinline class="w-full max-h-60"></video></div>
+                <div class="flex items-center justify-between mt-2">${st}<div class="flex gap-2">
+                    <button type="button" onclick="document.getElementById('edit-video-input').click()" class="text-xs font-bold text-sky-600 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 px-3 py-1.5 rounded-lg transition-colors">Nahradit</button>
+                    <button type="button" onclick="_editVideoRemove()" class="text-xs font-bold text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">🗑 Odebrat</button>
+                </div></div>`;
+        } else {
+            box.innerHTML = `<button type="button" onclick="document.getElementById('edit-video-input').click()" class="w-full flex flex-col items-center justify-center gap-1.5 py-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-sky-400 hover:bg-sky-50 transition-colors text-gray-400 hover:text-sky-500"><svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span class="text-sm font-bold">${v.remove ? 'Video odebráno — nahrát nové' : 'Nahrát video'}</span></button>`;
+        }
+    }
+    window._editVideoPick = function(input) {
+        const file = input.files && input.files[0]; if (!file) return;
+        if (file.size > 41943040) { showToast('Video je příliš velké (max 40 MB).', 'warning'); input.value=''; return; }
+        if (!/^video\/(mp4|webm|quicktime)$/.test(file.type)) { showToast('Povolené formáty videa: mp4, webm.', 'warning'); input.value=''; return; }
+        const url = URL.createObjectURL(file);
+        const probe = document.createElement('video'); probe.preload = 'metadata';
+        probe.onloadedmetadata = function() {
+            if ((probe.duration || 0) > 31) { showToast('Video je delší než 30 s — zkraťte ho.', 'warning'); URL.revokeObjectURL(url); input.value=''; return; }
+            if (_editState.video && _editState.video.newUrl) { try { URL.revokeObjectURL(_editState.video.newUrl); } catch(e) {} }
+            _editState.video = Object.assign(_editState.video || {}, { newFile: file, newUrl: url, remove: false });
+            _renderEditVideo();
+        };
+        probe.onerror = function() { showToast('Soubor se nepodařilo načíst jako video.', 'warning'); URL.revokeObjectURL(url); input.value=''; };
+        probe.src = url;
+    };
+    window._editVideoCancelNew = function() {
+        if (_editState.video && _editState.video.newUrl) { try { URL.revokeObjectURL(_editState.video.newUrl); } catch(e) {} }
+        if (_editState.video) { _editState.video.newFile = null; _editState.video.newUrl = null; }
+        const inp = document.getElementById('edit-video-input'); if (inp) inp.value = '';
+        _renderEditVideo();
+    };
+    window._editVideoRemove = function() {
+        if (_editState.video) {
+            if (_editState.video.newUrl) { try { URL.revokeObjectURL(_editState.video.newUrl); } catch(e) {} }
+            _editState.video.newFile = null; _editState.video.newUrl = null; _editState.video.remove = true;
+        }
+        _renderEditVideo();
+    };
+
     window.showEditModal = function(id, type) {
         const arr  = type === 'aukce' ? dataAukce : dataPevnaCena;
         const item = arr.find(i => i.id === id);
@@ -2419,9 +2475,11 @@
         _editState = {
             images: (item.images || []).map(u => window._htmlDecode(u)).filter(Boolean),
             newFiles: [],
-            removed: []
+            removed: [],
+            video: { currentUrl: item.video_url ? window._htmlDecode(item.video_url) : '', currentStatus: item.video_status || '', newFile: null, newUrl: null, remove: false }
         };
         _renderEditPhotos();
+        _renderEditVideo();
 
         document.getElementById('modal-edit').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
@@ -2496,6 +2554,21 @@
             if (!finalImages.length) { showToast('Inzerát musí mít alespoň 1 fotku.', 'warning'); btn.textContent = origText; btn.disabled = false; return; }
             updateObj.images = finalImages;
             updateObj.has_360 = finalImages.length >= 4;
+
+            // Video: nahrazení / odebrání
+            const _ev = _editState.video || {};
+            if (_ev.newFile) {
+                btn.textContent = 'Nahrávám video…';
+                try {
+                    const _vext = _ev.newFile.type === 'video/webm' ? 'webm' : (_ev.newFile.type === 'video/quicktime' ? 'mov' : 'mp4');
+                    const _vName = `${window.currentUser.id}/${Date.now()}-${(crypto.randomUUID?.() || Math.random().toString(36).substring(7)).slice(0,8)}.${_vext}`;
+                    const { data: _vd, error: _verr } = await supabaseClient.storage.from('inzeraty-videa').upload(_vName, _ev.newFile, { cacheControl:'3600', upsert:false, contentType: _ev.newFile.type });
+                    if (!_verr && _vd) { const { data: _vpu } = supabaseClient.storage.from('inzeraty-videa').getPublicUrl(_vName); updateObj.video_url = _vpu?.publicUrl || null; updateObj.video_path = _vName; updateObj.video_status = 'pending'; }
+                    else if (_verr) showToast('Video se nepodařilo nahrát — ostatní změny uložím.', 'warning');
+                } catch(_) { showToast('Video se nepodařilo nahrát — ostatní změny uložím.', 'warning'); }
+            } else if (_ev.remove) {
+                updateObj.video_url = null; updateObj.video_path = null; updateObj.video_status = null;
+            }
             btn.textContent = 'Ukládám…';
 
             const { error } = await supabaseClient.from(tableName).update(updateObj).eq('id', id);
@@ -2504,6 +2577,11 @@
             // Smaž odstraněné fotky z úložiště (orphan cleanup)
             const paths = _editState.removed.map(u => { const m = String(u).match(/\/inzeraty\/(.+?)(\?|$)/); return m ? decodeURIComponent(m[1]) : null; }).filter(Boolean);
             if (paths.length) { try { await supabaseClient.storage.from('inzeraty').remove(paths); } catch(_) {} }
+            // Smaž staré video z úložiště (při nahrazení / odebrání)
+            if ((_ev.newFile || _ev.remove) && _ev.currentUrl) {
+                const _ovm = String(_ev.currentUrl).match(/\/inzeraty-videa\/(.+?)(\?|$)/);
+                if (_ovm) { try { await supabaseClient.storage.from('inzeraty-videa').remove([decodeURIComponent(_ovm[1])]); } catch(_) {} }
+            }
 
             // Lokálně aktualizuj
             if (item) {
@@ -2517,6 +2595,7 @@
                 } else {
                     patch.price = price;
                 }
+                if ('video_url' in updateObj) { patch.video_url = updateObj.video_url ? safeUrl(updateObj.video_url) : ''; patch.video_status = updateObj.video_status || ''; }
                 Object.assign(item, patch);
             }
 
