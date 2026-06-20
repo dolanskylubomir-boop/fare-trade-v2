@@ -5108,7 +5108,7 @@
                 });
                 activeBody += '</div>' + window._moreBtn('inzeraty', myAds.length, "_reRenderTab('inzeraty')");
             }
-            html += window._accordion('inz_active_sec', `Moje aktivní nabídky (${myAds.length})`, activeBody, { closedDefault:true, actionHtml: `<button onclick="navigate('novy-inzerat')" class="bg-sky-100 text-sky-600 hover:bg-sky-200 font-bold py-2 px-4 rounded-xl text-sm transition-colors shrink-0">+ Nový</button>` });
+            html += window._accordion('inz_active_sec', `Moje aktivní nabídky (${myAds.length})`, activeBody, { closedDefault:true, actionHtml: `<div class="flex gap-2 shrink-0"><button onclick="navigate('hromadne-vlozeni')" class="bg-violet-50 text-violet-600 hover:bg-violet-100 font-bold py-2 px-3 rounded-xl text-sm transition-colors" title="Hromadně z fotek">📷</button><button onclick="navigate('novy-inzerat')" class="bg-sky-100 text-sky-600 hover:bg-sky-200 font-bold py-2 px-4 rounded-xl text-sm transition-colors">+ Nový</button></div>` });
 
             html += `<div id="seller-pending-section" class="mt-2"></div>`;
             html += `<div id="seller-archive-section" class="mt-2"></div>`;
@@ -5255,6 +5255,106 @@
         i.select();
         try { navigator.clipboard.writeText(i.value); showToast('Odkaz zkopírován 📋','success'); }
         catch(e) { try { document.execCommand('copy'); showToast('Odkaz zkopírován 📋','success'); } catch(_) {} }
+    };
+
+    // ── Hromadné vkládání z fotek (AI vision koncepty) ──
+    window._renderBulkGrid = function() {
+        const grid = document.getElementById('bulk-grid'); if (!grid) return;
+        const drafts = window._bulkDrafts || [];
+        const pubBtn = document.getElementById('bulk-publish-btn');
+        if (pubBtn) { pubBtn.classList.toggle('hidden', drafts.length === 0); if (drafts.length) pubBtn.textContent = 'Zveřejnit vše (' + drafts.length + ')'; }
+        grid.innerHTML = drafts.map(d => {
+            const catOpts = KATEGORIE.map(k => `<option value="${k.name}" ${d.category===k.name?'selected':''}>${k.name}</option>`).join('');
+            const condOpts = ['Nové','Rozbalené','Použité','Poškozené'].map(c=>`<option value="${c}" ${d.condition===c?'selected':''}>${c}</option>`).join('');
+            const aiTag = d.ai==='loading' ? '<p class="text-xs text-sky-500 font-bold mb-1">🤖 AI generuje…</p>' : (d.ai==='error' ? '<p class="text-xs text-amber-600 font-bold mb-1">AI nedostupná — vyplňte ručně</p>' : '<p class="text-xs text-green-600 font-bold mb-1">✓ AI návrh (zkontrolujte)</p>');
+            return `<div class="border border-gray-200 rounded-2xl p-3 bg-white relative">
+                <button onclick="_removeBulkDraft('${d.lid}')" class="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-50 hover:bg-red-500 hover:text-white text-red-400 flex items-center justify-center text-sm z-10" title="Odebrat">✕</button>
+                <div class="flex gap-3">
+                    <img src="${d.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}'" class="w-20 h-20 rounded-xl object-cover bg-gray-100 shrink-0">
+                    <div class="flex-1 min-w-0">
+                        ${aiTag}
+                        <input type="text" value="${esc(d.title||'')}" oninput="_updateBulkDraft('${d.lid}','title',this.value)" maxlength="120" placeholder="Název *" class="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-sm mb-1.5">
+                        <div class="flex gap-1.5 mb-1.5">
+                            <input type="number" value="${d.price||''}" oninput="_updateBulkDraft('${d.lid}','price',this.value)" placeholder="Cena Kč *" class="w-24 px-2 py-1.5 rounded-lg border border-gray-200 text-sm">
+                            <select onchange="_updateBulkDraft('${d.lid}','category',this.value)" class="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-gray-200 text-sm bg-white">${catOpts}</select>
+                        </div>
+                        <select onchange="_updateBulkDraft('${d.lid}','condition',this.value)" class="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-sm bg-white">${condOpts}</select>
+                    </div>
+                </div>
+                <textarea oninput="_updateBulkDraft('${d.lid}','description',this.value)" rows="2" maxlength="1000" placeholder="Popis" class="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-xs mt-1.5 resize-none">${esc(d.description||'')}</textarea>
+            </div>`;
+        }).join('');
+    };
+    window._updateBulkDraft = function(lid, field, val) {
+        const d = (window._bulkDrafts||[]).find(x=>x.lid===lid); if (!d) return;
+        d[field] = field==='price' ? (parseInt(val,10)||0) : val;
+    };
+    window._removeBulkDraft = function(lid) {
+        window._bulkDrafts = (window._bulkDrafts||[]).filter(x=>x.lid!==lid);
+        window._renderBulkGrid();
+    };
+    window.handleBulkPhotos = async function(input) {
+        const files = Array.from(input.files||[]); input.value='';
+        if (!files.length) return;
+        if (!window.currentUser) { showToast('Přihlaste se.','warning'); return; }
+        window._bulkDrafts = window._bulkDrafts || [];
+        for (const file of files) {
+            const chk = validateImageFile(file);
+            if (!chk.ok && !(''+chk.error).includes('velikost')) { showToast(chk.error,'warning'); continue; }
+            const lid = 'b' + Date.now() + Math.random().toString(36).slice(2,7);
+            const draft = { lid, img: FALLBACK_IMG, title:'', price:0, category:'Ostatní', condition:'Použité', description:'', weight:0, dimensions:'', shipping:['Zásilkovna','Osobní předání'], ai:'loading' };
+            window._bulkDrafts.push(draft);
+            window._renderBulkGrid();
+            try {
+                const resized = await window._resizeImageForUpload(file);
+                const ext = resized.ext || 'jpg';
+                const fileName = `${Date.now()}-${(crypto.randomUUID?.()||Math.random().toString(36).substring(7)).slice(0,8)}.${ext}`;
+                const { data, error } = await supabaseClient.storage.from('inzeraty').upload(fileName, resized.blob, { cacheControl:'3600', upsert:false });
+                if (!error && data) { const { data:pu } = supabaseClient.storage.from('inzeraty').getPublicUrl(fileName); if (pu?.publicUrl) draft.img = pu.publicUrl; }
+                window._renderBulkGrid();
+                const token = await _ensureValidToken();
+                const r = await fetch(`${SUPABASE_URL}/functions/v1/dynamic-api`, {
+                    method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+                    body: JSON.stringify({ image_url: draft.img })
+                });
+                if (r.ok) {
+                    const ai = await r.json();
+                    draft.title = ai.title || draft.title;
+                    draft.price = Number(ai.price) || draft.price;
+                    if (ai.category) draft.category = ai.category;
+                    if (ai.condition) draft.condition = ai.condition;
+                    draft.description = ai.description || '';
+                    draft.weight = Number(ai.weight_kg) || 0;
+                    draft.dimensions = ai.dimensions || '';
+                    if (Array.isArray(ai.shipping) && ai.shipping.length) draft.shipping = ai.shipping;
+                    draft.ai = 'done';
+                } else { draft.ai = 'error'; }
+            } catch(e) { draft.ai = 'error'; }
+            window._renderBulkGrid();
+        }
+    };
+    window.publishBulk = async function() {
+        const drafts = (window._bulkDrafts||[]).slice();
+        if (!drafts.length) return;
+        const invalid = drafts.filter(d => !(d.title||'').trim() || !d.price || d.price < 1 || !d.category);
+        if (invalid.length) { showToast(`Doplňte název, cenu a kategorii u ${invalid.length} konceptů.`,'warning',5000); return; }
+        const btn = document.getElementById('bulk-publish-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Zveřejňuji…'; }
+        let ok = 0;
+        for (const d of drafts) {
+            try {
+                const { error } = await supabaseClient.from('pevna_cena').insert([{
+                    seller_id: window.currentUser.id, title: esc(d.title.trim()), description: esc((d.description||'').trim()),
+                    category: d.category, subcategory: null, condition: d.condition, price: d.price,
+                    images: [d.img], has_360: false, weight: d.weight || null, dimensions: d.dimensions || null,
+                    shipping_methods: d.shipping || [], payment_type: 'escrow', status: 'aktivní', is_top: false, views_count: 0
+                }]);
+                if (!error) ok++;
+            } catch(e) {}
+        }
+        window._bulkDrafts = [];
+        window.dataLoaded = false; if (window.fetchDatabaseItems) await window.fetchDatabaseItems();
+        showToast(`✅ Zveřejněno ${ok} inzerátů.`, 'success', 5000);
+        navigate('profil/inzeraty');
     };
 
     // Po vyplnění adresy + dopravy → platební brána (QR / karta / FIO test, případně peněženka).
@@ -6775,7 +6875,8 @@
         return `
         <div class="w-full max-w-4xl mx-auto bg-white/90 backdrop-blur-xl p-6 md:p-10 rounded-[2.5rem] shadow-2xl fade-in border border-white/50 mb-10">
             <button onclick="navigate('profil')" class="mb-6 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2">← Zpět na profil</button>
-            <div class="mb-8"><h2 class="text-3xl font-extrabold text-pastel-text">Nový inzerát</h2><p class="text-gray-500 text-sm mt-1">Vyplňte detaily nebo nechte AI, ať vám pomůže.</p></div>
+            <div class="mb-6 flex items-start justify-between gap-3 flex-wrap"><div><h2 class="text-3xl font-extrabold text-pastel-text">Nový inzerát</h2><p class="text-gray-500 text-sm mt-1">Vyplňte detaily nebo nechte AI, ať vám pomůže.</p></div>
+                <button type="button" onclick="navigate('hromadne-vlozeni')" class="shrink-0 bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-700 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors">📷 Hromadně z fotek →</button></div>
             <form onsubmit="handleAdSubmit(event)" oninput="window._formDirty=true" class="flex flex-col gap-7">
                 <div class="bg-gray-50 p-5 rounded-3xl border border-gray-100">
                     <label class="text-sm font-bold text-gray-700 block mb-3">Typ prodeje</label>
@@ -6853,6 +6954,23 @@
                 <p class="text-center text-xs text-gray-400 -mt-3">Vložením inzerátu souhlasíte s VOP tržiště FairTrade.</p>
             </form>
         </div>`},
+
+        'hromadne-vlozeni': () => {
+            if (!window._isSellerVerified()) return `<div class="w-full max-w-2xl mx-auto bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-sky-200 text-center"><div class="text-6xl mb-4">🪪</div><h2 class="text-2xl font-extrabold text-sky-700 mb-3">Pro prodej je nutné ověření</h2><p class="text-gray-600 mb-6">Ověřte se jednorázově přes <strong>BankID</strong> a můžete vkládat inzeráty.</p><button onclick="navigate('kyc')" class="bg-[#003d6b] hover:bg-[#002b4d] text-white font-extrabold px-8 py-3 rounded-2xl transition-colors">Ověřit přes BankID →</button></div>`;
+            window._bulkDrafts = window._bulkDrafts || [];
+            setTimeout(() => window._renderBulkGrid(), 0);
+            return `<div class="w-full max-w-4xl mx-auto bg-white/90 backdrop-blur-xl p-6 md:p-10 rounded-[2.5rem] shadow-2xl fade-in border border-white/50 mb-10">
+                <button onclick="navigate('novy-inzerat')" class="mb-6 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2">← Jednotlivé vkládání</button>
+                <h2 class="text-3xl font-extrabold text-pastel-text">📷 Hromadné vkládání z fotek</h2>
+                <p class="text-gray-500 text-sm mt-1 mb-5">Vyber víc fotek najednou — z každé <strong>AI vytvoří koncept</strong> (název, popis, cena, kategorie, doprava). Pak jen zkontroluješ a zveřejníš.</p>
+                <label class="block border-2 border-dashed border-sky-300 rounded-2xl p-8 text-center cursor-pointer hover:bg-sky-50 transition-colors">
+                    <input type="file" accept="image/*" multiple class="hidden" onchange="handleBulkPhotos(this)">
+                    <div class="text-4xl mb-2">📸</div><p class="font-bold text-sky-700">Vybrat fotky</p><p class="text-xs text-gray-400 mt-0.5">JPG/PNG · klidně 10 najednou</p>
+                </label>
+                <div id="bulk-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6"></div>
+                <button id="bulk-publish-btn" onclick="publishBulk()" class="hidden w-full bg-sky-500 hover:bg-sky-600 text-white font-black py-4 rounded-2xl mt-6 transition-all shadow-lg uppercase tracking-wider">Zveřejnit vše</button>
+            </div>`;
+        },
 
         aukce: (kategorieFilter) => {
             kategorieFilter = kategorieFilter || 'Vše';
