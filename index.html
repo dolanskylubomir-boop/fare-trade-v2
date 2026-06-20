@@ -12736,8 +12736,9 @@
             const result = await r.json();
             if (!r.ok || result?.error) {
                 if (result?.error === 'max_too_low') return showToast(`Limit musí být alespoň ${Number(result.min||0).toLocaleString('cs-CZ')} Kč.`, 'warning');
+                if (r.status === 404) return showToast('Funkce automatického přihazování není v databázi — je potřeba spustit auto-bid.sql v Supabase.', 'warning', 7000);
                 const M = { not_authenticated:'Musíte se přihlásit.', auction_not_found:'Aukce nenalezena.', auction_not_active:'Aukce není aktivní.', auction_ended:'Čas aukce vypršel.', cannot_bid_own_auction:'Na vlastní aukci nelze přihazovat.', price_too_high:'Částka je příliš vysoká.' };
-                return showToast(M[result?.error] || 'Limit se nepodařilo nastavit.', 'warning');
+                return showToast(M[result?.error] || result?.message || 'Limit se nepodařilo nastavit.', 'warning');
             }
             window._myMaxBids = window._myMaxBids || {};
             window._myMaxBids[id] = max;
