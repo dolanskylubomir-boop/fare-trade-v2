@@ -4716,18 +4716,17 @@
                 if (window._isSellerVerified()) {
                     window.updatePushBtn && window.updatePushBtn();
                     _loadVacationState();
-                    // Roční přehled & faktury — naplnit roky a načíst aktuální
-                    const yrSel = document.getElementById('statements-year');
-                    if (yrSel && !yrSel.options.length) {
-                        const yNow = new Date().getFullYear();
-                        for (let y = yNow; y >= yNow - 4; y--) { const o = document.createElement('option'); o.value = y; o.textContent = y; yrSel.appendChild(o); }
-                        _loadMyStatements(yNow);
-                    }
                 } else {
                     // Light účet (neověřený kupující) — push notifikace a prázdninový režim se neukazují
                     const _pb = document.getElementById('kyc-push-box'); if (_pb) _pb.classList.add('hidden');
                     const _vb = document.getElementById('kyc-vacation-box'); if (_vb) _vb.classList.add('hidden');
-                    const _ss = document.getElementById('seller-statements-section'); if (_ss) _ss.classList.add('hidden');
+                }
+                // Roční přehled & faktury — vždy (RPC vrací jen vlastní data prodejce)
+                const yrSel = document.getElementById('statements-year');
+                if (yrSel && !yrSel.options.length) {
+                    const yNow = new Date().getFullYear();
+                    for (let y = yNow; y >= yNow - 4; y--) { const o = document.createElement('option'); o.value = y; o.textContent = y; yrSel.appendChild(o); }
+                    _loadMyStatements(yNow);
                 }
                 if (window._privateProfileCache?.data) _applyKycToDOM(window._privateProfileCache.data);
             }, 150);
