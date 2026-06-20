@@ -1778,8 +1778,7 @@
             const fees = await rF.json().catch(()=>[]);
             const feeList = Array.isArray(fees) ? fees : [];
             const feeTotal = feeList.reduce((s,f)=>s+Number(f.amount||0),0);
-            const provize  = feeList.filter(f=>f.kind==='provize').reduce((s,f)=>s+Number(f.amount||0),0);
-            const top      = feeList.filter(f=>f.kind==='top').reduce((s,f)=>s+Number(f.amount||0),0);
+            window._statementData = { year, d, feeList };
             const kc = n => (Number(n)||0).toLocaleString('cs-CZ')+' Kč';
             const overLimit = (Number(d.gross) >= 50000 || Number(d.count) >= 30);
             box.innerHTML = `
@@ -1792,7 +1791,7 @@
                     <p class="text-[11px] mt-2 ${overLimit?'text-red-600 font-bold':'text-gray-400'}">${overLimit?'⚠️ Překročen limit — podléháte hlášení DAC7 (identifikace povinná).':'V mezích limitu pro hlášení DAC7 (2 000 € / 30 prodejů ročně).'}</p>
                 </div>
                 <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4">
-                    <div class="flex items-center justify-between mb-2"><p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Faktury za poplatky ${year}</p><button onclick="window.print()" class="text-xs text-sky-500 hover:text-sky-600 font-bold">🖨 Tisk</button></div>
+                    <div class="flex items-center justify-between mb-2"><p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Faktury za poplatky ${year}</p><button onclick="printSellerStatement()" class="text-xs text-sky-500 hover:text-sky-600 font-bold">🖨 Tisk přehledu</button></div>
                     ${feeList.length ? `<div class="flex flex-col divide-y divide-gray-100">${feeList.map(f=>`<div class="flex items-center justify-between gap-2 py-2"><div class="min-w-0"><p class="text-sm text-gray-700 truncate">${f.kind==='top'?'⭐':'💼'} ${esc(f.label)}</p><p class="text-[10px] text-gray-400">${new Date(f.created_at).toLocaleDateString('cs-CZ')}</p></div><span class="font-bold text-sm shrink-0">${kc(f.amount)}</span></div>`).join('')}</div>
                     <div class="mt-3 pt-3 border-t border-gray-200 text-sm flex flex-col gap-1">
                         <div class="flex justify-between font-extrabold text-gray-800"><span>Celkem poplatky (TOP)</span><span>${kc(feeTotal)}</span></div>
@@ -1800,6 +1799,83 @@
                     <p class="text-[11px] text-gray-400 mt-3 pt-2 border-t border-gray-100">ℹ️ Provizi platformy (5 % + ${ESCROW_FEE} Kč) hradí kupující při platbě přes escrow — pro vás to není náklad. Vaše jediné poplatky jsou volitelné TOP inzeráty.</p>
                 </div>`;
         } catch(e) { box.innerHTML = '<p class="text-red-500 text-sm py-4">Chyba načítání přehledu.</p>'; }
+    };
+
+    // Čistý tiskový dokument (faktura / přehled) v novém okně
+    window._printDoc = function(title, bodyHtml) {
+        const w = window.open('', '_blank', 'width=820,height=920');
+        if (!w) { showToast('Povolte vyskakovací okna pro tisk.','warning'); return; }
+        w.document.write(`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>${title}</title>
+        <style>
+          body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;max-width:720px;margin:24px auto;padding:0 24px;font-size:13px;line-height:1.55}
+          h1{font-size:20px;margin:0 0 2px} h2{font-size:14px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.04em;color:#374151}
+          .muted{color:#6b7280;font-size:12px}
+          table{width:100%;border-collapse:collapse;margin-top:6px}
+          th,td{text-align:left;padding:6px 4px;border-bottom:1px solid #e5e7eb}
+          td.r,th.r{text-align:right}
+          tr.tot td{font-weight:bold;border-top:2px solid #111;border-bottom:none}
+          .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:10px}
+          @media print{ .noprint{display:none} }
+        </style></head><body>${bodyHtml}
+        <div class="noprint" style="margin-top:26px;text-align:center"><button onclick="window.print()" style="padding:10px 22px;font-weight:bold;background:#0ea5e9;color:#fff;border:none;border-radius:8px;cursor:pointer">🖨 Vytisknout / Uložit PDF</button></div>
+        </body></html>`);
+        w.document.close();
+        setTimeout(() => { try { w.focus(); } catch(e) {} }, 200);
+    };
+
+    // Faktura k objednávce (doklad o platbě)
+    window.printOrderInvoice = function() {
+        const o = window._orderDetailData; if (!o) { showToast('Data objednávky nejsou k dispozici.','warning'); return; }
+        const items = o.objednavka_polozky || [];
+        // Oficiální faktura (FV-rok-0001) z DB; není-li (zatím nedokončeno), prozatímní doklad FA-
+        const inv = o._invoice;
+        const num = inv ? inv.invoice_number : ('FA-' + new Date(o.created_at).getFullYear() + '-' + String(o.id).substring(0,8).toUpperCase() + ' (prozatímní)');
+        const date = (inv ? new Date(inv.issued_at) : new Date(o.created_at)).toLocaleDateString('cs-CZ');
+        const kc = n => (Number(n)||0).toLocaleString('cs-CZ')+' Kč';
+        const addr = o.shipping_address || {};
+        const carr = window._carrierInfo(o.carrier);
+        const body = `
+          <div class="head">
+            <div><h1>FairTrade Tržiště</h1><p class="muted">Doklad o platbě / faktura</p></div>
+            <div style="text-align:right"><p><strong>${esc(num)}</strong></p><p class="muted">Datum: ${date}</p></div>
+          </div>
+          <h2>Odběratel</h2>
+          <p>${esc(addr.name||'—')}<br>${esc(addr.street||'')}${addr.city?', '+esc(addr.city):''} ${esc(addr.zip||'')}${addr.phone?'<br>'+esc(addr.phone):''}${addr.email?'<br>'+esc(addr.email):''}</p>
+          <h2>Položky objednávky</h2>
+          <table><tr><th>Popis</th><th class="r">Částka</th></tr>
+          ${items.map(i=>`<tr><td>${esc(i.title)}</td><td class="r">${kc(i.price)}</td></tr>`).join('')}
+          <tr><td>Doprava (${esc(carr.name)})</td><td class="r">${kc(o.shipping_fee)}</td></tr>
+          <tr><td>Provize + escrow ochrana</td><td class="r">${kc(o.platform_fee)}</td></tr>
+          <tr class="tot"><td>Celkem zaplaceno</td><td class="r">${kc(o.total)}</td></tr>
+          </table>
+          <p class="muted" style="margin-top:14px">Platba proběhla přes escrow ochranu FairTrade. Provize a escrow poplatek jsou službou platformy; cena zboží náleží prodejci po potvrzení doručení. Doklad slouží jako potvrzení o úhradě objednávky #${esc(String(o.id).substring(0,8).toUpperCase())}.</p>
+        `;
+        window._printDoc('Faktura ' + num, body);
+    };
+
+    // Tisk ročního přehledu prodejce (DAC7 + poplatky)
+    window.printSellerStatement = function() {
+        const st = window._statementData; if (!st) { showToast('Načtěte nejprve přehled.','warning'); return; }
+        const kc = n => (Number(n)||0).toLocaleString('cs-CZ')+' Kč';
+        const d = st.d || {}, fees = st.feeList || [], year = st.year;
+        const feeTotal = fees.reduce((s,f)=>s+Number(f.amount||0),0);
+        const over = (Number(d.gross)>=50000 || Number(d.count)>=30);
+        const body = `
+          <div class="head"><div><h1>FairTrade Tržiště</h1><p class="muted">Roční přehled prodejce — ${year}</p></div><div style="text-align:right" class="muted">Vytištěno ${new Date().toLocaleDateString('cs-CZ')}</div></div>
+          <h2>🇪🇺 DAC7 přehled ${year}</h2>
+          <table>
+            <tr><td>Počet dokončených prodejů</td><td class="r">${Number(d.count)||0} / 30</td></tr>
+            <tr><td>Obrat (dokončené prodeje)</td><td class="r">${kc(d.gross)} / ~50 000 Kč</td></tr>
+          </table>
+          <p class="muted">${over?'Překročen limit — podléháte hlášení DAC7 (identifikace povinná).':'V mezích limitu pro hlášení DAC7 (2 000 € / 30 prodejů ročně).'}</p>
+          <h2>Faktury za poplatky ${year} (TOP inzeráty)</h2>
+          ${fees.length?`<table><tr><th>Datum</th><th>Popis</th><th class="r">Částka</th></tr>
+            ${fees.map(f=>`<tr><td>${new Date(f.created_at).toLocaleDateString('cs-CZ')}</td><td>${esc(f.label)}</td><td class="r">${kc(f.amount)}</td></tr>`).join('')}
+            <tr class="tot"><td colspan="2">Celkem poplatky</td><td class="r">${kc(feeTotal)}</td></tr></table>`
+            :`<p class="muted">Za rok ${year} žádné poplatky.</p>`}
+          <p class="muted" style="margin-top:14px">Provizi platformy (5 % + ${ESCROW_FEE} Kč) hradí kupující při platbě přes escrow — není nákladem prodejce.</p>
+        `;
+        window._printDoc('Roční přehled ' + year, body);
     };
 
     window.deleteSavedSearch = async function(id) {
@@ -8387,18 +8463,23 @@
         const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
         const FI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f1f5f9'/%3E%3C/svg%3E";
         try {
-            const [rOrder, rReview, rDispute, rMsgs] = await Promise.all([
+            const [rOrder, rReview, rDispute, rMsgs, rInv] = await Promise.all([
                 fetch(`${SUPABASE_URL}/rest/v1/objednavky?id=eq.${orderId}&or=(buyer_id.eq.${uid},seller_id.eq.${uid})&select=*,objednavka_polozky(*)`, { headers: hdrs }),
                 fetch(`${SUPABASE_URL}/rest/v1/reviews?order_id=eq.${orderId}&select=id,rating,comment,seller_reply,reviewer_id&limit=1`, { headers: hdrs }),
                 fetch(`${SUPABASE_URL}/rest/v1/disputes?order_id=eq.${orderId}&select=*&limit=1`, { headers: hdrs }),
-                fetch(`${SUPABASE_URL}/rest/v1/order_messages?order_id=eq.${orderId}&order=created_at.asc&select=*`, { headers: hdrs })
+                fetch(`${SUPABASE_URL}/rest/v1/order_messages?order_id=eq.${orderId}&order=created_at.asc&select=*`, { headers: hdrs }),
+                fetch(`${SUPABASE_URL}/rest/v1/invoices?order_id=eq.${orderId}&select=*&limit=1`, { headers: hdrs })
             ]);
             const orders   = await rOrder.json();
             const reviews  = await rReview.json().catch(() => []);
             const disputes = await rDispute.json().catch(() => []);
             const omsgs    = await rMsgs.json().catch(() => []);
+            const invRows  = await rInv.json().catch(() => []);
             const o = Array.isArray(orders) && orders[0];
             if (!o) { container.innerHTML = '<p class="text-center text-gray-500 py-12">Objednávka nenalezena.</p>'; return; }
+            o._invoice = (Array.isArray(invRows) && invRows[0]) || null;
+            window._orderDetailData = o;
+            const _orderPaid = ['paid','shipped','delivered','completed','resolved_buyer','resolved_seller','returned','refunded','dispute'].includes(o.status);
 
             const isBuyer  = o.buyer_id  === uid;
             const isSeller = o.seller_id === uid;
@@ -8472,7 +8553,8 @@
                 <p class="font-mono text-sm font-bold text-gray-700">#${o.id.substring(0,8).toUpperCase()}${isAuc?' 🏆':''}${roleBadge}${payBadge}</p>
                 <span class="order-status-badge ${st.cls}">${st.label}</span>
             </div>
-            <p class="text-xs text-gray-400 mb-5">${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
+            <p class="text-xs text-gray-400 mb-3">${new Date(o.created_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
+            ${_orderPaid ? `<button onclick="printOrderInvoice()" class="mb-5 inline-flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 font-bold px-4 py-2 rounded-xl text-xs transition-colors">📄 Faktura k objednávce</button>` : ''}
 
             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Položky</h3>
             <div class="flex flex-col gap-2 mb-5">
