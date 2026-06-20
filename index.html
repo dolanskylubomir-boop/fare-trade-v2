@@ -2329,27 +2329,34 @@
         const uid = window.currentUser.id;
         const FI = FALLBACK_IMG;
         try {
+            const sel = 'id,title,price,images,status,admin_deact_reason';
             const [rp, ra] = await Promise.all([
-                fetch(`${SUPABASE_URL}/rest/v1/pevna_cena?seller_id=eq.${uid}&status=in.(ceka_na_platbu,neaktivní)&select=id,title,price,images,status`, { headers: hdrs }),
-                fetch(`${SUPABASE_URL}/rest/v1/aukce?seller_id=eq.${uid}&status=eq.neaktivní&select=id,title,price,images,status`, { headers: hdrs })
+                fetch(`${SUPABASE_URL}/rest/v1/pevna_cena?seller_id=eq.${uid}&status=in.(ceka_na_platbu,neaktivní,deaktivován_adminem)&select=${sel}`, { headers: hdrs }),
+                fetch(`${SUPABASE_URL}/rest/v1/aukce?seller_id=eq.${uid}&status=in.(neaktivní,deaktivován_adminem)&select=${sel}`, { headers: hdrs })
             ]);
             const pc = await rp.json().catch(()=>[]);
             const au = await ra.json().catch(()=>[]);
             const all = [...(Array.isArray(pc)?pc:[]), ...(Array.isArray(au)?au:[])];
-            const waiting = all.filter(i => i.status === 'ceka_na_platbu');
-            const held    = all.filter(i => i.status === 'neaktivní');
-            if (!waiting.length && !held.length) { container.innerHTML = ''; return; }
+            const waiting  = all.filter(i => i.status === 'ceka_na_platbu');
+            const held     = all.filter(i => i.status === 'neaktivní');
+            const rejected = all.filter(i => i.status === 'deaktivován_adminem');
+            if (!waiting.length && !held.length && !rejected.length) { container.innerHTML = ''; return; }
+            const REASONS = { zakaz_zbozi:'Zakázané nebo nelegální zboží', nepravdive_info:'Nepravdivé informace / falzifikát', nevhodny_obsah:'Nevhodný obsah nebo fotky', podvod:'Podezření na podvod', duplicita:'Duplicitní inzerát', spam:'Spam / hromadné inzeráty', chybi_popis:'Nedostatečný / zavádějící popis', jine:'Porušení pravidel tržiště' };
             const row = (item, kind) => {
                 const img = item.images?.[0] ? safeUrl(item.images[0]) : FI;
-                const isHeld = kind === 'held';
-                const cls = isHeld ? 'border-orange-200 bg-orange-50/60' : 'border-yellow-200 bg-yellow-50/60';
-                const msg = isHeld ? 'Pozdrženo automatickou moderací — čeká na schválení' : 'Kupující má 2 hod. na zaplacení — inzerát je zablokován';
-                const tag = isHeld ? '<span class="text-[10px] bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full font-bold">Ke schválení</span>' : '<span class="text-[10px] bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full font-bold">Blokováno</span>';
-                return `<div class="flex items-center gap-3 p-3 border ${cls} rounded-2xl opacity-80">
+                const cls = kind==='rejected' ? 'border-red-200 bg-red-50/60' : (kind==='held' ? 'border-orange-200 bg-orange-50/60' : 'border-yellow-200 bg-yellow-50/60');
+                const msg = kind==='rejected'
+                    ? ('❌ Zamítnuto adminem' + (item.admin_deact_reason ? ' — ' + (REASONS[item.admin_deact_reason] || item.admin_deact_reason) : ''))
+                    : (kind==='held' ? 'Pozdrženo automatickou moderací — čeká na schválení' : 'Kupující má 2 hod. na zaplacení — inzerát je zablokován');
+                const msgCls = kind==='rejected' ? 'text-red-700' : (kind==='held' ? 'text-orange-700' : 'text-yellow-700');
+                const tag = kind==='rejected' ? '<span class="text-[10px] bg-red-200 text-red-800 px-2 py-0.5 rounded-full font-bold">Zamítnuto</span>'
+                          : (kind==='held' ? '<span class="text-[10px] bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full font-bold">Ke schválení</span>'
+                          : '<span class="text-[10px] bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full font-bold">Blokováno</span>');
+                return `<div class="flex items-center gap-3 p-3 border ${cls} rounded-2xl opacity-90">
                     <img src="${img}" onerror="this.onerror=null;this.src='${FI}'" class="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0 grayscale">
                     <div class="flex-grow min-w-0">
-                        <h4 class="font-bold text-gray-500 truncate text-sm">${esc(item.title)}</h4>
-                        <p class="text-[11px] ${isHeld?'text-orange-700':'text-yellow-700'} font-semibold mt-0.5">${msg}</p>
+                        <h4 class="font-bold text-gray-600 truncate text-sm">${esc(item.title)}</h4>
+                        <p class="text-[11px] ${msgCls} font-semibold mt-0.5">${esc(msg)}</p>
                     </div>
                     <div class="text-right shrink-0">
                         <div class="font-bold text-sm text-gray-400">${Number(item.price).toLocaleString('cs-CZ')} Kč</div>
@@ -2358,8 +2365,9 @@
                 </div>`;
             };
             let html = '';
-            if (held.length)    html += `<div class="border-t border-orange-100 pt-4 mt-2 fade-in"><p class="text-xs font-bold text-orange-600 uppercase tracking-wide mb-3">⏳ Čeká na schválení (${held.length})</p><div class="flex flex-col gap-2">${held.map(i=>row(i,'held')).join('')}</div></div>`;
-            if (waiting.length) html += `<div class="border-t border-yellow-100 pt-4 mt-2 fade-in"><p class="text-xs font-bold text-yellow-600 uppercase tracking-wide mb-3">⏳ Čeká na zaplacení (${waiting.length})</p><div class="flex flex-col gap-2">${waiting.map(i=>row(i,'waiting')).join('')}</div></div>`;
+            if (rejected.length) html += `<div class="border-t border-red-100 pt-4 mt-2 fade-in"><p class="text-xs font-bold text-red-600 uppercase tracking-wide mb-3">❌ Zamítnuto adminem (${rejected.length})</p><div class="flex flex-col gap-2">${rejected.map(i=>row(i,'rejected')).join('')}</div></div>`;
+            if (held.length)     html += `<div class="border-t border-orange-100 pt-4 mt-2 fade-in"><p class="text-xs font-bold text-orange-600 uppercase tracking-wide mb-3">⏳ Čeká na schválení (${held.length})</p><div class="flex flex-col gap-2">${held.map(i=>row(i,'held')).join('')}</div></div>`;
+            if (waiting.length)  html += `<div class="border-t border-yellow-100 pt-4 mt-2 fade-in"><p class="text-xs font-bold text-yellow-600 uppercase tracking-wide mb-3">⏳ Čeká na zaplacení (${waiting.length})</p><div class="flex flex-col gap-2">${waiting.map(i=>row(i,'waiting')).join('')}</div></div>`;
             container.innerHTML = html;
         } catch(e) { container.innerHTML = ''; }
     }
@@ -10234,7 +10242,7 @@
                             ${o.reason === 'auto_moderation'
                                 ? `<button onclick="adminViewReportedListing('${o.item_type==='aukce'?'aukce':'pevna_cena'}','${o.target_id}')" class="bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 font-bold px-3 py-2 rounded-xl text-xs transition-colors">🔗 Zobrazit inzerát</button>
                                    <button onclick="approveModeratedListing('${o.id}')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">✅ Schválit a zveřejnit</button>
-                                   <button onclick="resolveReport('${o.id}','dismiss')" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors">Ponechat skryté</button>`
+                                   <button onclick="reportDeactivateModal('${o.id}','${o.target_id}','${o.item_type==='aukce'?'aukce':'pevna_cena'}',\`${(o.target_label||'').replace(/\`/g,'')}\`)" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors">🚫 Zamítnout (s důvodem)</button>`
                                 : `${openBtn}
                                    ${isListing ? `<button onclick="reportDeactivateModal('${o.id}','${o.target_id}','${o.item_type||'pevna_cena'}',\`${(o.target_label||'').replace(/\`/g,'')}\`)" class="bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition-colors">🚫 Deaktivovat + zpráva</button>` : ''}
                                    <button onclick="resolveReport('${o.id}','resolve')" class="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">✓ Vyřešeno</button>
@@ -11517,7 +11525,20 @@
     window.setupRealtime = function() {
         if (!supabaseClient) return;
 
-        supabaseClient.channel('rt_aukce').on('postgres_changes',{ event:'UPDATE', schema:'public', table:'aukce' },(p)=>handleRealtimeAuctionUpdate(p.new)).subscribe();
+        supabaseClient.channel('rt_aukce').on('postgres_changes',{ event:'UPDATE', schema:'public', table:'aukce' },(p)=>{
+            const u = p.new;
+            if (['prodano','prodáno','archivováno','zruseno','deaktivován_adminem','neaktivní'].includes(u.status)) {
+                const wasDeact = u.status === 'deaktivován_adminem';
+                dataAukce = dataAukce.filter(i=>i.id!==u.id);
+                const h = window.location.hash;
+                if (h.includes('aukce')&&!h.includes('detail')) navigate('aukce', _currentCategory);
+                if (h.includes('aukce-detail/'+u.id)) { showToast(wasDeact ? 'Tato aukce byla deaktivována administrátorem.' : 'Tato aukce již není dostupná.','warning'); setTimeout(()=>navigate('aukce'),2000); }
+                if (h.includes('profil/oblibene')) navigate('profil/oblibene');
+                else if (h.includes('profil') && !h.includes('admin')) navigate('profil/inzeraty');
+                return;
+            }
+            handleRealtimeAuctionUpdate(u);
+        }).subscribe();
         supabaseClient.channel('rt_bids').on('postgres_changes',{ event:'INSERT', schema:'public', table:'bids' },(p)=>handleRealtimeAuctionUpdate({ id:p.new.auction_id, current_price:p.new.amount, last_bidder_id:p.new.bidder_id })).subscribe();
         supabaseClient.channel('rt_pevna').on('postgres_changes',{ event:'UPDATE', schema:'public', table:'pevna_cena' },(p)=>{
             const u = p.new;
