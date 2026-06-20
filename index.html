@@ -1576,8 +1576,35 @@
             </div>` : '';
 
         return `<div class="mb-4">
-            <div class="flex flex-nowrap md:flex-wrap gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">${mainPills}</div>${subRow}
+            <div class="flex flex-nowrap md:flex-wrap gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide lg:hidden">${mainPills}</div>${subRow}
         </div>`;
+    };
+
+    // Plovoucí sidebar s kategoriemi + počty (jen desktop ≥ lg)
+    window.renderCategorySidebar = function(view, currentFilter) {
+        const isAukce = view === 'aukce';
+        const data = (isAukce ? dataAukce : dataPevnaCena).filter(i => (i.db_status || 'aktivní') === 'aktivní');
+        const counts = {}; let total = 0;
+        data.forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; total++; });
+        const activeCls = isAukce ? 'bg-sky-500 text-white shadow-sm' : 'bg-pink-500 text-white shadow-sm';
+        const rows = vsechnyKategorie.map(kat => {
+            const cnt = (kat === 'Vše') ? total : (counts[kat] || 0);
+            const active = currentFilter === kat;
+            const obj = KATEGORIE.find(k => k.name === kat);
+            const icon = (kat === 'Vše') ? '🗂️' : (obj ? obj.icon : '📦');
+            const badge = active
+                ? `<span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full text-white" style="background:rgba(255,255,255,.22)">${cnt}</span>`
+                : `<span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">${cnt}</span>`;
+            return `<button onclick="navigate('${view}','${kat}')" class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all ${active ? activeCls : 'text-gray-500 hover:bg-gray-50'}">
+                <span class="flex items-center gap-2 min-w-0"><span class="shrink-0">${icon}</span><span class="truncate">${kat}</span></span>${badge}
+            </button>`;
+        }).join('');
+        return `<aside class="hidden lg:block lg:w-60 shrink-0">
+            <div class="sticky top-24 bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-gray-400 px-3 mb-2">Kategorie</h3>
+                <div class="flex flex-col gap-0.5 max-h-[72vh] overflow-y-auto scrollbar-hide">${rows}</div>
+            </div>
+        </aside>`;
     };
 
     window.renderSearchSort = function(view, cat) {
@@ -7207,12 +7234,17 @@
             <div class="w-full bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in min-h-[500px] border border-white/50">
                 <button onclick="navigate('home')" class="mb-4 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2 text-base">← Zpět na výběr</button>
                 <h2 class="text-2xl md:text-4xl font-extrabold mb-5 text-pastel-text">Aktivní aukce <span id="listing-count" class="text-base text-gray-400 font-medium ml-1">(${filteredData.length})</span><span class="text-base text-sky-500 font-semibold ml-2">${subLabel}</span></h2>
-                ${renderCategories('aukce', kategorieFilter, _currentSubcategory)}
-                ${renderSearchSort('aukce', kategorieFilter)}
-                ${window._renderRecentRow()}
-                ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('🔨', 'Žádné aktivní aukce', 'Momentálně neprobíhá žádná aukce. Sleduj to tady — aukce přibývají každý den.', 'Vložit aukci', "navigate('novy-inzerat')") : '')}
-                <div id="listing-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                    ${filteredData.map(item => renderAdCard(item)).join('')}
+                <div class="lg:flex lg:gap-6 lg:items-start">
+                    ${renderCategorySidebar('aukce', kategorieFilter)}
+                    <div class="flex-1 min-w-0">
+                        ${renderCategories('aukce', kategorieFilter, _currentSubcategory)}
+                        ${renderSearchSort('aukce', kategorieFilter)}
+                        ${window._renderRecentRow()}
+                        ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('🔨', 'Žádné aktivní aukce', 'Momentálně neprobíhá žádná aukce. Sleduj to tady — aukce přibývají každý den.', 'Vložit aukci', "navigate('novy-inzerat')") : '')}
+                        <div id="listing-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                            ${filteredData.map(item => renderAdCard(item)).join('')}
+                        </div>
+                    </div>
                 </div>
             </div>`;
         },
@@ -7337,12 +7369,17 @@
             <div class="w-full bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in min-h-[500px] border border-white/50">
                 <button onclick="navigate('home')" class="mb-4 text-pink-500 font-bold hover:text-pink-600 flex items-center gap-2 text-base">← Zpět na výběr</button>
                 <h2 class="text-2xl md:text-4xl font-extrabold mb-5 text-pastel-text">Pevná cena <span id="listing-count" class="text-base text-gray-400 font-medium ml-1">(${filteredData.length})</span><span class="text-base text-pink-500 font-semibold ml-2">${subLabel}</span></h2>
-                ${renderCategories('pevna-cena', kategorieFilter, _currentSubcategory)}
-                ${renderSearchSort('pevna-cena', kategorieFilter)}
-                ${window._renderRecentRow()}
-                ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('🏷️', 'Zatím žádné inzeráty', 'Buď první! Přidej svůj první inzerát a oslovíš tisíce kupujících.', 'Vložit inzerát', "navigate('novy-inzerat')") : '')}
-                <div id="listing-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                    ${filteredData.map(item => renderAdCard(item)).join('')}
+                <div class="lg:flex lg:gap-6 lg:items-start">
+                    ${renderCategorySidebar('pevna-cena', kategorieFilter)}
+                    <div class="flex-1 min-w-0">
+                        ${renderCategories('pevna-cena', kategorieFilter, _currentSubcategory)}
+                        ${renderSearchSort('pevna-cena', kategorieFilter)}
+                        ${window._renderRecentRow()}
+                        ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('🏷️', 'Zatím žádné inzeráty', 'Buď první! Přidej svůj první inzerát a oslovíš tisíce kupujících.', 'Vložit inzerát', "navigate('novy-inzerat')") : '')}
+                        <div id="listing-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                            ${filteredData.map(item => renderAdCard(item)).join('')}
+                        </div>
+                    </div>
                 </div>
             </div>`;
         },
@@ -7762,14 +7799,19 @@
             .filter(Boolean)
             .filter(i => String(i.id) !== exclude)
             .filter(i => !window.currentUser || i.seller_id !== window.currentUser.id)
-            .slice(0, 8);
+            .slice(0, 12);
         if (items.length < 2) return '';
+        const showArrows = items.length > 5;
         return `<div class="rounded-2xl p-3 sm:p-4 mb-6 bg-gradient-to-br from-sky-50 via-indigo-50 to-purple-50 border border-sky-100 shadow-sm fade-in">
             <div class="flex items-center justify-between mb-3">
                 <h3 class="font-extrabold text-indigo-900/80 text-sm sm:text-base flex items-center gap-2"><span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/70 shadow-sm">🕘</span> Naposledy zobrazené</h3>
-                <button onclick="_clearRecent()" class="text-xs text-indigo-400 hover:text-red-500 font-bold transition-colors bg-white/60 px-2.5 py-1 rounded-lg">✕ Vymazat vše</button>
+                <div class="flex items-center gap-2">
+                    ${showArrows ? `<button onclick="_scrollRecent(-1)" class="hidden lg:inline-flex w-8 h-8 items-center justify-center rounded-full bg-white/80 hover:bg-white text-indigo-500 shadow-sm transition-colors text-lg leading-none" title="Předchozí">‹</button>
+                    <button onclick="_scrollRecent(1)" class="hidden lg:inline-flex w-8 h-8 items-center justify-center rounded-full bg-white/80 hover:bg-white text-indigo-500 shadow-sm transition-colors text-lg leading-none" title="Další">›</button>` : ''}
+                    <button onclick="_clearRecent()" class="text-xs text-indigo-400 hover:text-red-500 font-bold transition-colors bg-white/60 px-2.5 py-1 rounded-lg">✕ Vymazat vše</button>
+                </div>
             </div>
-            <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">${items.map(i => `<div class="w-40 sm:w-48 shrink-0 relative group">
+            <div id="recent-scroll" class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide scroll-smooth">${items.map(i => `<div class="w-40 sm:w-48 shrink-0 relative group">
                 <button onclick="event.stopPropagation();_removeRecent('${i.id}')" class="absolute top-1.5 left-1.5 z-20 w-6 h-6 rounded-full bg-black/50 hover:bg-red-500 text-white text-xs flex items-center justify-center transition-colors" title="Odebrat z naposledy zobrazených">✕</button>
                 ${renderAdCard(i)}
             </div>`).join('')}</div>
@@ -7793,6 +7835,10 @@
         try { localStorage.removeItem('ft_recent'); } catch(e) {}
         const el = document.getElementById('recent-row');
         if (el) el.innerHTML = '';
+    };
+    window._scrollRecent = function(dir) {
+        const el = document.getElementById('recent-scroll');
+        if (el) el.scrollBy({ left: dir * Math.max(240, el.clientWidth * 0.8), behavior: 'smooth' });
     };
     window.loadSimilarItems = function(item) {
         const container = document.getElementById('similar-' + item.id);
