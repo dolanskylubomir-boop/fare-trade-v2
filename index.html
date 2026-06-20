@@ -1760,6 +1760,49 @@
             </div>`;
         } catch(e) { block.innerHTML = ''; }
     };
+    // Prodejce: roční DAC7 přehled + faktury za poplatky (bod 5)
+    window._loadMyStatements = async function(year) {
+        const box = document.getElementById('statements-content');
+        if (!box) return;
+        year = Number(year) || new Date().getFullYear();
+        box.innerHTML = '<div class="flex justify-center py-6"><div class="w-6 h-6 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div>';
+        try {
+            const token = await _ensureValidToken();
+            const hdrs = { 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' };
+            const [rD, rF] = await Promise.all([
+                fetch(`${SUPABASE_URL}/rest/v1/rpc/get_my_dac7`, { method:'POST', headers:hdrs, body: JSON.stringify({ p_year: year }) }),
+                fetch(`${SUPABASE_URL}/rest/v1/rpc/get_my_fees`, { method:'POST', headers:hdrs, body: JSON.stringify({ p_year: year }) })
+            ]);
+            if (!rD.ok || !rF.ok) { box.innerHTML = '<p class="text-red-500 text-sm py-4">Přehled se nepodařilo načíst — spusťte seller-statements.sql v Supabase.</p>'; return; }
+            const d = await rD.json();
+            const fees = await rF.json().catch(()=>[]);
+            const feeList = Array.isArray(fees) ? fees : [];
+            const feeTotal = feeList.reduce((s,f)=>s+Number(f.amount||0),0);
+            const provize  = feeList.filter(f=>f.kind==='provize').reduce((s,f)=>s+Number(f.amount||0),0);
+            const top      = feeList.filter(f=>f.kind==='top').reduce((s,f)=>s+Number(f.amount||0),0);
+            const kc = n => (Number(n)||0).toLocaleString('cs-CZ')+' Kč';
+            const overLimit = (Number(d.gross) >= 50000 || Number(d.count) >= 30);
+            box.innerHTML = `
+                <div class="bg-sky-50 border border-sky-100 rounded-2xl p-4 mb-3">
+                    <p class="text-xs font-bold text-sky-700 uppercase tracking-wide mb-2">🇪🇺 DAC7 přehled ${year}</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><p class="text-[11px] text-gray-400">Počet prodejů</p><p class="text-xl font-extrabold text-gray-800">${d.count} <span class="text-xs font-medium text-gray-400">/ 30</span></p></div>
+                        <div><p class="text-[11px] text-gray-400">Obrat</p><p class="text-xl font-extrabold text-gray-800">${kc(d.gross)} <span class="text-xs font-medium text-gray-400">/ ~50 000</span></p></div>
+                    </div>
+                    <p class="text-[11px] mt-2 ${overLimit?'text-red-600 font-bold':'text-gray-400'}">${overLimit?'⚠️ Překročen limit — podléháte hlášení DAC7 (identifikace povinná).':'V mezích limitu pro hlášení DAC7 (2 000 € / 30 prodejů ročně).'}</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4">
+                    <div class="flex items-center justify-between mb-2"><p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Faktury za poplatky ${year}</p><button onclick="window.print()" class="text-xs text-sky-500 hover:text-sky-600 font-bold">🖨 Tisk</button></div>
+                    ${feeList.length ? `<div class="flex flex-col divide-y divide-gray-100">${feeList.map(f=>`<div class="flex items-center justify-between gap-2 py-2"><div class="min-w-0"><p class="text-sm text-gray-700 truncate">${f.kind==='top'?'⭐':'💼'} ${esc(f.label)}</p><p class="text-[10px] text-gray-400">${new Date(f.created_at).toLocaleDateString('cs-CZ')}</p></div><span class="font-bold text-sm shrink-0">${kc(f.amount)}</span></div>`).join('')}</div>
+                    <div class="mt-3 pt-3 border-t border-gray-200 text-sm flex flex-col gap-1">
+                        <div class="flex justify-between text-gray-500"><span>Provize z prodejů</span><span>${kc(provize)}</span></div>
+                        <div class="flex justify-between text-gray-500"><span>TOP inzeráty</span><span>${kc(top)}</span></div>
+                        <div class="flex justify-between font-extrabold text-gray-800 pt-1"><span>Celkem poplatky</span><span>${kc(feeTotal)}</span></div>
+                    </div>` : `<p class="text-sm text-gray-400 py-3 text-center">Za rok ${year} žádné poplatky.</p>`}
+                </div>`;
+        } catch(e) { box.innerHTML = '<p class="text-red-500 text-sm py-4">Chyba načítání přehledu.</p>'; }
+    };
+
     window.deleteSavedSearch = async function(id) {
         try {
             const token = await _ensureValidToken();
@@ -4672,10 +4715,18 @@
                 if (window._isSellerVerified()) {
                     window.updatePushBtn && window.updatePushBtn();
                     _loadVacationState();
+                    // Roční přehled & faktury — naplnit roky a načíst aktuální
+                    const yrSel = document.getElementById('statements-year');
+                    if (yrSel && !yrSel.options.length) {
+                        const yNow = new Date().getFullYear();
+                        for (let y = yNow; y >= yNow - 4; y--) { const o = document.createElement('option'); o.value = y; o.textContent = y; yrSel.appendChild(o); }
+                        _loadMyStatements(yNow);
+                    }
                 } else {
                     // Light účet (neověřený kupující) — push notifikace a prázdninový režim se neukazují
                     const _pb = document.getElementById('kyc-push-box'); if (_pb) _pb.classList.add('hidden');
                     const _vb = document.getElementById('kyc-vacation-box'); if (_vb) _vb.classList.add('hidden');
+                    const _ss = document.getElementById('seller-statements-section'); if (_ss) _ss.classList.add('hidden');
                 }
                 if (window._privateProfileCache?.data) _applyKycToDOM(window._privateProfileCache.data);
             }, 150);
@@ -4732,6 +4783,14 @@
                         <p class="text-xs text-emerald-700 leading-relaxed">Vaše identita pro účely DAC7 je ověřena prostřednictvím <strong>BankID</strong>. Není potřeba zadávat rodné číslo ani nahrávat doklady — vše proběhlo bezpečně přes vaši banku.</p>
                     </div>
                 </div>
+            </div>
+
+            <div id="seller-statements-section" class="mt-5 fade-in">
+                <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                    <h4 class="font-extrabold text-gray-800 text-base flex items-center gap-2">📄 Roční přehled & faktury</h4>
+                    <select id="statements-year" onchange="_loadMyStatements(this.value)" class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400"></select>
+                </div>
+                <div id="statements-content"><div class="flex justify-center py-8"><div class="w-7 h-7 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div></div>
             </div>
 
             <div id="pwa-install-section" class="hidden mt-6 border-t border-gray-100 pt-6">
