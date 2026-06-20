@@ -1542,12 +1542,23 @@
 
     window.renderEmptyState = function(icon, title, subtitle, btnLabel, btnAction) {
       return `
-    <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
-      <div class="text-6xl mb-4">${icon}</div>
+    <div class="flex flex-col items-center justify-center py-16 px-6 text-center fade-in">
+      <div class="relative mb-5">
+        <div class="absolute inset-0 bg-gradient-to-br from-sky-200/50 to-fuchsia-200/40 blur-2xl rounded-full"></div>
+        <div class="relative w-24 h-24 rounded-full bg-gradient-to-br from-sky-50 to-fuchsia-50 border border-white shadow-inner flex items-center justify-center text-5xl">${icon}</div>
+      </div>
       <h3 class="text-lg font-extrabold text-gray-800 mb-2">${esc(title)}</h3>
       <p class="text-sm text-gray-400 max-w-xs leading-relaxed">${esc(subtitle)}</p>
-      ${btnLabel ? `<button onclick="${btnAction}" class="mt-6 bg-pink-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-pink-600 transition-colors">${esc(btnLabel)}</button>` : ''}
+      ${btnLabel ? `<button onclick="${btnAction}" class="mt-6 bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:from-pink-600 hover:to-fuchsia-600 transition-all shadow-md shadow-pink-200/50">${esc(btnLabel)}</button>` : ''}
     </div>`;
+    };
+
+    // Skeleton řádky pro načítání seznamů
+    window._skelRows = function(n) {
+      n = n || 4;
+      let s = '<div class="flex flex-col gap-2.5 py-2">';
+      for (let i = 0; i < n; i++) s += '<div class="flex items-center gap-3 p-3.5 border border-gray-100 rounded-2xl bg-white"><div class="skeleton w-12 h-12 rounded-xl shrink-0"></div><div class="flex-1"><div class="skeleton h-3.5 w-2/3 mb-2" style="border-radius:6px"></div><div class="skeleton h-3 w-1/3" style="border-radius:6px"></div></div><div class="skeleton h-5 w-16" style="border-radius:6px"></div></div>';
+      return s + '</div>';
     };
 
     window.renderCategories = function(view, currentFilter, currentSub) {
@@ -3341,6 +3352,57 @@
             el.classList.add('subcat-selected');
             document.getElementById('ad-subcategory').value = name;
         }
+        _draftAutosave();
+    };
+
+    // ── Uložené koncepty inzerátu (autosave do localStorage) ──
+    const _DRAFT_IDS = ['ad-title','ad-category','ad-subcategory','ad-condition','ad-brand','ad-condition-notes','ad-description','ad-price','ad-starting-price','ad-weight','ad-dimensions','ad-kraj','ad-psc'];
+    window._saveAdDraft = function() {
+        try {
+            const d = {};
+            _DRAFT_IDS.forEach(id => { const el = document.getElementById(id); if (el) d[id] = el.value; });
+            const tEl = document.querySelector('input[name="ad-type"]:checked');
+            d._type = tEl ? tEl.value : 'pevna_cena';
+            d._shipping = Array.from(document.querySelectorAll('input[name="shipping"]:checked')).map(e => e.value);
+            if ((d['ad-title']||'').trim() || (d['ad-description']||'').trim() || d['ad-price']) {
+                localStorage.setItem('ft_ad_draft', JSON.stringify(d));
+            }
+        } catch(e) {}
+    };
+    window._draftAutosave = function() {
+        clearTimeout(window._draftTimer);
+        window._draftTimer = setTimeout(() => window._saveAdDraft(), 600);
+    };
+    window._clearAdDraft = function() {
+        try { localStorage.removeItem('ft_ad_draft'); } catch(e) {}
+        const b = document.getElementById('ad-draft-banner'); if (b) b.innerHTML = '';
+    };
+    window._initAdDraftBanner = function() {
+        const b = document.getElementById('ad-draft-banner'); if (!b) return;
+        let d = null; try { d = JSON.parse(localStorage.getItem('ft_ad_draft') || 'null'); } catch(e) {}
+        if (!d || !((d['ad-title']||'').trim() || (d['ad-description']||'').trim() || d['ad-price'])) { b.innerHTML = ''; return; }
+        const name = esc((d['ad-title'] || 'rozepsaný inzerát').slice(0, 50));
+        b.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4 flex items-center justify-between gap-3 flex-wrap fade-in">
+            <p class="text-sm text-amber-800">📝 Máte rozepsaný inzerát: <strong>${name}</strong></p>
+            <div class="flex gap-2 shrink-0">
+                <button type="button" onclick="_restoreAdDraft()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">Obnovit</button>
+                <button type="button" onclick="_clearAdDraft()" class="text-amber-600 hover:text-red-500 font-bold px-3 py-1.5 rounded-xl text-xs transition-colors">Zahodit</button>
+            </div>
+        </div>`;
+    };
+    window._restoreAdDraft = function() {
+        let d = null; try { d = JSON.parse(localStorage.getItem('ft_ad_draft') || 'null'); } catch(e) {}
+        if (!d) return;
+        if (d._type === 'aukce') { const r = document.querySelector('input[name="ad-type"][value="aukce"]'); if (r) { r.checked = true; window.toggleAuctionFields && window.toggleAuctionFields(true); } }
+        if (d['ad-category']) window.selectAdCategory && window.selectAdCategory(d['ad-category']);
+        _DRAFT_IDS.forEach(id => { if (id === 'ad-category') return; const el = document.getElementById(id); if (el && d[id] != null) el.value = d[id]; });
+        if (Array.isArray(d._shipping)) document.querySelectorAll('input[name="shipping"]').forEach(el => { el.checked = d._shipping.includes(el.value); });
+        const cn = document.getElementById('condition-notes-row'); if (cn && d['ad-condition'] && d['ad-condition'] !== 'Nové' && d['ad-condition'] !== '') cn.classList.remove('hidden');
+        window._updateFeePreview && window._updateFeePreview();
+        window._updateShipHint && window._updateShipHint();
+        window._loadPriceSuggestion && window._loadPriceSuggestion();
+        const b = document.getElementById('ad-draft-banner'); if (b) b.innerHTML = '';
+        showToast('Koncept obnoven ✏️', 'success');
     };
 
     // ──────────────────────────────────────────────────────────────
@@ -3963,6 +4025,7 @@
                 created_at: inserted?.created_at ? new Date(inserted.created_at).getTime() : Date.now()
             };
             window._formDirty = false;
+            window._clearAdDraft && window._clearAdDraft();
             if (adData.kraj) { try { localStorage.setItem('ft_my_kraj', adData.kraj); } catch(e) {} }
             // Pozdržený inzerát (auto-moderace) NEpřidávat do veřejných polí — nesmí být vidět před schválením.
             if (!heldByModeration) {
@@ -5001,7 +5064,7 @@
             return `<div class="flex items-center justify-between mb-4 fade-in"><h3 class="text-xl font-bold text-gray-800">Historie transakcí</h3><span class="text-xs text-gray-400 font-semibold flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>Živé</span></div>
             <div id="seller-statements-section" class="mb-4">${window._accordion('stmt_sec', '<span class="flex items-center gap-2">📄 Roční přehled &amp; faktury</span>', '<div class="flex justify-end mb-3"><select id="statements-year" onchange="_loadMyStatements(this.value)" class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400"></select></div><div id="statements-content"><div class="flex justify-center py-8"><div class="w-7 h-7 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div></div>', { closedDefault:true })}</div>
             <div id="tx-filter-bar" class="flex flex-wrap gap-1.5 mb-5"></div>
-            <div id="transakce-content" class="text-gray-400 text-center py-10">⌛ Načítám transakce…</div>`;
+            <div id="transakce-content">${window._skelRows(4)}</div>`;
         }
 
         if (tab === 'objednavky') {
@@ -5016,8 +5079,8 @@
                 </div>
             </div>
             <div id="obj-filter-bar" class="flex flex-wrap gap-1.5 mb-5"></div>
-            ${window._accordion('obj_seller_sec', '📦 Příchozí — prodejce', '<div id="profil-seller-obj-content" class="text-gray-400 text-center py-4 text-sm">⌛ Načítám…</div>', { closedDefault:true })}
-            ${window._accordion('obj_buyer_sec', '🛍️ Moje nákupy — kupující', '<div id="profil-obj-content" class="text-gray-400 text-center py-4 text-sm">⌛ Načítám…</div>', { closedDefault:true })}`;
+            ${window._accordion('obj_seller_sec', '📦 Příchozí — prodejce', `<div id="profil-seller-obj-content">${window._skelRows(2)}</div>`, { closedDefault:true })}
+            ${window._accordion('obj_buyer_sec', '🛍️ Moje nákupy — kupující', `<div id="profil-obj-content">${window._skelRows(2)}</div>`, { closedDefault:true })}`;
         }
 
         if (tab === 'admin') {
@@ -5088,7 +5151,7 @@
             return `<div class="flex items-center justify-between mb-6 fade-in">
                 <h3 class="text-xl font-bold text-gray-800">⭐ Moje hodnocení od kupujících</h3>
             </div>
-            <div id="hodnoceni-content" class="text-gray-400 text-center py-10">⌛ Načítám hodnocení…</div>`;
+            <div id="hodnoceni-content">${window._skelRows(3)}</div>`;
         }
 
         if (tab === 'aktivity') {
@@ -5100,7 +5163,7 @@
                     <button onclick="_markAllNotificationsRead()" class="text-xs text-sky-500 hover:text-sky-600 font-bold">Označit vše přečtené</button>
                 </div>
             </div>
-            <div id="aktivity-content" class="text-gray-400 text-center py-10">⌛ Načítám aktivity…</div>`;
+            <div id="aktivity-content">${window._skelRows(4)}</div>`;
         }
 
         if (tab === 'zpravy') {
@@ -5140,7 +5203,7 @@
             }, 0);
             setTimeout(() => { if (typeof _loadSavedSearches==='function') _loadSavedSearches(); }, 0);
             return `<div id="saved-searches-block" class="mb-7"></div>
-            <div class="flex items-center justify-between mb-6 fade-in"><h3 class="text-xl font-bold text-gray-800">Oblíbené položky</h3></div><div id="oblibene-content" class="text-gray-400 text-center py-10">⌛ Načítám oblíbené…</div>`;
+            <div class="flex items-center justify-between mb-6 fade-in"><h3 class="text-xl font-bold text-gray-800">Oblíbené položky</h3></div><div id="oblibene-content">${window._skelRows(4)}</div>`;
         }
 
         if (tab === 'inzeraty') {
@@ -7000,12 +7063,14 @@
                 <button onclick="navigate('profil/kyc')" class="bg-red-500 hover:bg-red-600 text-white font-extrabold px-8 py-3 rounded-2xl transition-colors">Doplnit identifikaci →</button>
                 <button onclick="navigate('profil')" class="ml-3 text-gray-500 hover:text-gray-700 font-bold px-4 py-3">← Zpět</button>
             </div>`;
+        setTimeout(() => window._initAdDraftBanner && window._initAdDraftBanner(), 0);
         return `
         <div class="w-full max-w-4xl mx-auto bg-white/90 backdrop-blur-xl p-6 md:p-10 rounded-[2.5rem] shadow-2xl fade-in border border-white/50 mb-10">
             <button onclick="navigate('profil')" class="mb-6 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2">← Zpět na profil</button>
             <div class="mb-6 flex items-start justify-between gap-3 flex-wrap"><div><h2 class="text-3xl font-extrabold text-pastel-text">Nový inzerát</h2><p class="text-gray-500 text-sm mt-1">Vyplňte detaily nebo nechte AI, ať vám pomůže.</p></div>
                 <button type="button" onclick="navigate('hromadne-vlozeni')" class="shrink-0 bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-700 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors">📷 Hromadně z fotek →</button></div>
-            <form onsubmit="handleAdSubmit(event)" oninput="window._formDirty=true" class="flex flex-col gap-7">
+            <div id="ad-draft-banner"></div>
+            <form onsubmit="handleAdSubmit(event)" oninput="window._formDirty=true; window._draftAutosave&&window._draftAutosave()" class="flex flex-col gap-7">
                 <div class="bg-gray-50 p-5 rounded-3xl border border-gray-100">
                     <label class="text-sm font-bold text-gray-700 block mb-3">Typ prodeje</label>
                     <div class="flex gap-3">
