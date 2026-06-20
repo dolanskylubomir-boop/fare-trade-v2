@@ -5452,6 +5452,57 @@
     };
     window.payAcceptedOffer = function(offerId) { navigate('platba-nabidka-cena', offerId); };
 
+    // ── Oboustranné hodnocení: prodejce hodnotí kupujícího ──
+    window._openBuyerRatingModal = function(orderId, buyerId) {
+        window._closeOfferModal();
+        window._brCtx = { orderId, buyerId, value: 0 };
+        const wrap = document.createElement('div');
+        wrap.id = 'price-offer-modal';
+        wrap.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm fade-in';
+        wrap.innerHTML = `<div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-6 md:p-7" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-extrabold text-pastel-text">⭐ Ohodnotit kupujícího</h3>
+                <button onclick="_closeOfferModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors">✕</button>
+            </div>
+            <p class="text-sm text-gray-500 mb-3">Jak proběhl obchod? (rychlost platby, komunikace, vyzvednutí)</p>
+            <div class="flex gap-2 justify-center mb-2" id="br-stars">
+                ${[1,2,3,4,5].map(n=>`<button type="button" data-star="${n}" onclick="_setBuyerStar(${n})" class="text-3xl transition-transform hover:scale-110" style="color:#d1d5db">★</button>`).join('')}
+            </div>
+            <p id="br-label" class="text-center text-xs text-gray-400 mb-3">Vyberte počet hvězd</p>
+            <textarea id="br-comment" rows="3" maxlength="500" placeholder="Komentář (volitelné)" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-yellow-400 bg-white resize-none mb-4"></textarea>
+            <button id="br-submit" onclick="_submitBuyerRating()" disabled class="w-full bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl transition-colors">Odeslat hodnocení</button>
+        </div>`;
+        wrap.onclick = window._closeOfferModal;
+        document.body.appendChild(wrap);
+        document.body.style.overflow = 'hidden';
+    };
+    window._setBuyerStar = function(n) {
+        if (!window._brCtx) return;
+        window._brCtx.value = n;
+        document.querySelectorAll('#br-stars button').forEach(b => { b.style.color = parseInt(b.dataset.star,10) <= n ? '#facc15' : '#d1d5db'; });
+        const lbls = {1:'Špatné',2:'Slabé',3:'Dobré',4:'Velmi dobré',5:'Výborné'};
+        const lbl = document.getElementById('br-label'); if (lbl) lbl.textContent = lbls[n] || '';
+        const btn = document.getElementById('br-submit'); if (btn) btn.disabled = false;
+    };
+    window._submitBuyerRating = async function() {
+        const ctx = window._brCtx; if (!ctx || !ctx.value) return;
+        const comment = (document.getElementById('br-comment')?.value || '').trim().slice(0,500);
+        const btn = document.getElementById('br-submit'); if (btn) { btn.disabled = true; btn.textContent = 'Odesílám…'; }
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/rate_buyer`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+                body: JSON.stringify({ p_buyer_id: ctx.buyerId, p_rating: ctx.value, p_order_id: ctx.orderId, p_comment: comment })
+            });
+            if (r.ok) { window._closeOfferModal(); showToast('Děkujeme za hodnocení kupujícího!','success'); if (window._loadObjednavkaDetail) _loadObjednavkaDetail(ctx.orderId); }
+            else {
+                const t = await r.text();
+                showToast(t.includes('order_not_eligible')?'Hodnotit lze jen dokončenou objednávku.':(t.includes('23505'))?'Tuto objednávku už jste hodnotili.':(t.includes('Could not find')||t.includes('PGRST202'))?'Funkce není nasazena — spusťte buyer-ratings.sql.':'Hodnocení se nezdařilo.','error',6000);
+                if (btn) { btn.disabled = false; btn.textContent = 'Odeslat hodnocení'; }
+            }
+        } catch(e) { showToast('Chyba spojení.','error'); if (btn) { btn.disabled = false; btn.textContent = 'Odeslat hodnocení'; } }
+    };
+
     // ══════════════════════════════════════════════════════════
     //  NAHLÁŠENÍ inzerátu / uživatele  (bod 3b)
     // ══════════════════════════════════════════════════════════
@@ -8538,6 +8589,26 @@
                             : '<div class="text-center text-xs text-gray-400 py-2">Objednávka je uzavřená — chat není aktivní.</div>')}
                 </div>` : '';
 
+            // Prodejce: hodnocení kupujícího (oboustranné hodnocení)
+            let buyerBlock = '';
+            if (isSeller && o.buyer_id) {
+                try {
+                    const [bpr, brv] = await Promise.all([
+                        fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${o.buyer_id}&select=display_name,buyer_rating,buyer_rating_count`, { headers: hdrs }),
+                        fetch(`${SUPABASE_URL}/rest/v1/buyer_reviews?order_id=eq.${orderId}&select=id`, { headers: hdrs })
+                    ]);
+                    const bp = (await bpr.json().catch(()=>[]))[0] || {};
+                    const rated = ((await brv.json().catch(()=>[]))||[]).length > 0;
+                    const brc = Number(bp.buyer_rating_count)||0, brt = Number(bp.buyer_rating)||0;
+                    const canRate = (o.status==='completed' || o.status==='resolved_seller') && !rated;
+                    buyerBlock = `<h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Kupující</h3>
+                    <div class="bg-gray-50 rounded-2xl p-3 mb-5 flex items-center justify-between gap-2 flex-wrap">
+                        <div><p class="font-bold text-gray-800 text-sm">${esc(bp.display_name||'Kupující')} ${brc>0?`<span class="text-yellow-500 text-xs">⭐ ${brt.toFixed(1)} (${brc})</span>`:'<span class="text-gray-400 text-xs">nový kupující</span>'}</p>${(brt>=4.5&&brc>=3)?'<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">👍 Spolehlivý kupující</span>':''}</div>
+                        ${canRate?`<button onclick="_openBuyerRatingModal('${o.id}','${o.buyer_id}')" class="bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 text-yellow-700 font-bold px-3 py-2 rounded-xl text-xs transition-colors">⭐ Ohodnotit kupujícího</button>`:(rated?'<span class="text-[10px] text-gray-400">✓ Hodnoceno</span>':'')}
+                    </div>`;
+                } catch(e) {}
+            }
+
             container.innerHTML = `
             <div class="flex items-center justify-between mb-1">
                 <p class="font-mono text-sm font-bold text-gray-700">#${o.id.substring(0,8).toUpperCase()}${isAuc?' 🏆':''}${roleBadge}${payBadge}</p>
@@ -8567,6 +8638,7 @@
                 ${addr.email?`<p class="text-gray-400 text-xs mt-0.5">✉️ ${esc(addr.email)}</p>`:''}
             </div>`:''}
 
+            ${buyerBlock}
             ${pickupBlock}
             ${chatBlock}
 
