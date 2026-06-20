@@ -6793,6 +6793,7 @@
             setTimeout(() => incrementViewCount(id, 'aukce'), 500);
             setTimeout(() => loadSellerMoreItems(item.seller_id, item.id), 50);
             window._recordRecentView(item.id, item.type);
+            try { document.title = (item.title || 'Inzerát') + ' — ' + Number(item.price || 0).toLocaleString('cs-CZ') + ' Kč | FairTrade'; } catch(e) {}
             setTimeout(() => window.loadSimilarItems(item), 60);
 
             const prices      = getPriceInfo(item.price);
@@ -6920,6 +6921,7 @@
             setTimeout(() => incrementViewCount(id, 'pevna_cena'), 500);
             setTimeout(() => loadSellerMoreItems(item.seller_id, item.id), 50);
             window._recordRecentView(item.id, item.type);
+            try { document.title = (item.title || 'Inzerát') + ' — ' + Number(item.price || 0).toLocaleString('cs-CZ') + ' Kč | FairTrade'; } catch(e) {}
             setTimeout(() => window.loadSimilarItems(item), 60);
             const prices    = getPriceInfo(item.price);
             const isOwner   = window.currentUser && window.currentUser.id === item.seller_id;
@@ -9781,7 +9783,8 @@
     }
 
     window.shareItem = async function(title, itemId, type) {
-        const url = location.origin + location.pathname + '?view=' + type + '-detail/' + itemId;
+        // Pěkná URL → serverless OG náhled (/inzerat/:id) → přesměruje do appky
+        const url = location.origin + '/inzerat/' + itemId;
         if (navigator.share) {
             try { await navigator.share({ title: title, url: url }); return; } catch {}
         }
