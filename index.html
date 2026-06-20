@@ -4383,8 +4383,8 @@
                 initEl.appendChild(img);
             } else { initEl.innerText = initial; }
         }
-        // DAC7 status
-        window._dac7Status     = data.dac7_status || 'ok';
+        // DAC7 status — ověřený prodejce (BankID/KYC) se NIKDY neblokuje
+        window._dac7Status     = (data.is_verified === true || ['verified','approved'].includes(data.kyc_status)) ? 'verified' : (data.dac7_status || 'ok');
         window._dac7SoldCzk    = data.annual_sold_czk || 0;
         window._dac7SoldCount  = data.annual_sold_count || 0;
         _renderDac7Banner();
@@ -4528,7 +4528,8 @@
         // DAC7 badge
         const dac7Badge = document.getElementById('dac7-kyc-badge');
         if (dac7Badge) {
-            const s = data.dac7_status || 'ok';
+            const _verSeller = data.is_verified === true || ['verified','approved'].includes(data.kyc_status);
+            const s = _verSeller ? 'verified' : (data.dac7_status || 'ok');
             const hasDocs = !!(data.kyc_id_front || data.kyc_birth_number);
             if (s === 'verified')                   { dac7Badge.textContent = 'Ověřeno ✓'; dac7Badge.className = 'text-xs px-2 py-0.5 rounded-full font-bold uppercase bg-green-100 text-green-700'; }
             else if (s === 'blocked' && hasDocs)    { dac7Badge.textContent = 'Čeká na ověření'; dac7Badge.className = 'text-xs px-2 py-0.5 rounded-full font-bold uppercase bg-amber-100 text-amber-700'; }
@@ -11516,7 +11517,7 @@
                 if (window._privateProfileCache?.uid === window.currentUser.id) window._privateProfileCache.data = { ...window._privateProfileCache.data, wallet_balance: d.wallet_balance };
             }
             if (d.dac7_status !== undefined) {
-                window._dac7Status    = d.dac7_status || 'ok';
+                window._dac7Status    = (window._isSellerVerified && window._isSellerVerified()) ? 'verified' : (d.dac7_status || 'ok');
                 window._dac7SoldCzk   = d.annual_sold_czk || 0;
                 window._dac7SoldCount = d.annual_sold_count || 0;
                 _renderDac7Banner();
