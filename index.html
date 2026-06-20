@@ -8127,7 +8127,7 @@
     };
     // ── Konfigurace videa + provider-adaptér (připraveno na Cloudflare Stream) ──
     window.VIDEO_CFG  = { provider: 'supabase', bucket: 'inzeraty-videa', maxMB: 40, maxSec: 30 };
-    window._appConfig = { video_enabled: true };
+    window._appConfig = { video_enabled: true, video_price: 49, video_days: 30 };
     window._videoEnabled = function() { return !!(window._appConfig && window._appConfig.video_enabled !== false); };
     // Veřejně viditelné video = zaplacené (active) a neexpirované
     window._videoVisible = function(item) {
@@ -8165,21 +8165,39 @@
         }
         return `<div class="mt-3"><p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎥 Video</p>${window._videoEmbed(item.video_url, item.img)}</div>`;
     };
-    window.payVideo = async function(itemId, itemType) {
-        if (!window.currentUser) { showToast('Pro platbu se přihlaste.', 'warning'); return; }
+    window.payVideo = function(itemId, itemType) {
+        if (!window.currentUser) { showToast('Pro platbu se přihlaste.', 'warning'); navigate('login'); return; }
+        const item = [...dataPevnaCena, ...dataAukce].find(i => String(i.id) === String(itemId)) || {};
+        if (item.video_status && item.video_status !== 'approved') { showToast('Video musí nejdřív schválit admin.', 'info'); return; }
+        const price = Number((window._appConfig && window._appConfig.video_price) || 49);
+        const days  = Number((window._appConfig && window._appConfig.video_days) || 30);
+        const ov = document.createElement('div');
+        ov.id = 'video-pay-modal';
+        ov.className = 'fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 fade-in';
+        ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+        ov.innerHTML = `<div class="bg-white w-full sm:max-w-md sm:rounded-[2rem] rounded-t-[2rem] shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="p-5 pb-3 border-b border-gray-100 flex items-center justify-between shrink-0">
+                <div><h3 class="text-lg font-extrabold text-gray-800">🎥 Zveřejnit video</h3><p class="text-xs text-gray-400 mt-0.5">${price.toLocaleString('cs-CZ')} Kč · viditelné ${days} dní (čas běží od zaplacení)</p></div>
+                <button onclick="document.getElementById('video-pay-modal').remove()" class="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center shrink-0">✕</button>
+            </div>
+            <div id="video-pay-body" class="p-5 overflow-y-auto"></div>
+        </div>`;
+        document.body.appendChild(ov);
+        window._renderPayStep(document.getElementById('video-pay-body'), {
+            amount: price, refId: String(itemId), vsMsg: 'VIDEO ' + itemId, paymentType: 'video',
+            onPaid: async () => { await window._activatePaidVideo(itemId, itemType, days); const m = document.getElementById('video-pay-modal'); if (m) m.remove(); }
+        });
+    };
+    window._activatePaidVideo = async function(itemId, itemType, days) {
         try {
             const token = await _ensureValidToken();
             const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/pay_video`, { method:'POST', headers: hdrs, body: JSON.stringify({ p_item_id: itemId, p_item_type: itemType }) });
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/activate_paid_video`, { method:'POST', headers: hdrs, body: JSON.stringify({ p_item_id: itemId, p_item_type: itemType }) });
             const res = await r.json().catch(() => ({}));
-            if (!r.ok || res?.error) {
-                if (res?.error === 'insufficient_funds') return showToast(`Nedostatek kreditu — potřeba ${Number(res.need||0).toLocaleString('cs-CZ')} Kč (máte ${Number(res.balance||0).toLocaleString('cs-CZ')} Kč). Dobijte peněženku.`, 'warning', 8000);
-                if (r.status === 404) return showToast('Spusťte listing-video-paid.sql v Supabase.', 'warning', 7000);
-                return showToast(res?.message || 'Platba se nezdařila.', 'warning');
-            }
-            showToast(`🎥 Video zveřejněno na ${res.days} dní (−${res.price} Kč).`, 'success', 6000);
+            if (!r.ok || res?.error) { showToast(res?.message || (r.status===404 ? 'Spusťte video-pay-qr.sql v Supabase.' : 'Aktivace videa selhala.'), 'warning', 7000); return; }
+            showToast('🎥 Zaplaceno — video je zveřejněné.', 'success', 6000);
             const it = [...dataPevnaCena, ...dataAukce].find(i => String(i.id) === String(itemId));
-            if (it) { it.video_status = 'active'; it.video_expires_at = new Date(Date.now() + (res.days||30)*86400000).toISOString(); }
+            if (it) { it.video_status = 'active'; it.video_expires_at = new Date(Date.now() + (res.days||days||30)*86400000).toISOString(); }
             const h = (window.location.hash||'').replace('#',''); try { navigate(h); } catch(e) {}
         } catch(e) { showToast('Chyba spojení.', 'error'); }
     };
@@ -8192,6 +8210,8 @@
                 const map = {}; rows.forEach(x => { map[x.key] = x.value; });
                 window._appConfig.video_enabled = map.video_enabled !== 'false';
                 if (map.video_provider) window.VIDEO_CFG.provider = map.video_provider;
+                if (map.video_price) window._appConfig.video_price = Number(map.video_price) || 49;
+                if (map.video_days)  window._appConfig.video_days  = Number(map.video_days)  || 30;
             }
             window._applyVideoConfigUI && window._applyVideoConfigUI();
         } catch(e) {}
