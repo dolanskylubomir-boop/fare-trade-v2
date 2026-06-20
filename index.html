@@ -7563,10 +7563,10 @@
             .filter(i => !window.currentUser || i.seller_id !== window.currentUser.id)
             .slice(0, 8);
         if (items.length < 2) return '';
-        return `<div class="border border-gray-200 rounded-2xl p-3 sm:p-4 mb-6 bg-gray-50/60 fade-in">
+        return `<div class="rounded-2xl p-3 sm:p-4 mb-6 bg-gradient-to-br from-sky-50 via-indigo-50 to-purple-50 border border-sky-100 shadow-sm fade-in">
             <div class="flex items-center justify-between mb-3">
-                <h3 class="font-bold text-pastel-text text-sm sm:text-base flex items-center gap-2">🕘 Naposledy zobrazené</h3>
-                <button onclick="_clearRecent()" class="text-xs text-gray-400 hover:text-red-500 font-bold transition-colors">✕ Vymazat vše</button>
+                <h3 class="font-extrabold text-indigo-900/80 text-sm sm:text-base flex items-center gap-2"><span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/70 shadow-sm">🕘</span> Naposledy zobrazené</h3>
+                <button onclick="_clearRecent()" class="text-xs text-indigo-400 hover:text-red-500 font-bold transition-colors bg-white/60 px-2.5 py-1 rounded-lg">✕ Vymazat vše</button>
             </div>
             <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">${items.map(i => `<div class="w-40 sm:w-48 shrink-0 relative group">
                 <button onclick="event.stopPropagation();_removeRecent('${i.id}')" class="absolute top-1.5 left-1.5 z-20 w-6 h-6 rounded-full bg-black/50 hover:bg-red-500 text-white text-xs flex items-center justify-center transition-colors" title="Odebrat z naposledy zobrazených">✕</button>
