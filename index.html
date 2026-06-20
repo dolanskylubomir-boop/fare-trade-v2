@@ -2350,7 +2350,7 @@
         dispute_admin:  '🚨', auction_won:'🏆', new_review:'⭐', seller_reply:'💬',
         dac7_warning:   '⚠️', dac7_blocked:'🔒', dac7_verified:'✅',
         listing_deactivated:'🚫', listing_reactivated:'✅',
-        support_reply:'💬', news:'📢', account_banned:'🚫', nonpayment:'⏰', nonpayment_warning:'⚠️', ban_notice:'⚠️', order_cancelled:'❌', price_offer:'💬', price_drop:'🔻', saved_search:'🔔',
+        support_reply:'💬', news:'📢', account_banned:'🚫', nonpayment:'⏰', nonpayment_warning:'⚠️', ban_notice:'⚠️', order_cancelled:'❌', price_offer:'💬', price_drop:'🔻', saved_search:'🔔', order_message:'💬',
         default:'🔔'
     };
 
@@ -8212,11 +8212,56 @@
 
     views['objednavka-detail'] = (orderId) => {
         if (!window.currentUser) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center"><p class="text-gray-500 mb-4">Přihlaste se.</p><button onclick="navigate('login')" class="bg-sky-500 text-white font-bold px-6 py-3 rounded-2xl">Přihlásit se</button></div>`;
-        setTimeout(() => _loadObjednavkaDetail(orderId), 0);
+        setTimeout(() => { _loadObjednavkaDetail(orderId).then(()=>window._scrollOrderChat()); _subscribeOrderChat(orderId); }, 0);
         return `<div class="w-full max-w-2xl mx-auto bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
             <button onclick="history.back()" class="flex items-center gap-2 text-gray-400 hover:text-gray-600 text-sm font-medium mb-5 transition-colors group"><svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>Zpět na objednávky</button>
             <div id="objednavka-detail-content"><div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div></div>
         </div>`;
+    };
+
+    window._scrollOrderChat = function() {
+        const t = document.getElementById('order-chat-thread');
+        if (t) t.scrollTop = t.scrollHeight;
+    };
+    window._subscribeOrderChat = function(orderId) {
+        if (!supabaseClient) return;
+        try { if (window._orderChatCh) { supabaseClient.removeChannel(window._orderChatCh); window._orderChatCh = null; } } catch(e) {}
+        window._orderChatCh = supabaseClient.channel('rt_order_chat_' + orderId)
+            .on('postgres_changes', { event:'INSERT', schema:'public', table:'order_messages', filter:`order_id=eq.${orderId}` }, () => {
+                if (document.getElementById('order-chat-thread')) { _loadObjednavkaDetail(orderId).then(()=>window._scrollOrderChat()); }
+            })
+            .subscribe();
+    };
+    window.sendOrderMessage = async function(orderId) {
+        const inp = document.getElementById('order-chat-input');
+        const body = (inp?.value || '').trim();
+        if (!body) return;
+        if (inp) inp.value = '';
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/send_order_message`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+                body: JSON.stringify({ p_order_id: orderId, p_body: body })
+            });
+            if (r.ok) { await _loadObjednavkaDetail(orderId); window._scrollOrderChat(); }
+            else {
+                const t = await r.text();
+                if (inp) inp.value = body;
+                showToast(t.includes('chat_closed')?'Chat je uzavřený.':(t.includes('PGRST202')||t.includes('Could not find'))?'Funkce chatu není nasazena — spusťte order-chat.sql.':'Zprávu se nepodařilo odeslat.','error',6000);
+            }
+        } catch(e) { showToast('Chyba spojení.','error'); if (inp) inp.value = body; }
+    };
+    window.closeOrderChat = async function(orderId) {
+        if (!confirm('Uzavřít chat? Po uzavření už nepůjde psát, ale záznam konverzace zůstane v detailu objednávky.')) return;
+        try {
+            const token = await _ensureValidToken();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/close_order_chat`, {
+                method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+                body: JSON.stringify({ p_order_id: orderId })
+            });
+            if (r.ok) { showToast('🤝 Chat uzavřen. Záznam zůstává k dispozici.','success'); _loadObjednavkaDetail(orderId); }
+            else showToast('Uzavření se nezdařilo.','error');
+        } catch(e) { showToast('Chyba spojení.','error'); }
     };
 
     async function _loadObjednavkaDetail(orderId) {
@@ -8227,14 +8272,16 @@
         const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
         const FI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f1f5f9'/%3E%3C/svg%3E";
         try {
-            const [rOrder, rReview, rDispute] = await Promise.all([
+            const [rOrder, rReview, rDispute, rMsgs] = await Promise.all([
                 fetch(`${SUPABASE_URL}/rest/v1/objednavky?id=eq.${orderId}&or=(buyer_id.eq.${uid},seller_id.eq.${uid})&select=*,objednavka_polozky(*)`, { headers: hdrs }),
                 fetch(`${SUPABASE_URL}/rest/v1/reviews?order_id=eq.${orderId}&select=id,rating,comment,seller_reply,reviewer_id&limit=1`, { headers: hdrs }),
-                fetch(`${SUPABASE_URL}/rest/v1/disputes?order_id=eq.${orderId}&select=*&limit=1`, { headers: hdrs })
+                fetch(`${SUPABASE_URL}/rest/v1/disputes?order_id=eq.${orderId}&select=*&limit=1`, { headers: hdrs }),
+                fetch(`${SUPABASE_URL}/rest/v1/order_messages?order_id=eq.${orderId}&order=created_at.asc&select=*`, { headers: hdrs })
             ]);
             const orders   = await rOrder.json();
             const reviews  = await rReview.json().catch(() => []);
             const disputes = await rDispute.json().catch(() => []);
+            const omsgs    = await rMsgs.json().catch(() => []);
             const o = Array.isArray(orders) && orders[0];
             if (!o) { container.innerHTML = '<p class="text-center text-gray-500 py-12">Objednávka nenalezena.</p>'; return; }
 
@@ -8276,10 +8323,34 @@
                 pickupBlock = `<h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">🤝 Osobní předání</h3>
                 <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4 mb-5 text-sm">
                     ${isPaid
-                        ? `<p class="text-sky-800 font-bold mb-1">📍 ${loc ? esc(loc) : 'Lokalita prodejce'}</p><p class="text-sky-600 text-xs">Přesné místo a čas si domluvte přes <strong>Zprávy</strong> v platformě. Po převzetí ${isBuyer ? 'potvrďte „✓ Doručeno"' : 'počká se na potvrzení kupujícího'} — teprve pak se uvolní platba prodejci.</p>`
+                        ? `<p class="text-sky-800 font-bold mb-1">📍 ${loc ? esc(loc) : 'Lokalita prodejce'}</p><p class="text-sky-600 text-xs">Přesné místo a čas si domluvte v <strong>chatu k objednávce</strong> níže. Po převzetí ${isBuyer ? 'potvrďte „✓ Doručeno"' : 'počká se na potvrzení kupujícího'} — teprve pak se uvolní platba prodejci.</p>`
                         : `<p class="text-sky-700 text-xs">📍 Přesné místo se zobrazí <strong>po zaplacení</strong>. ${isBuyer ? 'Dokončete platbu' : 'Čeká se na platbu kupujícího'} — i osobní předání probíhá přes escrow, domlouvání platby mimo platformu je porušení pravidel.</p>`}
                 </div>`;
             }
+
+            // Chat k objednávce (kupující ↔ prodejce) — záznam zůstává i po uzavření
+            const _msgList = Array.isArray(omsgs) ? omsgs : [];
+            const _chatThread = _msgList.length
+                ? _msgList.map(m => {
+                    const mine = m.sender_id === uid;
+                    const t = new Date(m.created_at).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'});
+                    return `<div class="flex ${mine?'justify-end':'justify-start'}"><div class="max-w-[80%] ${mine?'bg-sky-500 text-white':'bg-white border border-gray-200 text-gray-700'} rounded-2xl px-3 py-2"><p class="text-sm" style="white-space:pre-wrap;word-break:break-word">${esc(m.body)}</p><p class="text-[10px] ${mine?'text-sky-100':'text-gray-400'} mt-0.5 text-right">${t}</p></div></div>`;
+                  }).join('')
+                : '<p class="text-xs text-gray-400 text-center py-3">Zatím žádné zprávy. Domluvte si předání / detaily.</p>';
+            const _isPickup = o.carrier === 'osobni';
+            const _chatPaid = ['paid','shipped','delivered','completed','resolved_buyer','resolved_seller','returned','refunded'].includes(o.status);
+            const _chatActive = (o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'expired' && o.status !== 'refunded' && o.status !== 'resolved_buyer' && o.status !== 'resolved_seller');
+            const chatBlock = (_isPickup && _chatPaid) ? `
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">💬 Domluva k objednávce</h3>
+                <div class="bg-gray-50 rounded-2xl p-3 mb-5">
+                    <div id="order-chat-thread" class="flex flex-col gap-2 max-h-72 overflow-y-auto mb-3">${_chatThread}</div>
+                    ${o.chat_closed
+                        ? '<div class="text-center text-xs text-gray-500 bg-gray-100 rounded-xl py-2 font-semibold">🔒 Chat uzavřen — záznam zůstává k dispozici.</div>'
+                        : (_chatActive
+                            ? `<div class="flex gap-2"><input id="order-chat-input" type="text" maxlength="1000" placeholder="Napište zprávu…" onkeydown="if(event.key==='Enter')sendOrderMessage('${orderId}')" class="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white"><button onclick="sendOrderMessage('${orderId}')" class="bg-sky-500 hover:bg-sky-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors">Odeslat</button></div>
+                               <button onclick="closeOrderChat('${orderId}')" class="w-full mt-2 text-xs text-gray-400 hover:text-gray-600 font-bold py-1.5 transition-colors">🤝 Domluveno — uzavřít chat (zůstane záznam)</button>`
+                            : '<div class="text-center text-xs text-gray-400 py-2">Objednávka je uzavřená — chat není aktivní.</div>')}
+                </div>` : '';
 
             container.innerHTML = `
             <div class="flex items-center justify-between mb-1">
@@ -8310,6 +8381,7 @@
             </div>`:''}
 
             ${pickupBlock}
+            ${chatBlock}
 
             ${o.tracking_number ? `<h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Sledování zásilky</h3>
             <div class="bg-gray-50 rounded-2xl p-3 mb-5 text-sm">${_trackingHtml(o.carrier, o.tracking_number)}</div>` : ''}
