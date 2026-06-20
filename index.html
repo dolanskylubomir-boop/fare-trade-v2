@@ -1580,13 +1580,17 @@
         </div>`;
     };
 
-    // Plovoucí sidebar s kategoriemi + počty (jen desktop ≥ lg)
-    window.renderCategorySidebar = function(view, currentFilter) {
+    // Plovoucí sidebar s kategoriemi + podkategoriemi + počty (jen desktop ≥ lg)
+    window.renderCategorySidebar = function(view, currentFilter, currentSub) {
         const isAukce = view === 'aukce';
         const data = (isAukce ? dataAukce : dataPevnaCena).filter(i => (i.db_status || 'aktivní') === 'aktivní');
-        const counts = {}; let total = 0;
-        data.forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; total++; });
-        const activeCls = isAukce ? 'bg-sky-500 text-white shadow-sm' : 'bg-pink-500 text-white shadow-sm';
+        const counts = {}; const subCounts = {}; let total = 0;
+        data.forEach(i => {
+            counts[i.category] = (counts[i.category] || 0) + 1; total++;
+            if (i.subcategory) { const k = i.category + ' ' + i.subcategory; subCounts[k] = (subCounts[k] || 0) + 1; }
+        });
+        const activeCls    = isAukce ? 'bg-sky-500 text-white shadow-sm' : 'bg-pink-500 text-white shadow-sm';
+        const subActiveCls = isAukce ? 'bg-sky-100 text-sky-700' : 'bg-pink-100 text-pink-700';
         const rows = vsechnyKategorie.map(kat => {
             const cnt = (kat === 'Vše') ? total : (counts[kat] || 0);
             const active = currentFilter === kat;
@@ -1595,14 +1599,24 @@
             const badge = active
                 ? `<span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full text-white" style="background:rgba(255,255,255,.22)">${cnt}</span>`
                 : `<span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">${cnt}</span>`;
-            return `<button onclick="navigate('${view}','${kat}')" class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all ${active ? activeCls : 'text-gray-500 hover:bg-gray-50'}">
+            const btn = `<button onclick="navigate('${view}','${kat}')" class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all ${active ? activeCls : 'text-gray-500 hover:bg-gray-50'}">
                 <span class="flex items-center gap-2 min-w-0"><span class="shrink-0">${icon}</span><span class="truncate">${kat}</span></span>${badge}
             </button>`;
+            const subBlock = (active && obj && obj.sub.length) ? `<div class="flex flex-col gap-0.5 mt-0.5 mb-1.5 ml-4 pl-2 border-l-2 border-gray-100">
+                ${obj.sub.map(s => {
+                    const sc = subCounts[kat + ' ' + s] || 0;
+                    const sActive = currentSub === s;
+                    return `<button onclick="setSubcategory('${view}','${kat}','${s}')" class="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${sActive ? subActiveCls : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'}">
+                        <span class="truncate">${s}</span><span class="shrink-0 text-[10px] ${sActive ? '' : 'text-gray-300'}">${sc}</span>
+                    </button>`;
+                }).join('')}
+            </div>` : '';
+            return btn + subBlock;
         }).join('');
-        return `<aside class="hidden lg:block lg:w-60 shrink-0">
-            <div class="sticky top-24 bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
+        return `<aside class="hidden lg:block lg:w-60 shrink-0 lg:sticky lg:top-24 self-start">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
                 <h3 class="text-xs font-extrabold uppercase tracking-wider text-gray-400 px-3 mb-2">Kategorie</h3>
-                <div class="flex flex-col gap-0.5 max-h-[72vh] overflow-y-auto scrollbar-hide">${rows}</div>
+                <div class="flex flex-col gap-0.5 max-h-[80vh] overflow-y-auto scrollbar-hide">${rows}</div>
             </div>
         </aside>`;
     };
@@ -7235,7 +7249,7 @@
                 <button onclick="navigate('home')" class="mb-4 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2 text-base">← Zpět na výběr</button>
                 <h2 class="text-2xl md:text-4xl font-extrabold mb-5 text-pastel-text">Aktivní aukce <span id="listing-count" class="text-base text-gray-400 font-medium ml-1">(${filteredData.length})</span><span class="text-base text-sky-500 font-semibold ml-2">${subLabel}</span></h2>
                 <div class="lg:flex lg:gap-6 lg:items-start">
-                    ${renderCategorySidebar('aukce', kategorieFilter)}
+                    ${renderCategorySidebar('aukce', kategorieFilter, _currentSubcategory)}
                     <div class="flex-1 min-w-0">
                         ${renderCategories('aukce', kategorieFilter, _currentSubcategory)}
                         ${renderSearchSort('aukce', kategorieFilter)}
@@ -7370,7 +7384,7 @@
                 <button onclick="navigate('home')" class="mb-4 text-pink-500 font-bold hover:text-pink-600 flex items-center gap-2 text-base">← Zpět na výběr</button>
                 <h2 class="text-2xl md:text-4xl font-extrabold mb-5 text-pastel-text">Pevná cena <span id="listing-count" class="text-base text-gray-400 font-medium ml-1">(${filteredData.length})</span><span class="text-base text-pink-500 font-semibold ml-2">${subLabel}</span></h2>
                 <div class="lg:flex lg:gap-6 lg:items-start">
-                    ${renderCategorySidebar('pevna-cena', kategorieFilter)}
+                    ${renderCategorySidebar('pevna-cena', kategorieFilter, _currentSubcategory)}
                     <div class="flex-1 min-w-0">
                         ${renderCategories('pevna-cena', kategorieFilter, _currentSubcategory)}
                         ${renderSearchSort('pevna-cena', kategorieFilter)}
