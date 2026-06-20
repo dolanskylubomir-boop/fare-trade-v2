@@ -4786,6 +4786,7 @@
             return `<div class="fade-in">
                 <div class="flex items-center justify-between mb-5"><h3 class="text-xl font-bold text-gray-800">⚙️ Admin panel</h3><span class="text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold uppercase">Admin</span></div>
                 <div class="flex gap-2 mb-5 border-b border-gray-100 pb-4 flex-wrap">
+                    <button onclick="window._loadAdminTab('metrics')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors">📊 Přehled</button>
                     <button onclick="window._loadAdminTab('kyc')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">🪪 KYC ke schválení<span id="admin-badge-kyc" class="${(window._adminCounts&&window._adminCounts.kyc>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-amber-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.kyc>0)?(window._adminCounts.kyc>99?'99+':window._adminCounts.kyc):''}</span></button>
                     <button onclick="window._loadAdminTab('spory')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors">⚖️ Spory<span id="admin-badge-spory" class="${(window._adminCounts&&window._adminCounts.spory>0)?'':'hidden'} ml-1.5 min-w-[17px] h-[17px] rounded-full bg-red-500 text-white text-[9px] font-black inline-flex items-center justify-center px-1">${(window._adminCounts&&window._adminCounts.spory>0)?(window._adminCounts.spory>99?'99+':window._adminCounts.spory):''}</span></button>
                     <button onclick="window._loadAdminTab('dac7')" class="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors">🇪🇺 DAC7 report</button>
@@ -10029,6 +10030,25 @@
             else if (tab === 'blocklist') {
                 container.innerHTML = '<div id="blocklist-mgr"></div>';
                 setTimeout(() => { if (window._loadBlocklist) window._loadBlocklist(); }, 0);
+            }
+            else if (tab === 'metrics') {
+                const rm = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_admin_metrics`, { method:'POST', headers: hdrs, body:'{}' });
+                const m = await rm.json();
+                if (!rm.ok) { container.innerHTML = `<p class="text-red-500 text-center py-8 text-sm">Chyba metrik: ${esc((m&&(m.message||m.hint))||(rm.status===404?'Spusťte admin-metrics.sql.':JSON.stringify(m)))}</p>`; return; }
+                const kc = n => (Number(n)||0).toLocaleString('cs-CZ') + ' Kč';
+                const card = (label, val, sub, cls) => `<div class="rounded-2xl p-4 border ${cls||'bg-gray-50 border-gray-100'}"><p class="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">${label}</p><p class="text-2xl font-extrabold text-gray-800">${val}</p>${sub?`<p class="text-[11px] text-gray-400 mt-0.5">${sub}</p>`:''}</div>`;
+                container.innerHTML = `
+                    <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+                        ${card('GMV (obrat)', kc(m.gmv), 'Zaplacené a dál · 30 dní: '+kc(m.gmv_30d), 'bg-emerald-50 border-emerald-100')}
+                        ${card('Tržby platformy', kc(m.revenue), 'Provize z dokončených', 'bg-pink-50 border-pink-100')}
+                        ${card('Objednávky', m.orders_total, m.orders_paid+' zaplacených · '+m.orders_done+' dokončených')}
+                        ${card('Konverze platby', m.paid_rate+' %', 'Zaplaceno / všechny objednávky', 'bg-sky-50 border-sky-100')}
+                        ${card('Spory', m.disputes, m.dispute_rate+' % ze zaplacených', 'bg-amber-50 border-amber-100')}
+                        ${card('Nezaplacení', m.orders_nonpay, m.nonpay_rate+' % objednávek', 'bg-rose-50 border-rose-100')}
+                        ${card('Uživatelé', m.users, m.sellers+' prodejců')}
+                        ${card('Aktivní inzeráty', m.active_listings, 'Kup teď + aukce')}
+                    </div>
+                    <button onclick="window._loadAdminTab('metrics')" class="text-xs text-emerald-600 hover:text-emerald-700 font-bold">↻ Obnovit metriky</button>`;
             }
             else if (tab === 'reports') {
                 const blockMgr = '<div id="blocklist-mgr" class="mb-6"></div>';
