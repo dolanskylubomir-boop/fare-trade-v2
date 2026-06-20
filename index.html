@@ -1977,7 +1977,11 @@
                 </button>
             </div>`;
         }).join('');
-        box.innerHTML = `<h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">❤️ Oblíbení prodejci <span class="text-sm font-semibold text-gray-400">(${rows.length})</span></h3><div class="flex flex-col gap-3">${cards}</div>`;
+        const fsTitle = `❤️ Oblíbení prodejci <span class="text-sm font-semibold text-gray-400">(${rows.length})</span>`;
+        const fsBody  = `<div class="flex flex-col gap-3">${cards}</div>`;
+        box.innerHTML = rows.length > 1
+            ? window._accordion('fav_sellers_sec', fsTitle, fsBody, {})
+            : `<h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">${fsTitle}</h3>${fsBody}`;
     };
 
     // ──────────────────────────────────────────────────────────────
@@ -5427,7 +5431,7 @@
 
         if (tab === 'oblibene') {
             setTimeout(async () => {
-                const container = document.getElementById('oblibene-content');
+                const container = document.getElementById('oblibene-section');
                 if (!container) return;
                 const favs = await loadFavoritesForTab();
                 if (!favs.length) { container.innerHTML = renderEmptyState('❤️', 'Žádné oblíbené', 'Přidej inzeráty do oblíbených klikem na srdíčko.', null, null); return; }
@@ -5453,13 +5457,16 @@
                     </div>`;
                 });
                 html += '</div>' + window._moreBtn('oblibene', activeFavs.length, "_reRenderTab('oblibene')");
-                container.innerHTML = html;
+                const favTitle = `Oblíbené položky <span class="text-sm font-semibold text-gray-400">(${activeFavs.length})</span>`;
+                container.innerHTML = activeFavs.length > 1
+                    ? window._accordion('fav_items_sec', favTitle, html, {})
+                    : `<div class="flex items-center justify-between mb-6 fade-in"><h3 class="text-xl font-bold text-gray-800">Oblíbené položky</h3></div>${html}`;
             }, 0);
             setTimeout(() => { if (typeof _loadSavedSearches==='function') _loadSavedSearches(); }, 0);
             setTimeout(() => { if (typeof _loadFavSellersSection==='function') _loadFavSellersSection(); }, 0);
             return `<div id="saved-searches-block" class="mb-7"></div>
             <div id="fav-sellers-block" class="mb-7"></div>
-            <div class="flex items-center justify-between mb-6 fade-in"><h3 class="text-xl font-bold text-gray-800">Oblíbené položky</h3></div><div id="oblibene-content">${window._skelRows(4)}</div>`;
+            <div id="oblibene-section">${window._skelRows(4)}</div>`;
         }
 
         if (tab === 'inzeraty') {
