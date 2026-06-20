@@ -7570,7 +7570,7 @@
                     </div>
                     <div id="ai-ship-hint" class="mt-2"></div>
                 </div>
-                ${window._videoEnabled() ? `<div class="bg-white/70 rounded-3xl border border-gray-100 p-5 mb-2 shadow-sm">
+                <div id="ad-video-section" style="${window._videoEnabled()?'':'display:none'}" class="bg-white/70 rounded-3xl border border-gray-100 p-5 mb-2 shadow-sm">
                     <h3 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">🎥 Krátké video <span class="text-xs font-normal text-gray-400">(volitelné)</span></h3>
                     <p class="text-xs text-gray-400 mb-3 leading-relaxed">Až <strong>30 s</strong>, do <strong>40 MB</strong> (mp4/webm). Zvyšuje důvěru a snižuje spory. <strong>Po dokončení prodeje se video automaticky smaže.</strong></p>
                     <input type="file" id="ad-video" accept="video/mp4,video/webm,video/quicktime" class="hidden" onchange="window._onAdVideoPick(this)">
@@ -7580,7 +7580,7 @@
                             <span class="text-sm font-bold">Nahrát video</span>
                         </button>
                     </div>
-                </div>` : ''}
+                </div>
                 <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-black py-5 rounded-2xl transition-all shadow-lg text-lg uppercase tracking-wider mt-2">Vložit inzerát na tržiště</button>
                 <p class="text-center text-xs text-gray-400 -mt-3">Vložením inzerátu souhlasíte s VOP tržiště FairTrade.</p>
             </form>
@@ -8109,7 +8109,15 @@
                 window._appConfig.video_enabled = map.video_enabled !== 'false';
                 if (map.video_provider) window.VIDEO_CFG.provider = map.video_provider;
             }
+            window._applyVideoConfigUI && window._applyVideoConfigUI();
         } catch(e) {}
+    };
+    // Živé promítnutí přepnutí videí do UI (formuláře + katalog/detail)
+    window._applyVideoConfigUI = function() {
+        const on = window._videoEnabled();
+        ['ad-video-section','edit-video-section'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; });
+        const h = (window.location.hash || '').replace('#','');
+        if (h.startsWith('pevna-cena') || h.startsWith('aukce')) { try { navigate(h); } catch(e) {} }
     };
     // Upload → {url, path}. Switch na jiný provider = jen tato funkce + _videoDeleteByUrl + _videoEmbed.
     window._videoUpload = async function(file, uid) {
@@ -12735,6 +12743,13 @@
             handleRealtimeAuctionUpdate(u);
         }).subscribe();
         supabaseClient.channel('rt_bids').on('postgres_changes',{ event:'INSERT', schema:'public', table:'bids' },(p)=>handleRealtimeAuctionUpdate({ id:p.new.auction_id, current_price:p.new.amount, last_bidder_id:p.new.bidder_id })).subscribe();
+        // Feature flagy (app_config) — živé přepnutí napříč klienty (např. zapnout/vypnout videa)
+        supabaseClient.channel('rt_app_config').on('postgres_changes',{ event:'*', schema:'public', table:'app_config' },(p)=>{
+            const row = p.new || p.old; if (!row) return;
+            if (row.key === 'video_enabled')  window._appConfig.video_enabled = row.value !== 'false';
+            if (row.key === 'video_provider' && row.value) window.VIDEO_CFG.provider = row.value;
+            window._applyVideoConfigUI && window._applyVideoConfigUI();
+        }).subscribe();
         supabaseClient.channel('rt_pevna').on('postgres_changes',{ event:'UPDATE', schema:'public', table:'pevna_cena' },(p)=>{
             const u = p.new;
             if (['prodano','prodáno','archivováno','zruseno','deaktivován_adminem','neaktivní'].includes(u.status)) {
