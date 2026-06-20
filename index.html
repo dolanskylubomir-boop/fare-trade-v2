@@ -6993,7 +6993,7 @@
         },
 
         aukce: (kategorieFilter) => {
-            kategorieFilter = kategorieFilter || 'Vše';
+            kategorieFilter = kategorieFilter || _currentCategory || 'Vše';
             _currentCategory = kategorieFilter;
             const all = dataAukce.filter(i =>
                 (i.db_status || 'aktivní') === 'aktivní' &&
@@ -7123,7 +7123,7 @@
         },
 
         'pevna-cena': (kategorieFilter) => {
-            kategorieFilter = kategorieFilter || 'Vše';
+            kategorieFilter = kategorieFilter || _currentCategory || 'Vše';
             _currentCategory = kategorieFilter;
             const all = dataPevnaCena.filter(i =>
                 (i.db_status || 'aktivní') === 'aktivní' &&
