@@ -1597,6 +1597,99 @@
       return s + '</div>';
     };
 
+    // ──────────────────────────────────────────────────────────────
+    // INTERAKTIVNÍ NÁVODY ("Jak to funguje" → klik → krok za krokem)
+    // ──────────────────────────────────────────────────────────────
+    const _mockBtn   = (txt, cls) => `<span class="inline-flex items-center gap-1 ${cls||'bg-sky-500'} text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow">${txt}</span>`;
+    const _mockBox   = (inner) => `<div class="bg-white border border-gray-200 rounded-xl p-3 shadow-sm text-xs text-gray-600">${inner}</div>`;
+    const _mockQR    = `<div class="flex items-center gap-3">${_mockBox('<div class="w-16 h-16 bg-[repeating-conic-gradient(#111_0_25%,#fff_0_50%)] bg-[length:8px_8px] rounded"></div>')}<div class="text-xs text-gray-500 leading-relaxed">📱 Naskenuj QR v bance<br>nebo zaplať z 💰 peněženky</div></div>`;
+
+    window._GUIDES = {
+        koupit: { icon:'🛒', color:'sky', title:'Jak nakoupit', intro:'Nakoupit můžeš i bez registrace — účet ti vytvoříme u pokladny. Platba je vždy chráněná escrow.', steps:[
+            { icon:'🔎', title:'Najdi zboží', text:'V sekci Inzerce/Aukce filtruj podle kategorie, ceny, stavu nebo kraje. Klikni na inzerát pro detail.', mock:_mockBox('🔎 Hledat…  ·  Kategorie ▾  ·  📍 Kraj ▾') },
+            { icon:'🛒', title:'Klikni „Koupit ihned"', text:'Zboží se ti na 2 hodiny zarezervuje, aby ho nikdo nekoupil dřív. Nezaplatíš-li do 2 h, rezervace propadne.', mock:_mockBtn('Koupit ihned','bg-pink-500') },
+            { icon:'💳', title:'Zaplať bezpečně', text:'Zadej doručovací adresu a zaplať QR kódem, kartou nebo z peněženky. Peníze jdou do úschovy (escrow) — prodejce je zatím nedostane.', mock:_mockQR },
+            { icon:'📦', title:'Sleduj zásilku', text:'Prodejce nafotí balík a zadá podací číslo. V „Moje objednávky" sleduješ stav a tracking.', mock:_mockBox('Objednávka #A1B2 · <b>Odesláno</b> · 📦 sledovat') },
+            { icon:'✅', title:'Potvrď doručení', text:'Když zboží dorazí v pořádku, klikni „Doručeno" — peníze se uvolní prodejci. Problém? Otevři spor s fotkami (admin rozhodne do 48 h).', mock:`${_mockBtn('✓ Doručeno','bg-green-500')} &nbsp; ${_mockBtn('⚖️ Spor','bg-white !text-red-500 border border-red-200')}` },
+            { icon:'⭐', title:'Ohodnoť prodejce', text:'Po dokončení dáš hvězdičky a komentář. Pomůžeš tím ostatním kupujícím.', mock:'<span class="text-yellow-500 text-lg">★★★★★</span>' },
+        ]},
+        prodat: { icon:'🏷️', color:'pink', title:'Jak prodávat (vložit inzerát)', intro:'Pro prodej je potřeba jednorázové ověření přes BankID (65 Kč se vrací do peněženky).', steps:[
+            { icon:'🪪', title:'Ověř se přes BankID', text:'V Profilu → KYC se ověříš bankovní identitou. Je to okamžité a splní i zákonnou povinnost (DAC7).', mock:_mockBtn('🪪 Ověřit přes BankID','bg-sky-600') },
+            { icon:'📸', title:'Přidej fotky a video', text:'Nahraj aspoň 1 fotku. Volitelně přidej krátké placené video (vyšší důvěra). U použitého zboží popiš vady.', mock:_mockBox('📷 Foto 1  ·  📷 Foto 2  ·  🎥 Video (volitelné)') },
+            { icon:'🤖', title:'Nech si pomoct od AI', text:'Napiš název a AI navrhne popis, cenu i dopravu. Cenu ti doporučíme podle podobných inzerátů.', mock:_mockBtn('🤖 Vygenerovat popis','bg-violet-500') },
+            { icon:'📍', title:'Doprava a kraj', text:'Zvol způsoby dopravy. Při „Osobní předání" je povinný kraj — kupující pak filtrují „v okolí".', mock:_mockBox('Zásilkovna · PPL · Osobní předání → 📍 Kraj *') },
+            { icon:'🚀', title:'Zveřejni', text:'Klikni „Vložit inzerát". Nové inzeráty projdou rychlou auto-kontrolou. Hotovo — čekej na kupce!', mock:_mockBtn('Vložit inzerát na tržiště','bg-sky-500') },
+        ]},
+        odeslat: { icon:'📦', color:'indigo', title:'Jak odeslat zásilku', intro:'Jakmile kupující zaplatí, dostaneš pokyn k odeslání. Pošli do 5 pracovních dnů.', steps:[
+            { icon:'🔔', title:'Objednávka zaplacena', text:'Přijde notifikace „Zaplaceno". Otevři objednávku v Profilu → Objednávky.', mock:_mockBox('💰 Objednávka zaplacena — připrav k odeslání') },
+            { icon:'📷', title:'Zdokumentuj zásilku', text:'Klikni „Zdokumentovat a odeslat", nafoť obsah, balení a štítek. Volitelně přidej video (uvidí jen admin při sporu).', mock:_mockBtn('📦 Zdokumentovat a odeslat','bg-purple-500') },
+            { icon:'🔢', title:'Zadej podací číslo', text:'Vyplň tracking od dopravce. Kupující pak zásilku sleduje online.', mock:_mockBox('Číslo zásilky: <b>Z123456789</b>') },
+            { icon:'💸', title:'Dostaneš zaplaceno', text:'Po potvrzení doručení (nebo automaticky po 14 dnech) se ti escrow částka uvolní do peněženky/na účet.', mock:'💸 Escrow → vyplaceno' },
+        ]},
+        aukce: { icon:'⚡', color:'amber', title:'Aukce a automatické přihazování', intro:'Aukce trvá pevně 7 dní. Můžeš přihazovat ručně, nebo nechat platformu přihazovat za tebe.', steps:[
+            { icon:'🔨', title:'Přihoď', text:'V detailu aukce klikni „Přihodit" a vyber částku. Cena se aktualizuje v reálném čase.', mock:`${_mockBtn('Přihodit','bg-sky-500')} &nbsp; +50 +100 +500` },
+            { icon:'🤖', title:'Nastav automatické přihazování', text:'Zadej MAX částku, kterou jsi ochoten dát. Platforma přihazuje za tebe jen o nutné minimum až do limitu — soupeři tvůj limit nevidí.', mock:_mockBox('🤖 Můj limit: <b>1 500 Kč</b> — přihazujeme za vás') },
+            { icon:'🏆', title:'Sleduj, kdo vede', text:'U aukce vidíš počet příhozů a po kliknutí časovou osu. Když tě někdo přeplatí, přijde notifikace.', mock:_mockBox('🔨 9 příhozů · 🏆 vedete') },
+            { icon:'💳', title:'Vyhraj a zaplať', text:'Po konci aukce vítěz zaplatí přes escrow — dál je to stejné jako běžný nákup.', mock:_mockBtn('Zaplatit výhru →','bg-amber-500') },
+        ]},
+        nabidka: { icon:'💬', color:'violet', title:'Nabídnout cenu (smlouvání)', intro:'U inzerátů s pevnou cenou můžeš poslat vlastní nabídku.', steps:[
+            { icon:'✍️', title:'Pošli nabídku', text:'V detailu klikni „Nabídnout cenu" a napiš svou částku.', mock:_mockBtn('Nabídnout cenu','bg-violet-500') },
+            { icon:'🔄', title:'Prodejce reaguje', text:'Přijme, odmítne, nebo pošle protinávrh. Vše vidíš v notifikacích a v profilu.', mock:_mockBox('Protinávrh: <b>950 Kč</b> — Přijmout / Odmítnout') },
+            { icon:'💳', title:'Zaplať dohodnutou cenu', text:'Po dohodě zaplatíš sjednanou cenu — opět přes escrow se stejnou ochranou.', mock:_mockQR },
+        ]},
+        video: { icon:'🎥', color:'fuchsia', title:'Video u inzerátu (placená služba)', intro:'Video zvyšuje důvěru a prodejnost. Je placené a uvidí ho jen přihlášení.', steps:[
+            { icon:'📹', title:'Nahraj video', text:'Při vkládání/úpravě inzerátu přidej krátké video (max 30 s, 40 MB).', mock:_mockBtn('🎥 Nahrát video','bg-fuchsia-500') },
+            { icon:'🛡️', title:'Admin schválí', text:'Každé video nejdřív schválí administrátor (kvůli obsahu). Přijde ti notifikace.', mock:_mockBox('✅ Video schváleno — zaplaťte za zveřejnění') },
+            { icon:'💳', title:'Zaplať za zveřejnění', text:'Po schválení zaplatíš (QR/karta/peněženka). Teprve teď začne běžet doba viditelnosti.', mock:_mockQR },
+            { icon:'⏳', title:'Zobrazí se a pak smaže', text:'Video je viditelné přihlášeným po zaplacenou dobu. Po vypršení nebo dokončení prodeje se automaticky smaže.', mock:_mockBox('🎥 Aktivní do 30. 6. 2026') },
+        ]},
+        oblibene: { icon:'❤️', color:'rose', title:'Oblíbené a oblíbení prodejci', intro:'Ukládej si zboží i prodejce a nic ti neuteče.', steps:[
+            { icon:'❤️', title:'Srdce na inzerátu', text:'Klikni na srdíčko u inzerátu — najdeš ho v Profilu → Oblíbené. Když prodejce sníží cenu, přijde alert.', mock:'❤️ → Profil → Oblíbené' },
+            { icon:'👤', title:'Oblíbený prodejce', text:'V detailu inzerátu klikni na srdce u prodejce. V profilu pak máš „Oblíbení prodejci".', mock:_mockBox('❤️ Pepa Novák · 11 inzerátů · zobrazit nabídku →') },
+            { icon:'🔔', title:'Hlídač hledání', text:'Ulož si hledaný výraz a dostaneš notifikaci, jakmile přibude odpovídající inzerát.', mock:_mockBtn('🔔 Hlídat hledání','bg-amber-500') },
+        ]},
+        spor: { icon:'⚖️', color:'red', title:'Reklamace a spor', intro:'Něco není v pořádku? Escrow tě chrání — peníze prodejce nedostane, dokud se to nevyřeší.', steps:[
+            { icon:'⚖️', title:'Otevři spor', text:'V objednávce klikni „Spor", popiš problém a přilož aspoň 2 fotky.', mock:_mockBtn('⚖️ Zahájit spor','bg-red-500') },
+            { icon:'🕵️', title:'Admin rozhodne', text:'Administrátor posoudí důkazy obou stran (vč. fotek/videa odeslání) a rozhodne do 48 hodin.', mock:_mockBox('Spor v řešení — rozhodnutí do 48 h') },
+            { icon:'↩️', title:'Vrácení peněz', text:'Při výhře kupujícího se vystaví předplacený štítek na vratku a vrátí se cena + provize + původní doprava (mínus zpětná doprava).', mock:'↩️ Peníze zpět do peněženky' },
+        ]},
+    };
+
+    window.closeGuide = function() { const m = document.getElementById('guide-modal'); if (m) m.remove(); };
+    window.showGuide = function(key) {
+        const g = window._GUIDES[key]; if (!g) return;
+        closeGuide();
+        const c = g.color;
+        const stepsHtml = g.steps.map((s, i) => `
+            <div class="flex gap-4 ${i < g.steps.length-1 ? 'pb-6' : ''}">
+                <div class="flex flex-col items-center shrink-0">
+                    <div class="w-11 h-11 rounded-2xl bg-${c}-500 text-white font-extrabold flex items-center justify-center shadow-lg shadow-${c}-200">${i+1}</div>
+                    ${i < g.steps.length-1 ? `<div class="w-0.5 flex-grow bg-gradient-to-b from-${c}-300 to-gray-100 mt-2"></div>` : ''}
+                </div>
+                <div class="pt-0.5 min-w-0">
+                    <p class="font-extrabold text-gray-800 text-base mb-1 flex items-center gap-2"><span>${s.icon}</span>${s.title}</p>
+                    <p class="text-gray-500 text-sm leading-relaxed mb-2">${s.text}</p>
+                    ${s.mock ? `<div class="bg-gray-50 border border-gray-100 rounded-2xl p-3 inline-block max-w-full overflow-x-auto">${s.mock}</div>` : ''}
+                </div>
+            </div>`).join('');
+        const ov = document.createElement('div');
+        ov.id = 'guide-modal';
+        ov.className = 'fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 fade-in';
+        ov.onclick = (e) => { if (e.target === ov) closeGuide(); };
+        ov.innerHTML = `<div class="bg-white w-full sm:max-w-lg sm:rounded-[2rem] rounded-t-[2rem] shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="bg-gradient-to-br from-${c}-400 to-${c}-600 text-white p-6 relative shrink-0">
+                <button onclick="closeGuide()" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">✕</button>
+                <div class="text-4xl mb-2">${g.icon}</div>
+                <h3 class="text-2xl font-extrabold pr-8">${g.title}</h3>
+                <p class="text-white/90 text-sm mt-1 leading-relaxed">${g.intro}</p>
+            </div>
+            <div class="p-6 overflow-y-auto">${stepsHtml}
+                <button onclick="closeGuide()" class="w-full mt-4 bg-${c}-500 hover:bg-${c}-600 text-white font-extrabold py-3.5 rounded-2xl transition-colors">Rozumím 👍</button>
+            </div>
+        </div>`;
+        document.body.appendChild(ov);
+    };
+
     window.renderCategories = function(view, currentFilter, currentSub) {
         const isAukce = view === 'aukce';
         const activeMainCls = isAukce ? 'bg-sky-500 text-white shadow-sm' : 'bg-pink-500 text-white shadow-sm';
@@ -6880,6 +6973,19 @@
                 </div>`).join('')}
             </div>
 
+            <!-- Interaktivní návody -->
+            <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] p-7 md:p-10 shadow-lg border border-white/50 mb-8">
+                <h3 class="text-xl md:text-2xl font-extrabold text-pastel-text mb-1">📖 Návody krok za krokem</h3>
+                <p class="text-gray-500 text-sm mb-6">Klikni na téma a ukážeme ti přesně, jak na to — jednoduše a názorně. Pochopí to každý.</p>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    ${['koupit','prodat','odeslat','aukce','nabidka','video','oblibene','spor'].map(k=>{const g=window._GUIDES[k];return `<button onclick="showGuide('${k}')" class="group bg-gradient-to-br from-${g.color}-50 to-white border border-${g.color}-100 hover:border-${g.color}-300 hover:shadow-md rounded-2xl p-4 text-left transition-all">
+                        <div class="text-3xl mb-2 group-hover:scale-110 transition-transform">${g.icon}</div>
+                        <p class="font-extrabold text-gray-800 text-sm leading-tight">${g.title}</p>
+                        <p class="text-${g.color}-600 text-xs font-bold mt-1.5">Zobrazit návod →</p>
+                    </button>`;}).join('')}
+                </div>
+            </div>
+
             <!-- Kroky: Pevná cena -->
             <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] p-7 md:p-10 shadow-lg border border-white/50 mb-5">
                 <div class="flex items-center gap-3 mb-7">
@@ -6957,6 +7063,10 @@
                         ['💡','Cenové doporučení','Při vkládání vám podle reálných dat ukážeme doporučenou cenu (medián podobných inzerátů).'],
                         ['🎁','Pozvi kamaráda','Sdílejte svůj odkaz — když se kamarád zaregistruje a nakoupí, dostanete oba bonus do peněženky.'],
                         ['🧾','Faktury','Ke každé dokončené objednávce se vystaví faktura s pořadovým číslem. Prodejce má navíc roční přehled (DAC7) a doklad o poplatcích.'],
+                        ['🤖','Automatické přihazování','U aukce zadáte maximální částku a platforma přihazuje za vás jen o nutné minimum — soupeři váš limit nevidí. Ručně přihodit nad limit můžete dál.'],
+                        ['🔨','Časová osa příhozů','U každé aukce vidíte počet příhozů a po kliknutí kompletní (anonymní) historii — kdy a o kolik se přihazovalo, kdo právě vede.'],
+                        ['❤️','Oblíbení prodejci','Uložte si prodejce srdcem. V profilu pak máte sekci „Oblíbení prodejci" a jedním klikem zobrazíte vše, co nabízí.'],
+                        ['🎥','Video u inzerátu (placené)','Přidejte ke zboží krátké video pro vyšší důvěru. Po schválení adminem a zaplacení se zobrazí přihlášeným po nastavenou dobu; pak se smaže.'],
                     ].map(([icon,title,desc]) => `
                     <div class="flex items-start gap-4 bg-gray-50 rounded-2xl p-4 border border-gray-100">
                         <span class="text-2xl shrink-0 mt-0.5">${icon}</span>
@@ -7182,11 +7292,13 @@
                             <div>TOP inzerát 3 dny</div><div class="font-bold text-amber-600">59 Kč</div>
                             <div>TOP inzerát 7 dní</div><div class="font-bold text-amber-600">99 Kč</div>
                             <div>TOP inzerát 30 dní</div><div class="font-bold text-amber-600">299 Kč</div>
+                            <div>Video u inzerátu (30 dní)</div><div class="font-bold text-fuchsia-600">49 Kč</div>
                             <div>Bonus za pozvání (referral)</div><div class="font-bold text-green-600">+50 Kč do peněženky</div>
                         </div>
                     </div>
                     <p class="mb-2">Platby za zviditelnění (TOP) a prodloužení inzerátu probíhají QR platbou, kartou nebo z kreditu v peněžence. U zviditelnění Provozovatel uvádí orientační garanci dosahu — při nenaplnění garantovaného počtu zhlédnutí vrací poměrnou část ceny do peněženky. Provozovatel je oprávněn poplatky změnit s <strong>30denním předstihem</strong> oznámeným Uživateli.</p>
                     <p class="mb-2"><strong>Referral program:</strong> Každý Uživatel má vlastní pozývací kód. Pokud se nový Uživatel zaregistruje přes tento kód a dokončí svůj <strong>první zaplacený nákup</strong>, připíše Provozovatel bonus <strong>50 Kč</strong> do peněženky zvoucímu i pozvanému. Bonus lze čerpat na platby v rámci Platformy. Provozovatel si vyhrazuje právo program kdykoli upravit či ukončit a vyloučit zneužití (např. zakládání fiktivních účtů).</p>
+                    <p class="mb-2"><strong>Video u inzerátu (placená služba):</strong> Prodávající může k inzerátu přidat krátké video. Video je <strong>nepovinné a zpoplatněné</strong> (viz ceník) a před zveřejněním podléhá <strong>schválení Provozovatelem</strong>; platí se až po schválení a doba viditelnosti běží od zaplacení. Video je dostupné pouze <strong>přihlášeným uživatelům</strong> po zaplacenou dobu, poté (nebo po dokončení objednávky) je <strong>automaticky smazáno</strong>. Provozovatel může video kdykoli zamítnout či odstranit při porušení pravidel, a to bez nároku na vrácení ceny. Za obsah videa odpovídá Prodávající.</p>
                     <p><strong>Daňové doklady:</strong> Ke každé dokončené objednávce Provozovatel automaticky vystaví <strong>fakturu s pořadovým číslem</strong> ve formátu FV-{rok}-{pořadí}, dostupnou u dané objednávky a v sekci Transakce. Tamtéž si Uživatel může vytisknout <strong>roční přehled prodejů a poplatků</strong> pro vlastní daňovou evidenci.</p>
                 </section>
 
