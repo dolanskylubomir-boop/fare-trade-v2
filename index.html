@@ -4147,11 +4147,11 @@
             if (!vsechnyKategorie.includes(category)) throw new Error('Neplatná kategorie.');
             const condNotes = (document.getElementById('ad-condition-notes')?.value||'').trim();
             if ((condition==='Použité'||condition==='Poškozené') && !condNotes) throw new Error('U použitého nebo poškozeného zboží musíte popsat vady.');
-            const photoInputs = Array.from(document.querySelectorAll('input[type="file"]')).filter(i=>i.files?.[0]);
+            const photoInputs = Array.from(document.querySelectorAll('input[type="file"]:not(#ad-video)')).filter(i=>i.files?.[0]);
             if (!photoInputs.length) throw new Error('Přidejte alespoň 1 fotografii zboží.');
 
             const uploadedImages = [];
-            for (let input of document.querySelectorAll('input[type="file"]')) {
+            for (let input of document.querySelectorAll('input[type="file"]:not(#ad-video)')) {
                 if (input.files?.[0]) {
                     const check = validateImageFile(input.files[0]);
                     if (!check.ok && !check.error.includes('velikost')) throw new Error(check.error);
