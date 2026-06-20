@@ -1816,6 +1816,7 @@
 
     window.loadFavoritesFromDB = async function() {
         if (!window.currentUser) return;
+        if (window.loadFavSellersFromDB) window.loadFavSellersFromDB();
         const token = await _ensureValidToken();
         if (!token) return;
         const uid = window.currentUser.id;
@@ -1884,6 +1885,99 @@
             const data = await r.json();
             return Array.isArray(data) ? data : [];
         } catch(e) { return []; }
+    };
+
+    // ── Oblíbení prodejci (follow) ──────────────────────────────
+    window._favSellerCache = new Set();
+    window.isFavSeller = id => window._favSellerCache.has(id);
+    function _syncFavSellerBtn(btn) {
+        const on = window._favSellerCache.has(btn.getAttribute('data-sid'));
+        btn.classList.toggle('bg-red-50', on);   btn.classList.toggle('border-red-200', on);  btn.classList.toggle('text-red-500', on);
+        btn.classList.toggle('bg-white', !on);   btn.classList.toggle('border-gray-200', !on); btn.classList.toggle('text-gray-400', !on);
+        const svg = btn.querySelector('svg'); if (svg) svg.setAttribute('fill', on ? 'currentColor' : 'none');
+    }
+    window.loadFavSellersFromDB = async function() {
+        if (!window.currentUser) return;
+        const token = await _ensureValidToken(); if (!token) return;
+        const uid = window.currentUser.id;
+        const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/favorite_sellers?user_id=eq.${uid}&select=seller_id`, { headers: hdrs });
+            const rows = await r.json();
+            if (Array.isArray(rows)) window._favSellerCache = new Set(rows.map(x => x.seller_id));
+            document.querySelectorAll('.fav-seller-btn[data-sid]').forEach(_syncFavSellerBtn);
+        } catch(e) {}
+    };
+    window._favSellerBtn = function(sellerId, sellerName) {
+        if (!sellerId) return '';
+        if (window.currentUser && window.currentUser.id === sellerId) return '';   // vlastní inzerát
+        const on = window._favSellerCache.has(sellerId);
+        const nm = (sellerName || '').replace(/'/g, '');
+        return `<button onclick="event.stopPropagation();toggleFavSeller(event,'${sellerId}','${nm}')" data-sid="${sellerId}" title="Oblíbený prodejce" aria-label="Oblíbený prodejce" class="fav-seller-btn ml-auto shrink-0 flex items-center justify-center w-9 h-9 rounded-full border transition-colors ${on?'bg-red-50 border-red-200 text-red-500':'bg-white border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-300'}">
+            <svg class="w-5 h-5" fill="${on?'currentColor':'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+        </button>`;
+    };
+    window.toggleFavSeller = async function(e, sellerId, sellerName) {
+        if (e) e.stopPropagation();
+        if (!window.currentUser) { showToast('Pro oblíbené prodejce se musíte přihlásit.','warning'); return; }
+        if (window.currentUser.id === sellerId) return;
+        const on = window._favSellerCache.has(sellerId);
+        if (on) window._favSellerCache.delete(sellerId); else window._favSellerCache.add(sellerId);
+        document.querySelectorAll(`.fav-seller-btn[data-sid="${sellerId}"]`).forEach(_syncFavSellerBtn);
+        const token = await _ensureValidToken();
+        if (!token) { showToast('Chyba ověření — zkuste se znovu přihlásit.','error'); return; }
+        const uid = window.currentUser.id;
+        const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+        try {
+            if (on) {
+                await fetch(`${SUPABASE_URL}/rest/v1/favorite_sellers?user_id=eq.${uid}&seller_id=eq.${sellerId}`, { method:'DELETE', headers: hdrs });
+            } else {
+                await fetch(`${SUPABASE_URL}/rest/v1/favorite_sellers`, { method:'POST', headers: { ...hdrs, 'Prefer':'resolution=merge-duplicates' }, body: JSON.stringify({ user_id: uid, seller_id: sellerId }) });
+                showToast(`❤️ ${sellerName || 'Prodejce'} přidán mezi oblíbené prodejce.`, 'success');
+            }
+        } catch(err) {
+            if (on) window._favSellerCache.add(sellerId); else window._favSellerCache.delete(sellerId);
+            document.querySelectorAll(`.fav-seller-btn[data-sid="${sellerId}"]`).forEach(_syncFavSellerBtn);
+            showToast('Chyba při ukládání oblíbeného prodejce.', 'error');
+        }
+    };
+    window.loadFavSellersForTab = async function() {
+        if (!window.currentUser) return [];
+        const token = await _ensureValidToken(); if (!token) return [];
+        const uid = window.currentUser.id;
+        const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` };
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/favorite_sellers?user_id=eq.${uid}&select=seller_id,created_at&order=created_at.desc`, { headers: hdrs });
+            const d = await r.json(); return Array.isArray(d) ? d : [];
+        } catch(e) { return []; }
+    };
+    window._loadFavSellersSection = async function() {
+        const box = document.getElementById('fav-sellers-block');
+        if (!box) return;
+        const rows = await loadFavSellersForTab();
+        if (!rows.length) { box.innerHTML = ''; return; }
+        const cards = rows.map(r => {
+            const sid = r.seller_id;
+            const prof = (window._profilesMap && window._profilesMap[sid]) || {};
+            let name = prof.display_name || [prof.first_name, prof.last_name].filter(Boolean).join(' ') || '';
+            const pool = [...dataPevnaCena, ...dataAukce].filter(i => i.seller_id === sid);
+            if (!name) { const it = pool[0]; name = it ? it.seller : 'Prodejce'; }
+            const count = pool.filter(i => (i.db_status || 'aktivní') === 'aktivní').length;
+            const initial = (name || '?').charAt(0).toUpperCase();
+            const verified = prof.is_verified || (pool[0] && pool[0].verified);
+            const cntLabel = count === 1 ? 'inzerát' : (count >= 2 && count <= 4 ? 'inzeráty' : 'inzerátů');
+            return `<div onclick="navigate('seller-inzeraty','${sid}')" class="flex items-center gap-3 p-3.5 border border-gray-100 rounded-2xl hover:shadow-md transition-shadow cursor-pointer bg-white group">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-pink-200 to-rose-200 flex items-center justify-center text-rose-700 font-extrabold shrink-0">${esc(initial)}</div>
+                <div class="flex-grow min-w-0">
+                    <h4 class="font-bold text-gray-800 truncate text-sm flex items-center gap-1">${esc(name)}${verified ? '<svg class="w-4 h-4 text-sky-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>' : ''}</h4>
+                    <p class="text-xs text-gray-400">${count} ${cntLabel} · zobrazit nabídku →</p>
+                </div>
+                <button onclick="(async(e)=>{await toggleFavSeller(e,'${sid}','');_loadFavSellersSection();})(event)" data-sid="${sid}" class="fav-seller-btn pl-1 text-red-500 hover:text-red-600 transition-colors shrink-0" aria-label="Odebrat oblíbeného prodejce">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                </button>
+            </div>`;
+        }).join('');
+        box.innerHTML = `<h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">❤️ Oblíbení prodejci <span class="text-sm font-semibold text-gray-400">(${rows.length})</span></h3><div class="flex flex-col gap-3">${cards}</div>`;
     };
 
     // ──────────────────────────────────────────────────────────────
@@ -5362,7 +5456,9 @@
                 container.innerHTML = html;
             }, 0);
             setTimeout(() => { if (typeof _loadSavedSearches==='function') _loadSavedSearches(); }, 0);
+            setTimeout(() => { if (typeof _loadFavSellersSection==='function') _loadFavSellersSection(); }, 0);
             return `<div id="saved-searches-block" class="mb-7"></div>
+            <div id="fav-sellers-block" class="mb-7"></div>
             <div class="flex items-center justify-between mb-6 fade-in"><h3 class="text-xl font-bold text-gray-800">Oblíbené položky</h3></div><div id="oblibene-content">${window._skelRows(4)}</div>`;
         }
 
@@ -7449,6 +7545,7 @@
                                 <p class="font-bold text-gray-800 text-sm flex items-center gap-1">${item.seller}${item.verified?`<svg class="w-4 h-4 text-sky-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`:''}</p>
                                 <p class="text-xs ${timeInfo.urgent?'text-red-600 font-bold countdown-urgent':timeInfo.urgent?'text-red-500':'text-gray-500'}">⏱ ${timeInfo.text} · <button id="detail-seller-rating-${item.seller_id}" onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
                             </div>
+                            ${window._favSellerBtn(item.seller_id, item.seller)}
                         </div>
                         <div class="mb-6">
                             <p id="desc-text-${item.id}" class="text-gray-600 text-sm leading-relaxed ${item.description&&item.description.length>160?'line-clamp-4':''}" style="white-space:pre-wrap">${item.description||'<span class="text-gray-400 italic">Popis nebyl uveden.</span>'}</p>
@@ -7583,6 +7680,7 @@
                                 <p class="text-xs text-gray-400"><button id="detail-seller-rating-${item.seller_id}" onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
                                 ${window._sellerBadges(item)}
                             </div>
+                            ${window._favSellerBtn(item.seller_id, item.seller)}
                         </div>
                         <div class="mb-5">
                             <p id="desc-text-${item.id}" class="text-gray-600 text-sm leading-relaxed ${item.description&&item.description.length>160?'line-clamp-4':''}" style="white-space:pre-wrap">${item.description||'<span class="text-gray-400 italic">Popis nebyl uveden.</span>'}</p>
