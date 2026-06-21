@@ -13902,6 +13902,15 @@
         const _list = () => document.getElementById('gc-list');
         const _atBottom = () => { const el = _list(); return !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 80); };
         const _scrollBottom = () => { const el = _list(); if (el) el.scrollTop = el.scrollHeight; };
+        // Inline hláška v chatu (nad vstupním polem) — srozumitelnější než toast
+        function _chatNotice(msg) {
+            const el = document.getElementById('gc-notice');
+            if (!el) { showToast(msg, 'warning'); return; }
+            el.textContent = msg; el.classList.remove('hidden');
+            clearTimeout(window._gcNoticeT);
+            window._gcNoticeT = setTimeout(() => { const e = document.getElementById('gc-notice'); if (e) e.classList.add('hidden'); }, 6000);
+        }
+        const _chatClearNotice = () => { const el = document.getElementById('gc-notice'); if (el) el.classList.add('hidden'); };
         // AI moderace zprávy (fire-and-forget). Bez webhooku ji spustí klient po vložení.
         function _chatModerate(id, token) {
             try {
@@ -14007,10 +14016,11 @@
             const inp = document.getElementById('gc-input'); if (!inp) return;
             const body = (inp.value || '').trim();
             if (!body) return;
-            if (body.length > 500) { showToast('Zpráva je příliš dlouhá (max 500 znaků).','warning'); return; }
+            if (body.length > 500) { _chatNotice('Zpráva je příliš dlouhá (max 500 znaků).'); return; }
             // Předkontrola (okamžitá odezva; server to navíc vynucuje v triggeru)
-            if (typeof _censorCheck === 'function' && _censorCheck(body)) { showToast('Zpráva obsahuje kontaktní údaje (telefon/e-mail/odkaz) — v chatu nejsou povolené.','warning'); return; }
-            if (window._paymentScamHint && window._paymentScamHint(body)) { showToast('Domlouvání prodeje nebo platby mimo platformu není v chatu povoleno.','warning'); return; }
+            if (typeof _censorCheck === 'function' && _censorCheck(body)) { _chatNotice('🚫 Zpráva obsahuje kontaktní údaje (telefon/e-mail/odkaz) — v chatu je nelze poslat.'); return; }
+            if (window._paymentScamHint && window._paymentScamHint(body)) { _chatNotice('🚫 Domlouvání prodeje nebo platby mimo platformu není v chatu povoleno.'); return; }
+            _chatClearNotice();
             const btn = document.getElementById('gc-send');
             if (btn) btn.disabled = true; inp.disabled = true;
             try {
@@ -14022,12 +14032,12 @@
                 if (!r.ok) {
                     const t = await r.text().catch(() => '');
                     let msg = 'Zprávu se nepodařilo odeslat.';
-                    if (t.includes('rate_limited')) msg = 'Posíláte zprávy moc rychle — chvíli počkejte.';
-                    else if (t.includes('blocked_word')) msg = 'Zpráva obsahuje zakázané výrazy.';
-                    else if (t.includes('blocked_contact')) msg = 'Zpráva obsahuje kontaktní údaje — v chatu nejsou povolené.';
-                    else if (t.includes('off_platform')) msg = 'Domlouvání prodeje/platby mimo platformu není povoleno.';
+                    if (t.includes('rate_limited')) msg = '⏳ Posíláte zprávy moc rychle — chvíli počkejte.';
+                    else if (t.includes('blocked_word')) msg = '🚫 Zpráva obsahuje zakázaný výraz — nelze ji odeslat.';
+                    else if (t.includes('blocked_contact')) msg = '🚫 Zpráva obsahuje kontaktní údaje — v chatu je nelze poslat.';
+                    else if (t.includes('off_platform')) msg = '🚫 Domlouvání prodeje/platby mimo platformu není povoleno.';
                     else if (t.includes('is_banned') || t.includes('row-level') || t.includes('violates')) msg = 'Nemáte oprávnění psát do chatu.';
-                    showToast(msg, 'warning');
+                    _chatNotice(msg);
                 } else {
                     inp.value = ''; _chatGrow(inp);
                     // AI moderace (fire-and-forget) — když není webhook, spustí ji klient po vložení
@@ -14099,7 +14109,8 @@
         function _renderComposer() {
             const el = document.getElementById('gc-composer'); if (!el) return;
             if (_canPost()) {
-                el.innerHTML = `<div class="flex items-end gap-2">
+                el.innerHTML = `<div id="gc-notice" class="hidden mb-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2 leading-snug"></div>
+                <div class="flex items-end gap-2">
                     <textarea id="gc-input" rows="1" maxlength="500" placeholder="Napište zprávu…" oninput="_chatGrow(this)" onkeydown="_chatKey(event)" class="flex-1 resize-none max-h-24 px-3 py-2.5 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white"></textarea>
                     <button onclick="_chatSend()" id="gc-send" aria-label="Odeslat zprávu" class="shrink-0 w-10 h-10 rounded-full bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19V5m0 0l-7 7m7-7l7 7"/></svg></button>
                 </div>`;
@@ -14151,7 +14162,7 @@
             if (document.getElementById('gc-fab')) return;
             const root = document.createElement('div');
             root.innerHTML = `
-                <button id="gc-fab" onclick="_chatToggle()" aria-label="Otevřít veřejný chat" class="fixed z-[60] bottom-5 right-5 w-14 h-14 rounded-full bg-gradient-to-tr from-sky-500 to-fuchsia-500 text-white shadow-lg shadow-sky-400/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+                <button id="gc-fab" onclick="_chatToggle()" aria-label="Otevřít veřejný chat" class="fixed z-[55] bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-full bg-gradient-to-tr from-sky-500 to-fuchsia-500 text-white shadow-lg shadow-sky-400/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3-3-3z"/></svg>
                     <span id="gc-unread" class="hidden absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-white"></span>
                 </button>
