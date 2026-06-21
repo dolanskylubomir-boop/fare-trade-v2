@@ -13899,6 +13899,16 @@
         const _list = () => document.getElementById('gc-list');
         const _atBottom = () => { const el = _list(); return !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 80); };
         const _scrollBottom = () => { const el = _list(); if (el) el.scrollTop = el.scrollHeight; };
+        // AI moderace zprávy (fire-and-forget). Bez webhooku ji spustí klient po vložení.
+        function _chatModerate(id, token) {
+            try {
+                fetch(`${SUPABASE_URL}/functions/v1/moderate-chat`, {
+                    method: 'POST',
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ record: { id } })
+                }).catch(() => {});
+            } catch(_) {}
+        }
 
         function _updateUnread() {
             const b = document.getElementById('gc-unread'); if (!b) return;
@@ -14003,7 +14013,7 @@
             try {
                 const token = await _ensureValidToken();
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/global_chat_messages`, {
-                    method: 'POST', headers: { ..._hdrs(token), 'Prefer':'return=minimal' },
+                    method: 'POST', headers: { ..._hdrs(token), 'Prefer':'return=representation' },
                     body: JSON.stringify({ body })
                 });
                 if (!r.ok) {
@@ -14015,7 +14025,11 @@
                     else if (t.includes('off_platform')) msg = 'Domlouvání prodeje/platby mimo platformu není povoleno.';
                     else if (t.includes('is_banned') || t.includes('row-level') || t.includes('violates')) msg = 'Nemáte oprávnění psát do chatu.';
                     showToast(msg, 'warning');
-                } else { inp.value = ''; _chatGrow(inp); }
+                } else {
+                    inp.value = ''; _chatGrow(inp);
+                    // AI moderace (fire-and-forget) — když není webhook, spustí ji klient po vložení
+                    try { const rows = await r.json().catch(() => null); const id = Array.isArray(rows) ? rows[0]?.id : rows?.id; if (id) _chatModerate(id, token); } catch(_) {}
+                }
             } catch(e) { showToast('Chyba spojení.','error'); }
             if (btn) btn.disabled = false; inp.disabled = false; inp.focus();
         };
