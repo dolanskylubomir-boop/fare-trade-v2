@@ -2771,6 +2771,12 @@
             img: imgSrc,
             images: (Array.isArray(raw.images) && raw.images.length ? raw.images : [imgSrc]).map(u => safeUrl(u)),
             condition: esc(raw.condition || ''), brand: esc(raw.brand || ''),
+            shipping_methods: Array.isArray(raw.shipping_methods) ? raw.shipping_methods : [],
+            kraj: esc(raw.kraj || ''), mesto: esc(raw.mesto || ''),
+            weight: Number(raw.weight) || 0, dimensions: raw.dimensions || '',
+            video_url: raw.video_url ? safeUrl(raw.video_url) : '', video_status: raw.video_status || '', video_expires_at: raw.video_expires_at || null,
+            allow_direct: raw.allow_direct === true, direct_only: raw.direct_only === true,
+            original_price: Number(raw.original_price) || 0, price_dropped_at: raw.price_dropped_at ? new Date(raw.price_dropped_at).getTime() : 0,
             seller: sellerName, verified: sp.is_verified === true, rating: Number(sp.rating) || 0, rating_count: Number(sp.rating_count) || 0,
             description: esc(raw.description || ''), endTime: raw.expires_at,
             is_top: !!(raw.is_top && raw.top_expires_at && new Date(raw.top_expires_at) > new Date()),
@@ -2882,10 +2888,16 @@
                 const item = {
                     id: esc(raw.id), seller_id: raw.seller_id, type: 'aukce',
                     title: esc(raw.title), price: Number(raw.current_price || raw.starting_price) || 0,
+                    starting_price: Number(raw.starting_price) || 0, current_price: Number(raw.current_price || raw.starting_price) || 0,
                     category: esc(raw.category || ''), subcategory: esc(raw.subcategory || ''),
                     img: (raw.images && raw.images[0]) ? safeUrl(raw.images[0]) : FALLBACK_IMG,
                     images: (Array.isArray(raw.images) ? raw.images : []).map(u => safeUrl(u)),
                     condition: esc(raw.condition || ''), brand: esc(raw.brand || ''),
+                    shipping_methods: Array.isArray(raw.shipping_methods) ? raw.shipping_methods : [],
+                    kraj: esc(raw.kraj || ''), mesto: esc(raw.mesto || ''),
+                    weight: Number(raw.weight) || 0, dimensions: raw.dimensions || '',
+                    video_url: raw.video_url ? safeUrl(raw.video_url) : '', video_status: raw.video_status || '', video_expires_at: raw.video_expires_at || null,
+                    allow_direct: raw.allow_direct === true, direct_only: raw.direct_only === true,
                     seller: sn, verified: sp.is_verified === true,
                     rating: Number(sp.rating) || 0, rating_count: Number(sp.rating_count) || 0,
                     description: esc(raw.description || ''), endTime: raw.end_time,
@@ -2893,7 +2905,7 @@
                     is_top: !!(raw.is_top && raw.top_expires_at && new Date(raw.top_expires_at) > new Date()),
                     top_expires_at: raw.top_expires_at || null, top_paid_kc: raw.top_paid_kc || 0,
                     views_count: raw.views_count || 0, created_at: raw.created_at ? new Date(raw.created_at).getTime() : 0,
-                    payment_type: raw.payment_type || 'escrow', status: raw.status
+                    payment_type: raw.payment_type || 'escrow', status: raw.status, db_status: raw.status || 'aktivní'
                 };
                 if (!dataAukce.find(i => i.id === item.id)) dataAukce.unshift(item);
             }
