@@ -13921,7 +13921,7 @@
     // ══════════════════════════════════════════════════════════
     (function(){
         const PAGE = 50;
-        let _open = false, _subscribed = false, _oldestTs = null, _noMore = false, _loading = false, _unread = 0, _loaded = false;
+        let _open = false, _subscribed = false, _oldestTs = null, _noMore = false, _loading = false, _unread = 0, _loaded = false, _modCount = 0;
         const _seen = new Set();
 
         const _hdrs = (token) => { const h = { 'apikey': SUPABASE_ANON_KEY, 'Content-Type':'application/json' }; if (token) h['Authorization'] = 'Bearer ' + token; return h; };
@@ -13954,6 +13954,39 @@
             if (_unread > 0 && !_open) { b.textContent = _unread > 9 ? '9+' : String(_unread); b.classList.remove('hidden'); }
             else b.classList.add('hidden');
         }
+        // Admin tlačítko „Ke kontrole" — červené + pulzuje s počtem označených
+        function _setModBtn(n) {
+            _modCount = Math.max(0, n | 0);
+            const b = document.getElementById('gc-mod-btn'); if (!b) return;
+            if (window._userRole !== 'admin') { b.classList.add('hidden'); b.classList.remove('inline-flex'); return; }
+            if (_modCount > 0) {
+                b.textContent = '⚠️ Ke kontrole (' + (_modCount > 99 ? '99+' : _modCount) + ')';
+                b.className = 'inline-flex items-center gap-1 text-white bg-red-500 hover:bg-red-600 border border-red-500 text-[11px] font-bold px-2 py-1.5 rounded-lg transition-colors animate-pulse';
+            } else {
+                b.textContent = '⚠️ Ke kontrole';
+                b.className = 'inline-flex items-center gap-1 text-gray-400 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-[11px] font-bold px-2 py-1.5 rounded-lg transition-colors';
+            }
+        }
+        // Načti počet označených zpráv (jen admin)
+        async function _refreshModCount() {
+            if (window._userRole !== 'admin') { _setModBtn(0); return; }
+            try {
+                const token = await _ensureValidToken();
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/global_chat_messages?select=id&flagged=is.true&limit=100`, { headers: _hdrs(token) });
+                const rows = await r.json();
+                _setModBtn(Array.isArray(rows) ? rows.length : 0);
+            } catch(e) { _setModBtn(_modCount); }
+        }
+        // Skoč na zprávu v chatu a zvýrazni ji (z admin fronty)
+        window._chatGotoMsg = function(id) {
+            const m = document.getElementById('gc-mod-modal'); if (m) m.remove();
+            const el = document.querySelector(`#gc-msgs [data-id="${id}"]`);
+            if (!el) { showToast('Zpráva je starší — najdete ji výš v chatu (Načíst starší).', 'info'); return; }
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const bub = el.querySelector('div > div:last-child') || el;
+            el.classList.add('ring-2', 'ring-amber-400', 'rounded-2xl');
+            setTimeout(() => el.classList.remove('ring-2', 'ring-amber-400', 'rounded-2xl'), 2500);
+        };
         function _updateOlderBtn() {
             const w = document.getElementById('gc-older-wrap'); if (!w) return;
             w.classList.toggle('hidden', _noMore || !_loaded);
@@ -14090,6 +14123,7 @@
                     const el = document.querySelector(`#gc-msgs [data-id="${id}"]`); if (el) el.remove();
                     const q = document.querySelector(`#gc-mod-list [data-id="${id}"]`); if (q) q.remove();
                     _seen.delete(id);
+                    if (window._userRole === 'admin') _refreshModCount();
                 } else showToast('Smazání se nepodařilo (nemáte oprávnění?).','warning');
             } catch(e) { showToast('Chyba spojení.','error'); }
         };
@@ -14104,6 +14138,7 @@
                     const badge = document.querySelector(`#gc-msgs [data-id="${id}"] [data-flag]`); if (badge) badge.remove();
                     const clr = document.querySelector(`#gc-msgs [data-id="${id}"] button[aria-label="Ponechat zprávu"]`); if (clr) clr.remove();
                     const q = document.querySelector(`#gc-mod-list [data-id="${id}"]`); if (q) q.remove();
+                    _setModBtn(_modCount - 1);
                     showToast('Zpráva ponechána.','success');
                 } else showToast('Akce se nezdařila.','warning');
             } catch(e) { showToast('Chyba spojení.','error'); }
@@ -14118,10 +14153,11 @@
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_flagged_chat`, { method:'POST', headers: _hdrs(token), body: '{}' });
                 rows = await r.json(); if (!Array.isArray(rows)) rows = [];
             } catch(e) {}
+            _setModBtn(rows.length);
             const items = rows.length ? rows.map(m => `<div data-id="${m.id}" class="border border-amber-100 bg-amber-50/40 rounded-2xl p-3 flex flex-col gap-2">
                     <div class="flex items-center justify-between gap-2"><span class="text-xs font-bold text-gray-600 truncate">${esc(m.display_name||'Uživatel')}</span><span class="text-[10px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">⚠️ ${esc(m.flag_reason||'')}</span></div>
                     <p class="text-sm text-gray-700 break-words" style="white-space:pre-wrap;word-break:break-word">${esc(m.body)}</p>
-                    <div class="flex gap-2 justify-end"><button onclick="_chatClearFlag('${m.id}')" class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">Ponechat</button><button onclick="_chatDelete('${m.id}')" class="text-xs font-bold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">Smazat</button></div>
+                    <div class="flex gap-2 justify-end flex-wrap"><button onclick="_chatGotoMsg('${m.id}')" class="text-xs font-bold text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 px-3 py-1.5 rounded-lg transition-colors">👁 Zobrazit v chatu</button><button onclick="_chatClearFlag('${m.id}')" class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">Ponechat</button><button onclick="_chatDelete('${m.id}')" class="text-xs font-bold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">Smazat</button></div>
                 </div>`).join('') : '<p class="text-center text-gray-400 text-sm py-8">Žádné označené zprávy. ✓</p>';
             const wrap = document.createElement('div');
             wrap.id = 'gc-mod-modal';
@@ -14165,6 +14201,18 @@
                     const el = document.querySelector(`#gc-msgs [data-id="${id}"]`); if (el) el.remove();
                     _seen.delete(id);
                 })
+                .on('postgres_changes', { event:'UPDATE', schema:'public', table:'global_chat_messages' }, (p) => {
+                    const m = p.new; if (!m || window._userRole !== 'admin') return;
+                    // AI právě označila zprávu → ⚠️ marker na zprávě + autoritativní přepočet (červené počítadlo)
+                    if (m.flagged === true) {
+                        const row = document.querySelector(`#gc-msgs [data-id="${m.id}"]`);
+                        if (row && !row.querySelector('[data-flag]')) {
+                            const line = row.querySelector('.flex.items-center.gap-1\\.5');
+                            if (line) { const s = document.createElement('span'); s.setAttribute('data-flag',''); s.className='text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 rounded-full'; s.title=m.flag_reason||'označeno AI'; s.textContent='⚠️ '+(m.flag_reason||''); line.appendChild(s); }
+                        }
+                    }
+                    _refreshModCount();
+                })
                 .subscribe();
         }
 
@@ -14173,8 +14221,7 @@
             const p = document.getElementById('gc-panel'), b = document.getElementById('gc-backdrop');
             if (b) b.classList.remove('hidden');
             if (p) { p.classList.remove('translate-y-full','sm:translate-x-full','pointer-events-none'); p.classList.add('pointer-events-auto'); }
-            const mb = document.getElementById('gc-mod-btn');
-            if (mb) { const adm = window._userRole === 'admin'; mb.classList.toggle('hidden', !adm); mb.classList.toggle('inline-flex', adm); }
+            _refreshModCount();
             _renderComposer();
             _subscribe();
             if (!_loaded) _load(); else _scrollBottom();
