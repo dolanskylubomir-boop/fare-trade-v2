@@ -1779,7 +1779,7 @@
 
     window.renderSearchSort = function(view, cat) {
         // Prodejci v aktuálním pohledu/kategorii (bez vlastních inzerátů) — pro filtr „Prodejce"
-        const _sellSrc = (view === 'aukce') ? (window.dataAukce || []) : (window.dataPevnaCena || []);
+        const _sellSrc = (view === 'aukce') ? (dataAukce || []) : (dataPevnaCena || []);
         const _sellMap = {};
         _sellSrc.forEach(i => {
             if ((i.db_status || 'aktivní') !== 'aktivní') return;
