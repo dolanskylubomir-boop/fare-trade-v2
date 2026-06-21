@@ -695,7 +695,7 @@
                 <div class="flex flex-col gap-1" id="edit-direct-section" style="display:none">
                     <label class="flex items-start gap-3 bg-gray-50 px-3 py-2.5 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
                         <input type="checkbox" id="edit-allow-direct" class="w-4 h-4 text-sky-500 rounded focus:ring-sky-400 mt-0.5">
-                        <span class="text-xs text-gray-600 leading-relaxed"><strong class="text-gray-800">🤝 Povolit i prodej bez escrow</strong> — kupující si u pokladny vybere. Cenu zboží si pak vyřídíte přímo (bez ochrany escrow); platformě se platí jen provize + doprava.</span>
+                        <span class="text-xs text-gray-600 leading-relaxed"><strong class="text-gray-800">🤝 Povolit i prodej bez escrow (na dobírku)</strong> — kupující si u pokladny vybere. Platformě zaplatí jen provizi + dopravu předem; cenu zboží zaplatí <strong>na dobírku při převzetí</strong> (bez ochrany escrow).</span>
                     </label>
                 </div>
                 <div class="flex flex-col gap-1" id="edit-video-section">
@@ -1658,6 +1658,12 @@
             { icon:'⚖️', title:'Otevři spor', text:'V objednávce klikni „Spor", popiš problém a přilož aspoň 2 fotky.', mock:_mockBtn('⚖️ Zahájit spor','bg-red-500') },
             { icon:'🕵️', title:'Admin rozhodne', text:'Administrátor posoudí důkazy obou stran (vč. fotek/videa odeslání) a rozhodne do 48 hodin.', mock:_mockBox('Spor v řešení — rozhodnutí do 48 h') },
             { icon:'↩️', title:'Vrácení peněz', text:'Při výhře kupujícího se vystaví předplacený štítek na vratku a vrátí se cena + provize + původní doprava (mínus zpětná doprava).', mock:'↩️ Peníze zpět do peněženky' },
+        ]},
+        direct: { icon:'🤝', color:'gray', title:'Prodej bez escrow (na dobírku)', intro:'Levnější varianta bez úschovy. Platformě zaplatíte jen provizi a dopravu předem; cenu zboží zaplatíte při převzetí na dobírku přímo prodejci. Bez escrow ochrany.', steps:[
+            { icon:'💳', title:'Zaplatíte platformě provizi + dopravu', text:'U pokladny zvolíte „Bez escrow". Hned zaplatíte jen provizi (3 % + 29 Kč) a dopravu — tím se objedná přeprava a vygeneruje štítek.', mock:_mockBox('K úhradě teď: provize + doprava') },
+            { icon:'📦', title:'Prodejce odešle do 2 prac. dnů', text:'Pokud neodešle, štítek propadne a vrátíme vám provizi + dopravu (zaplacená služba neproběhla).', mock:_mockBox('⏱ Odeslat do 2 pracovních dnů') },
+            { icon:'💵', title:'Cenu zboží zaplatíte na dobírku', text:'Při převzetí zaplatíte cenu zboží dopravci (dobírka) — ten ji předá prodejci. Platforma cenu zboží nedrží ani neprovádí.', mock:_mockBox('💵 Dobírka při převzetí → prodejci') },
+            { icon:'⚠️', title:'Po převzetí bez ochrany', text:'Platforma neručí za stav ani doručení. Případné vady řešíte přímo s prodejcem (práva spotřebitele uplatníte vůči němu). Chcete plnou ochranu? Zvolte escrow.', mock:_mockBox('⚠️ Bez escrow = bez úschovy') },
         ]},
     };
 
@@ -4529,7 +4535,7 @@
             </div>
             <h3 class="text-sm sm:text-base font-bold text-gray-800 line-clamp-2 leading-tight">${item.title}</h3>
             ${item.kraj?`<p class="text-[10px] text-gray-400 mt-1 flex items-center gap-0.5 truncate">📍 ${esc(item.kraj)} kraj</p>`:''}
-            ${window._sellerBadges(item)}
+            ${window._sellerBadges(item)}${window._directBadge(item)}
             ${item.description ? `<p onclick="event.stopPropagation();showDescModal(event,'${item.id}')" class="text-[11px] text-gray-400 mt-0.5 truncate cursor-pointer hover:text-sky-500 transition-colors leading-snug" title="Zobrazit celý popis">${item.description}</p>` : '<div class="mt-0.5 h-4"></div>'}
             <div class="mt-1 flex items-center justify-between text-[10px] text-gray-400 gap-1">
                 <span class="flex items-center gap-1 flex-wrap min-w-0">${isAukce ? window._auctionTimePill(timeInfo) + window._bidChip(item) : ''}</span>
@@ -4584,7 +4590,7 @@
                 </div>
                 <h3 class="text-sm sm:text-base font-bold text-gray-800 line-clamp-2 leading-tight">${item.title}</h3>
                 ${item.kraj ? `<p class="text-[10px] text-gray-400 mt-0.5 flex items-center gap-0.5 truncate">📍 ${esc(item.kraj)} kraj</p>` : ''}
-                ${window._sellerBadges(item)}
+                ${window._sellerBadges(item)}${window._directBadge(item)}
                 ${item.description ? `<p onclick="event.stopPropagation();showDescModal(event,'${item.id}')" class="hidden sm:block text-xs text-gray-400 mt-1 line-clamp-2 cursor-pointer hover:text-sky-500 transition-colors leading-snug" title="Zobrazit celý popis">${item.description}</p>` : ''}
                 <div class="flex items-center gap-2 flex-wrap text-[10px] text-gray-400 mt-1">
                     ${isAukce ? window._auctionTimePill(timeInfo) + window._bidChip(item) : ''}
@@ -6902,6 +6908,18 @@
                 </div>`).join('')}
             </div>
 
+            ${window._directEnabled() ? `<!-- Prodej bez escrow — upozornění -->
+            <div class="bg-amber-50 border-2 border-amber-200 rounded-[2rem] p-6 md:p-8 mb-10">
+                <h3 class="text-xl font-extrabold text-amber-900 mb-2 flex items-center gap-2">🤝 Pozor: prodej bez escrow (na dobírku)</h3>
+                <p class="text-sm text-amber-800 mb-4">U některých inzerátů můžete u pokladny zvolit <strong>prodej bez escrow</strong>. Je levnější na provizi, ale <strong>nejste chránění úschovou</strong>. Co to znamená:</p>
+                <ul class="flex flex-col gap-2.5 text-sm text-amber-900">
+                    <li class="flex items-start gap-2"><span class="shrink-0">💸</span><span>Platformě zaplatíte předem jen <strong>provizi + dopravu</strong>; <strong>cenu zboží zaplatíte na dobírku</strong> při převzetí dopravci (ten ji předá prodejci).</span></li>
+                    <li class="flex items-start gap-2"><span class="shrink-0">📦</span><span>Prodejce musí odeslat <strong>do 2 pracovních dnů</strong>. Když neodešle, štítek propadne a <strong>vrátíme vám provizi + dopravu</strong>.</span></li>
+                    <li class="flex items-start gap-2"><span class="shrink-0">⚠️</span><span>Po odeslání už <strong>platforma neručí</strong> a nic nevrací — případné vady či neshody řešíte <strong>přímo s prodejcem</strong> (práva spotřebitele uplatníte vůči němu).</span></li>
+                    <li class="flex items-start gap-2"><span class="shrink-0">🔒</span><span>Chcete plnou ochranu? Zvolte v pokladně <strong>variantu s escrow</strong> — doporučujeme ji.</span></li>
+                </ul>
+            </div>` : ''}
+
             <!-- Zlatá pravidla -->
             <div class="bg-amber-50 border-2 border-amber-200 rounded-[2rem] p-6 md:p-8 mb-10">
                 <h3 class="text-xl font-extrabold text-amber-900 mb-2 flex items-center gap-2">🥇 Zlatá pravidla proti podvodníkům</h3>
@@ -7101,6 +7119,35 @@
                     </div>`).join('')}
                 </div>
             </div>
+
+            ${window._directEnabled() ? `<!-- Prodej bez escrow -->
+            <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] p-7 md:p-10 shadow-lg border border-white/50 mb-5">
+                <div class="flex items-center gap-3 mb-5">
+                    <span class="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center text-xl shrink-0">🤝</span>
+                    <h3 class="text-xl md:text-2xl font-extrabold text-pastel-text">Escrow vs. prodej bez escrow</h3>
+                </div>
+                <p class="text-gray-500 text-sm mb-5">U inzerátů, kde to prodejce povolí, si u pokladny vyberete způsob platby. <strong>Escrow doporučujeme</strong> — jste plně chránění.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="rounded-2xl border border-sky-100 bg-sky-50/50 p-5">
+                        <p class="font-extrabold text-sky-700 mb-2 flex items-center gap-2">🔒 S escrow <span class="text-[10px] bg-sky-500 text-white px-2 py-0.5 rounded-full">doporučeno</span></p>
+                        <ul class="text-sm text-gray-600 flex flex-col gap-1.5">
+                            <li>✓ Peníze drží FairTrade v úschově</li>
+                            <li>✓ Uvolní se prodejci až po potvrzení doručení</li>
+                            <li>✓ Spor s rozhodnutím admina, možnost vrácení</li>
+                            <li class="text-gray-400">Poplatek: 5 % + ${ESCROW_FEE} Kč</li>
+                        </ul>
+                    </div>
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                        <p class="font-extrabold text-gray-700 mb-2 flex items-center gap-2">🤝 Bez escrow (na dobírku)</p>
+                        <ul class="text-sm text-gray-600 flex flex-col gap-1.5">
+                            <li>• Platformě platíte předem jen <strong>provizi + dopravu</strong> (3 % + 29 Kč)</li>
+                            <li>• <strong>Cenu zboží zaplatíte na dobírku</strong> při převzetí dopravci</li>
+                            <li>• Prodejce musí odeslat <strong>do 2 pracovních dnů</strong> — jinak štítek propadne a vrátíme vám provizi + dopravu</li>
+                            <li class="text-amber-700">⚠️ Po odeslání <strong>bez ochrany</strong> — spory řešíte přímo s prodejcem (práva spotřebitele uplatníte vůči němu)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>` : ''}
 
             <!-- DAC7 -->
             <div class="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-100 rounded-[1.5rem] p-7 shadow-sm mb-5">
@@ -7339,7 +7386,7 @@
                     </ol>
                     <p class="mb-2">Pokud Kupující nepotvrdí příjem ani neotevře spor do <strong>14 dní</strong> od data odeslání, Provozovatel platbu uvolní automaticky. Escrow chrání obě strany: Kupujícího před podvodem Prodávajícího, Prodávajícího před neoprávněnými spory díky fotografické dokumentaci zásilky.</p>
                     <p class="mb-2"><strong>Osobní předání:</strong> Je-li u objednávky zvoleno osobní předání, probíhá platba <strong>vždy přes escrow</strong> — Provozovatel nedoporučuje platby mimo Platformu (ztrácíte ochranu). Přesné místo a čas předání si strany domluví v <strong>chatu k objednávce</strong>, který se zpřístupní po zaplacení. Kupující po fyzickém převzetí zboží potvrdí doručení v aplikaci, čímž se uvolní platba Prodávajícímu. Komunikace musí zůstat v rámci Platformy a slouží i jako podklad pro případný spor; po dohodě lze konverzaci uzavřít, záznam zůstává zachován.</p>
-                    <p class="mb-2"><strong>Přímý prodej (bez escrow):</strong> Pokud Provozovatel tuto možnost zpřístupní a Prodávající ji u inzerátu povolí, může Kupující v pokladně zvolit <strong>prodej bez escrow</strong>. Kupující v takovém případě hradí Provozovateli <strong>pouze provizi a cenu dopravy</strong> (na účet Provozovatele) jako odměnu za zprostředkování a vystavení přepravního štítku; <strong>tato částka není součástí escrow úschovy</strong>. <strong>Cenu zboží si Kupující a Prodávající vypořádají přímo mezi sebou</strong> mimo Platformu. Provozovatel u přímého prodeje <strong>neposkytuje escrow ochranu</strong> a neručí za zaplacení ceny zboží, jeho stav ani doručení.</p>
+                    <p class="mb-2"><strong>Přímý prodej (bez escrow, na dobírku):</strong> Pokud Provozovatel tuto možnost zpřístupní a Prodávající ji u inzerátu povolí, může Kupující v pokladně zvolit <strong>prodej bez escrow</strong>. Kupující v takovém případě hradí Provozovateli <strong>předem pouze provizi a cenu dopravy</strong> (na účet Provozovatele) jako odměnu za zprostředkování a vystavení přepravního štítku; <strong>tato částka není součástí escrow úschovy</strong>. <strong>Cenu zboží hradí Kupující na dobírku při převzetí zásilky</strong> dopravci, který ji vyplatí Prodávajícímu; Provozovatel cenu zboží nedrží ani neinkasuje. Provozovatel u přímého prodeje <strong>neposkytuje escrow ochranu</strong> a neručí za stav zboží ani doručení.</p>
                     <p class="mb-2"><strong>Lhůta na odeslání.</strong> Po zaplacení provize a dopravy se vygeneruje přepravní štítek a Prodávající je povinen zboží <strong>odeslat do 2 pracovních dnů</strong>. Neodešle-li v této lhůtě, <strong>štítek se deaktivuje a Prodávající obdrží výstrahu</strong>. Pokud zboží neodešle ani poté, Provozovatel objednávku zruší a <strong>vrátí Kupujícímu uhrazenou provizi a dopravu</strong> (zaplacená služba nebyla poskytnuta); Prodávajícímu může být udělen postih a opakované neodeslání může vést k omezení nebo zrušení účtu.</p>
                     <p><strong>Po odeslání.</strong> Jakmile je zboží odesláno, považuje se služba Provozovatele (zprostředkování a doprava) za <strong>splněnou</strong> — Provozovatel již <strong>neručí Kupujícímu ani Prodávajícímu</strong> za další průběh obchodu a <strong>uhrazenou provizi ani dopravu nevrací</strong>. Případné vady, nedoručení či neshody jsou výlučně záležitostí mezi Kupujícím a Prodávajícím a řeší je přímo. Tím nejsou dotčena <strong>práva spotřebitele</strong>, která Kupující uplatňuje <strong>přímo vůči Prodávajícímu</strong> dle zákona č. 89/2012 Sb. a zákona č. 634/1992 Sb.; Provozovatel zde vystupuje pouze jako zprostředkovatel, není smluvní stranou kupní smlouvy a může poskytnout součinnost (mediaci). Provozovatel důrazně doporučuje escrow variantu; přímý prodej je dobrovolná volba na vlastní odpovědnost obou stran.</p>
                 </section>
@@ -7745,7 +7792,7 @@
                     <p class="text-xs text-gray-400 mb-3 leading-relaxed">Escrow ochrana je vždy k dispozici. Můžete navíc povolit i <strong>prodej bez escrow</strong> — kupující si pak u pokladny vybere.</p>
                     <label class="flex items-start gap-3 bg-gray-50 px-4 py-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
                         <input type="checkbox" id="ad-allow-direct" class="w-4 h-4 text-sky-500 rounded focus:ring-sky-400 mt-0.5">
-                        <span class="text-xs text-gray-600 leading-relaxed"><strong class="text-gray-800">Povolit i prodej bez escrow (přímý prodej)</strong><br>Kupující zaplatí platformě jen provizi a dopravu; <strong>cenu zboží si vyřídíte přímo mezi sebou</strong> (bez úschovy = bez ochrany escrow). Escrow varianta zůstává nabídnutá taky.</span>
+                        <span class="text-xs text-gray-600 leading-relaxed"><strong class="text-gray-800">Povolit i prodej bez escrow (na dobírku)</strong><br>Kupující zaplatí platformě jen provizi a dopravu předem; <strong>cenu zboží zaplatí na dobírku při převzetí</strong> (bez úschovy = bez ochrany escrow). Escrow varianta zůstává nabídnutá taky.</span>
                     </label>
                 </div>` : ''}
                 <div id="ad-video-section" style="${window._videoEnabled()?'':'display:none'}" class="bg-white/70 rounded-3xl border border-gray-100 p-5 mb-2 shadow-sm">
@@ -7875,6 +7922,7 @@
                             <div>
                                 <p class="font-bold text-gray-800 text-sm flex items-center gap-1">${item.seller}${item.verified?`<svg class="w-4 h-4 text-sky-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`:''}</p>
                                 <p class="text-xs ${timeInfo.urgent?'text-red-600 font-bold countdown-urgent':timeInfo.urgent?'text-red-500':'text-gray-500'}">⏱ ${timeInfo.text} · <button id="detail-seller-rating-${item.seller_id}" onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
+                                ${window._directBadge(item)}
                             </div>
                             ${window._favSellerBtn(item.seller_id, item.seller)}
                         </div>
@@ -7894,6 +7942,7 @@
                                 </div>
                             </div>
                         </div>
+                        ${!isOwner ? window._directDetailBlock(item) : ''}
                         ${isOwner ? `
                             <div class="bg-yellow-50 border border-yellow-200 p-5 rounded-3xl">
                                 <h3 class="font-bold text-yellow-800 mb-3 text-sm">Správa inzerátu</h3>
@@ -8010,7 +8059,7 @@
                             <div>
                                 <p class="font-bold text-gray-800 text-sm flex items-center gap-1">${item.seller}${item.verified?`<svg class="w-4 h-4 text-sky-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`:''}</p>
                                 <p class="text-xs text-gray-400"><button id="detail-seller-rating-${item.seller_id}" onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
-                                ${window._sellerBadges(item)}
+                                ${window._sellerBadges(item)}${window._directBadge(item)}
                             </div>
                             ${window._favSellerBtn(item.seller_id, item.seller)}
                         </div>
@@ -8031,6 +8080,7 @@
                                 </div>
                             </div>
                         </div>
+                        ${!isOwner ? window._directDetailBlock(item) : ''}
                         ${!isOwner && _offersPickup(item.shipping_methods) ? `<div class="bg-sky-50 border border-sky-200 rounded-2xl p-4 mb-5 flex items-start gap-3 text-sm"><span class="text-xl shrink-0">🤝</span><div><p class="font-bold text-sky-800">Možné osobní předání (${esc(item.kraj||'')} kraj)</p><p class="text-sky-600 text-xs mt-0.5">I při osobním předání platíte přes platformu (escrow) — peníze se prodejci uvolní až po vašem potvrzení převzetí. <strong>Přesné místo a kontakt se odemknou až po zaplacení.</strong> Domlouvání platby mimo platformu je porušení pravidel a ztráta ochrany.</p></div></div>` : ''}
                         ${isOwner ? `
                             <div class="bg-yellow-50 border border-yellow-200 p-5 rounded-3xl">
@@ -8169,6 +8219,10 @@
         const it = [...(dataAukce||[]), ...(dataPevnaCena||[])].find(x => String(x.id) === String(id));
         return it ? (it.shipping_methods || []) : [];
     };
+    window._lookupAllowDirect = function(id) {
+        const it = [...(dataAukce||[]), ...(dataPevnaCena||[])].find(x => String(x.id) === String(id));
+        return !!(it && it.allow_direct);
+    };
     // Vejde se zásilka k dopravci? (váha i rozměr; neznámé hodnoty neomezují)
     window._carrierFits = function(d, kg, dimsStr) {
         if (!d || !d.tierKey) return true;
@@ -8279,6 +8333,45 @@
     window._videoEnabled = function() { return !!(window._appConfig && window._appConfig.video_enabled !== false); };
     // Prodej bez escrow (přímý prodej) — volitelný režim, default vypnuto
     window._directEnabled = function() { return !!(window._appConfig && window._appConfig.direct_enabled === true); };
+    // Štítek „i bez escrow" na kartě (klik → vysvětlení); jen když režim zapnut a inzerát to povoluje
+    window._directBadge = function(item) {
+        if (!window._directEnabled() || !item || !item.allow_direct) return '';
+        return `<button onclick="event.stopPropagation();showGuide('direct')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors" title="Lze koupit i bez escrow (na dobírku) — jak to funguje">🤝 i bez escrow ⓘ</button>`;
+    };
+    // Rozbalovací blok v detailu inzerátu — rizika, rozpad ceny, jak to funguje (dobírka)
+    window._directDetailBlock = function(item) {
+        if (!window._directEnabled() || !item || !item.allow_direct) return '';
+        const price = Number(item.price) || 0;
+        const fee = Math.round(price * 0.03) + 29;
+        return `<div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-5">
+            <button type="button" onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chev').classList.toggle('rotate-90')" class="w-full flex items-center justify-between gap-2 font-bold text-gray-800 text-sm">
+                <span class="flex items-center gap-2">🤝 Lze koupit i bez escrow (na dobírku)</span>
+                <svg class="chev w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </button>
+            <div class="hidden mt-3 flex flex-col gap-3">
+                <div>
+                    <p class="font-bold text-gray-700 mb-1.5 text-sm">💰 Rozpad ceny (bez escrow)</p>
+                    <div class="bg-white rounded-xl border border-gray-100 p-3 flex flex-col gap-1 text-xs">
+                        <div class="flex justify-between"><span class="text-gray-500">Provize platformě (3 % + 29 Kč)</span><span class="font-semibold">${fee.toLocaleString('cs-CZ')} Kč</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Doprava</span><span class="font-semibold text-gray-400">vyberete v pokladně</span></div>
+                        <div class="flex justify-between border-t border-gray-100 pt-1 mt-1"><span class="text-gray-600">Zaplatíte teď platformě</span><span class="font-bold">provize + doprava</span></div>
+                        <div class="flex justify-between text-emerald-700"><span>💵 Cena zboží — dobírka při převzetí</span><span class="font-bold">${price.toLocaleString('cs-CZ')} Kč</span></div>
+                    </div>
+                </div>
+                <div>
+                    <p class="font-bold text-gray-700 mb-1.5 text-sm">📦 Jak to funguje</p>
+                    <ol class="list-decimal pl-5 text-xs text-gray-600 flex flex-col gap-1">
+                        <li>U pokladny zvolíte „Bez escrow" a zaplatíte platformě <strong>provizi + dopravu</strong> (tím se objedná přeprava).</li>
+                        <li>Prodejce zboží odešle <strong>do 2 pracovních dnů</strong>. Když neodešle, štítek propadne a <strong>vrátíme vám provizi + dopravu</strong>.</li>
+                        <li>Při převzetí zaplatíte <strong>cenu zboží na dobírku</strong> dopravci — ten ji předá prodejci. Platforma cenu zboží nedrží.</li>
+                    </ol>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 leading-relaxed">
+                    ⚠️ <strong>Rizika:</strong> Bez escrow nejste chránění úschovou. Po převzetí <strong>platforma neručí</strong> za stav zboží ani neshody — řešíte je <strong>přímo s prodejcem</strong> (práva spotřebitele uplatníte vůči němu). Chcete plnou ochranu? V pokladně zvolte <strong>variantu s escrow</strong> — doporučujeme.
+                </div>
+            </div>
+        </div>`;
+    };
     // Veřejně viditelné video = zaplacené (active) a neexpirované
     window._videoVisible = function(item) {
         if (!window._videoEnabled() || !item || !item.video_url) return false;
@@ -8813,7 +8906,8 @@
             ? `<span>Provize (3 % + 29 Kč)</span><span>${fee.toLocaleString('cs-CZ')} Kč</span>`
             : `<span class="flex items-center gap-1">Ochrana escrow (5 % + ${ESCROW_FEE} Kč)</span><span>${fee.toLocaleString('cs-CZ')} Kč</span>`;
         const subLbl = document.getElementById('checkout-sub-label');
-        if (subLbl) subLbl.textContent = direct ? 'Zboží (platíte přímo prodejci)' : 'Zboží';
+        const baseLbl = window._checkoutSubLabel || 'Zboží';
+        if (subLbl) subLbl.textContent = direct ? (baseLbl + ' (dobírka při převzetí)') : baseLbl;
         const totalEl = document.getElementById('checkout-total');
         const btn = document.getElementById('create-order-btn');
         if (totalEl) totalEl.textContent = total.toLocaleString('cs-CZ') + ' Kč';
@@ -8829,7 +8923,7 @@
         });
         const note = document.getElementById('checkout-mode-note');
         if (note) note.innerHTML = window._checkoutMode === 'direct'
-            ? '⚠️ <strong>Bez escrow ochrany.</strong> Platformě zaplatíte jen provizi + dopravu; <strong>cenu zboží pošlete prodejci přímo</strong> (domluva v chatu po zaplacení). Nechrání vás escrow.'
+            ? '⚠️ <strong>Bez escrow ochrany.</strong> Platformě zaplatíte teď jen provizi + dopravu; <strong>cenu zboží zaplatíte na dobírku při převzetí</strong> dopravci. Nechrání vás escrow.'
             : '🔒 <strong>S escrow ochranou.</strong> Peníze držíme v úschově a uvolníme prodejci až po potvrzení doručení.';
         if (_checkoutCarrier) selectCarrier(_checkoutCarrier.id, _checkoutCarrier.price);
     };
@@ -8891,7 +8985,7 @@
 
     window.confirmDelivery = async function(orderId, sellerId, paymentType) {
         const msg = paymentType === 'direct'
-            ? 'Potvrzujete převzetí zásilky? Objednávka se dokončí. (Platba bez escrow — cenu zboží řešíte přímo s prodejcem.)'
+            ? 'Potvrzujete převzetí zásilky? Objednávka se dokončí. (Platba bez escrow — cenu zboží jste hradili na dobírku při převzetí.)'
             : 'Potvrzujete přijetí zásilky? Tímto uvolníte platbu prodejci.';
         if (!confirm(msg)) return;
         const token = await _ensureValidToken();
@@ -9328,14 +9422,14 @@
             const h = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token };
             const st = '&status=in.(' + ESCROW_STATUSES.join(',') + ')';
             if (elSell) {
-                const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?seller_id=eq.' + window.currentUser.id + st + '&select=subtotal', { headers: h });
+                const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?seller_id=eq.' + window.currentUser.id + st + '&payment_type=eq.escrow&select=subtotal', { headers: h });
                 const rows = await r.json();
                 const sum = Array.isArray(rows) ? rows.reduce(function(s,o){ return s + (Number(o.subtotal)||0); }, 0) : 0;
                 elSell.textContent = sum.toLocaleString('cs-CZ') + ' Kč';
                 elSell.className = 'text-sm font-black ' + (sum > 0 ? 'text-indigo-700' : 'text-gray-400');
             }
             if (elBuy) {
-                const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?buyer_id=eq.' + window.currentUser.id + st + '&select=total', { headers: h });
+                const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?buyer_id=eq.' + window.currentUser.id + st + '&payment_type=eq.escrow&select=total', { headers: h });
                 const rows = await r.json();
                 const sum = Array.isArray(rows) ? rows.reduce(function(s,o){ return s + (Number(o.total)||0); }, 0) : 0;
                 elBuy.textContent = sum.toLocaleString('cs-CZ') + ' Kč';
@@ -9355,6 +9449,7 @@
             const col = isSell ? 'seller_id' : 'buyer_id';
             const r = await fetch(SUPABASE_URL + '/rest/v1/objednavky?' + col + '=eq.' + window.currentUser.id
                 + '&status=in.(' + ESCROW_STATUSES.join(',') + ')'
+                + '&payment_type=eq.escrow'
                 + '&select=id,status,subtotal,platform_fee,shipping_fee,total,created_at,objednavka_polozky(title)&order=created_at.desc', {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
             });
@@ -9522,6 +9617,8 @@
         const _cartMethods = group.items.every(i => (window._lookupMethods(i.id)||[]).some(m => String(m).toLowerCase().includes('osobní'))) ? ['Osobní předání'] : [];
         const escrowFee = Math.round(sub * 0.05) + 49;
         _checkoutCarrier = null;
+        window._checkoutMode = 'escrow';
+        window._checkoutSubLabel = 'Zboží';
         const addressForm = `<div class="bg-gray-50 rounded-3xl p-5">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-bold text-pastel-text flex items-center gap-2"><svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Doručovací adresa</h3>
@@ -9583,10 +9680,10 @@
         return `<div class="w-full max-w-lg mx-auto bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
             <button onclick="${back}" class="mb-5 text-pink-500 font-bold hover:text-pink-600 flex items-center gap-2">← Zpět</button>
             <h2 class="text-2xl font-extrabold text-pastel-text mb-1">Platba objednávky</h2>
-            <p class="text-sm text-gray-500 mb-5">${ctx.mode==='direct' ? '🤝 <strong>Bez escrow.</strong> Platformě hradíte jen provizi a dopravu; <strong>cenu zboží pošlete prodejci přímo</strong> (domluva v chatu po zaplacení). Nevztahuje se escrow ochrana.' : '🔒 Platba je chráněna escrow — peníze se uvolní prodejci až po vašem potvrzení doručení.'}</p>
+            <p class="text-sm text-gray-500 mb-5">${ctx.mode==='direct' ? '🤝 <strong>Bez escrow.</strong> Platformě teď hradíte jen provizi a dopravu; <strong>cenu zboží zaplatíte na dobírku při převzetí</strong> dopravci. Nevztahuje se escrow ochrana.' : '🔒 Platba je chráněna escrow — peníze se uvolní prodejci až po vašem potvrzení doručení.'}</p>
             <div class="bg-gray-50 rounded-2xl p-4 mb-5 flex flex-col gap-1.5 text-sm">
                 ${ctx.items.map(i=>`<div class="flex justify-between gap-2"><span class="truncate">${esc(i.title)}</span><span class="font-semibold shrink-0">${Number(i.price).toLocaleString('cs-CZ')} Kč</span></div>`).join('')}
-                <div class="flex justify-between text-gray-500 border-t border-gray-200 pt-2 mt-1"><span>Zboží${ctx.mode==='direct'?' (platíte přímo prodejci)':''}</span><span>${ctx.sub.toLocaleString('cs-CZ')} Kč</span></div>
+                <div class="flex justify-between text-gray-500 border-t border-gray-200 pt-2 mt-1"><span>Zboží${ctx.mode==='direct'?' (dobírka při převzetí)':''}</span><span>${ctx.sub.toLocaleString('cs-CZ')} Kč</span></div>
                 <div class="flex justify-between text-gray-500"><span>Doprava</span><span>${ctx.shipping.toLocaleString('cs-CZ')} Kč</span></div>
                 <div class="flex justify-between text-gray-500"><span>${ctx.mode==='direct'?'Provize 3 % + 29 Kč':'Provize 5% + escrow'}</span><span>${ctx.fee.toLocaleString('cs-CZ')} Kč</span></div>
                 <div class="flex justify-between font-extrabold text-pink-600 text-base border-t border-gray-200 pt-2 mt-1"><span>${ctx.mode==='direct'?'K úhradě platformě':'Celkem k úhradě'}</span><span>${ctx.total.toLocaleString('cs-CZ')} Kč</span></div>
@@ -9627,6 +9724,7 @@
         if (isReserved) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50 text-center"><button onclick="navigate('pevna-cena-detail/${item.id}')" class="mb-6 text-pink-500 font-bold hover:text-pink-600 flex items-center gap-2 mx-auto justify-center">← Zpět na detail</button><div class="text-5xl mb-4">🔒</div><h2 class="text-xl font-bold text-gray-800 mb-2">Položka je rezervována</h2><p class="text-gray-500 text-sm">Jiný kupující momentálně dokončuje objednávku. Zkuste to za <strong>${_reserveCountdown(item.reserved_until)}</strong>.</p></div>`;
         _checkoutCarrier = null;
         window._checkoutMode = 'escrow';
+        window._checkoutSubLabel = 'Zboží';
         const _canDirect = window._directEnabled() && item.allow_direct;
         return `<div class="w-full bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
             <button onclick="navigate('pevna-cena-detail/${item.id}')" class="mb-5 text-pink-500 font-bold hover:text-pink-600 flex items-center gap-2">← Zpět na detail</button>
@@ -9751,6 +9849,9 @@
             const expired = new Date(order.created_at).getTime() + 2 * 3600000 < Date.now();
             const inputCls = 'w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-amber-400 bg-white text-sm';
             const labelCls = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide';
+            window._checkoutMode = 'escrow';
+            window._checkoutSubLabel = 'Vítězná cena';
+            const _canDir = window._directEnabled() && window._lookupAllowDirect(order.auction_id);
             container.innerHTML = `
                 ${expired ? `<div class="bg-red-50 border border-red-200 rounded-2xl p-4 mb-5 text-center"><p class="text-red-600 font-bold">Čas na platbu vypršel. Objednávka bude zrušena automaticky.</p></div>` : ''}
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
@@ -9780,13 +9881,21 @@
                                 <div class="flex-1 min-w-0"><p class="font-bold text-gray-800 text-sm truncate">${item.title || 'Aukce'}</p><p class="text-xs text-amber-600 font-semibold mt-0.5">🏆 Vítězná nabídka</p></div>
                                 <span class="font-extrabold text-amber-700 shrink-0 whitespace-nowrap">${Number(order.subtotal || 0).toLocaleString('cs-CZ')} Kč</span>
                             </div>
+                            ${_canDir ? `<div class="mb-4">
+                                <p class="text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Způsob platby</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button" data-paymode="escrow" onclick="_setCheckoutMode('escrow')" class="border-2 border-sky-400 bg-sky-50 rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🔒 S escrow</span><span class="block text-[10px] text-gray-500">5 % + ${ESCROW_FEE} Kč · plná ochrana</span></button>
+                                    <button type="button" data-paymode="direct" onclick="_setCheckoutMode('direct')" class="border-2 border-gray-200 bg-white rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🤝 Bez escrow</span><span class="block text-[10px] text-gray-500">3 % + 29 Kč · na dobírku</span></button>
+                                </div>
+                                <div id="checkout-mode-note" class="mt-2 text-[11px] leading-relaxed text-gray-500 bg-white border border-gray-100 rounded-xl px-3 py-2">🔒 <strong>S escrow ochranou.</strong> Peníze držíme v úschově a uvolníme prodejci až po potvrzení doručení.</div>
+                            </div>` : ''}
                             <div class="flex flex-col gap-2 text-sm mb-4 border-b border-amber-200 pb-3">
-                                <div class="flex justify-between"><span class="text-gray-500">Vítězná cena</span><span id="checkout-subtotal" data-val="${order.subtotal || 0}" class="font-semibold">${Number(order.subtotal || 0).toLocaleString('cs-CZ')} Kč</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Poplatek platformy</span><span class="font-semibold">${Number(order.platform_fee || 0).toLocaleString('cs-CZ')} Kč</span></div>
+                                <div class="flex justify-between"><span id="checkout-sub-label" class="text-gray-500">Vítězná cena</span><span id="checkout-subtotal" data-val="${order.subtotal || 0}" class="font-semibold">${Number(order.subtotal || 0).toLocaleString('cs-CZ')} Kč</span></div>
+                                <div id="checkout-fee-row" class="flex justify-between"><span class="text-gray-500">Poplatek platformy</span><span class="font-semibold">${Number(order.platform_fee || 0).toLocaleString('cs-CZ')} Kč</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Doprava</span><span id="checkout-shipping-fee" class="font-semibold text-gray-400">— Kč</span></div>
                             </div>
-                            <div class="flex justify-between mb-5"><span class="font-bold text-gray-800">Celkem</span><span id="checkout-total" class="font-extrabold text-xl text-amber-700">— Kč</span></div>
-                            <button id="create-order-btn" onclick="completeAuctionCheckout('${order.id}')" ${expired ? 'disabled' : ''} class="w-full py-4 rounded-2xl font-extrabold text-white text-base transition-all ${expired ? 'bg-gray-300 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600 active:scale-[.98] shadow-lg shadow-amber-200'}">🏆 Potvrdit objednávku</button>
+                            <div class="flex justify-between mb-5"><span class="font-bold text-gray-800">Celkem${_canDir ? ' platformě' : ''}</span><span id="checkout-total" class="font-extrabold text-xl text-amber-700">— Kč</span></div>
+                            <button id="create-order-btn" onclick="completeAuctionCheckout('${order.id}', window._checkoutMode)" ${expired ? 'disabled' : ''} class="w-full py-4 rounded-2xl font-extrabold text-white text-base transition-all ${expired ? 'bg-gray-300 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600 active:scale-[.98] shadow-lg shadow-amber-200'}">🏆 Potvrdit objednávku</button>
                             <p class="text-xs text-gray-400 text-center mt-2">Platbu provedete převodem po dokončení.</p>
                         </div>
                     </div>
@@ -9821,6 +9930,9 @@
             const inputCls = 'w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-sky-400 bg-white text-sm';
             const labelCls = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide';
             const platformFee = Math.round(Number(offer.bidder_amount || 0) * 0.05) + 49;
+            window._checkoutMode = 'escrow';
+            window._checkoutSubLabel = 'Cena aukce';
+            const _canDir = window._directEnabled() && window._lookupAllowDirect(offer.auction_id);
             container.innerHTML = `
                 ${expired ? `<div class="bg-red-50 border border-red-200 rounded-2xl p-4 mb-5 text-center"><p class="text-red-600 font-bold">Čas pro přijetí nabídky vypršel.</p></div>` : ''}
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
@@ -9850,13 +9962,21 @@
                                 <div class="flex-1 min-w-0"><p class="font-bold text-gray-800 text-sm truncate">${offer.auction_title || 'Aukce'}</p><p class="text-xs text-sky-600 font-semibold mt-0.5">📬 Nabídka přijata prodejcem</p></div>
                                 <span class="font-extrabold text-sky-700 shrink-0 whitespace-nowrap">${Number(offer.bidder_amount || 0).toLocaleString('cs-CZ')} Kč</span>
                             </div>
+                            ${_canDir ? `<div class="mb-4">
+                                <p class="text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Způsob platby</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button" data-paymode="escrow" onclick="_setCheckoutMode('escrow')" class="border-2 border-sky-400 bg-sky-50 rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🔒 S escrow</span><span class="block text-[10px] text-gray-500">5 % + ${ESCROW_FEE} Kč · plná ochrana</span></button>
+                                    <button type="button" data-paymode="direct" onclick="_setCheckoutMode('direct')" class="border-2 border-gray-200 bg-white rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🤝 Bez escrow</span><span class="block text-[10px] text-gray-500">3 % + 29 Kč · na dobírku</span></button>
+                                </div>
+                                <div id="checkout-mode-note" class="mt-2 text-[11px] leading-relaxed text-gray-500 bg-white border border-gray-100 rounded-xl px-3 py-2">🔒 <strong>S escrow ochranou.</strong> Peníze držíme v úschově a uvolníme prodejci až po potvrzení doručení.</div>
+                            </div>` : ''}
                             <div class="flex flex-col gap-2 text-sm mb-4 border-b border-sky-200 pb-3">
-                                <div class="flex justify-between"><span class="text-gray-500">Cena aukce</span><span id="checkout-subtotal" data-val="${offer.bidder_amount || 0}" class="font-semibold">${Number(offer.bidder_amount || 0).toLocaleString('cs-CZ')} Kč</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Poplatek platformy</span><span class="font-semibold">${platformFee.toLocaleString('cs-CZ')} Kč</span></div>
+                                <div class="flex justify-between"><span id="checkout-sub-label" class="text-gray-500">Cena aukce</span><span id="checkout-subtotal" data-val="${offer.bidder_amount || 0}" class="font-semibold">${Number(offer.bidder_amount || 0).toLocaleString('cs-CZ')} Kč</span></div>
+                                <div id="checkout-fee-row" class="flex justify-between"><span class="text-gray-500">Poplatek platformy</span><span class="font-semibold">${platformFee.toLocaleString('cs-CZ')} Kč</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Doprava</span><span id="checkout-shipping-fee" class="font-semibold text-gray-400">— Kč</span></div>
                             </div>
-                            <div class="flex justify-between mb-5"><span class="font-bold text-gray-800">Celkem</span><span id="checkout-total" class="font-extrabold text-xl text-sky-700">— Kč</span></div>
-                            <button id="create-order-btn" onclick="createSecondBidderOrder('${offer.id}','${offer.auction_id}','${offer.seller_id}',${offer.bidder_amount || 0})" ${expired ? 'disabled' : ''} class="w-full py-4 rounded-2xl font-extrabold text-white text-base transition-all ${expired ? 'bg-gray-300 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 active:scale-[.98] shadow-lg shadow-sky-200'}">📬 Koupit a objednat</button>
+                            <div class="flex justify-between mb-5"><span class="font-bold text-gray-800">Celkem${_canDir ? ' platformě' : ''}</span><span id="checkout-total" class="font-extrabold text-xl text-sky-700">— Kč</span></div>
+                            <button id="create-order-btn" onclick="createSecondBidderOrder('${offer.id}','${offer.auction_id}','${offer.seller_id}',${offer.bidder_amount || 0}, window._checkoutMode)" ${expired ? 'disabled' : ''} class="w-full py-4 rounded-2xl font-extrabold text-white text-base transition-all ${expired ? 'bg-gray-300 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 active:scale-[.98] shadow-lg shadow-sky-200'}">📬 Koupit a objednat</button>
                             <button onclick="respondAuctionOffer('${offer.id}',false)" class="w-full py-3 mt-2 rounded-2xl font-semibold text-red-500 text-sm hover:bg-red-50 transition-colors">Odmítnout nabídku</button>
                         </div>
                     </div>
@@ -11547,11 +11667,12 @@
     // ──────────────────────────────────────────────────────────────
     // AUKCE — WINNER / NABÍDKA FUNKCE
     // ──────────────────────────────────────────────────────────────
-    window.completeAuctionCheckout = async function(orderId) {
+    window.completeAuctionCheckout = async function(orderId, mode) {
         const get = i => (document.getElementById(i)?.value || '').trim();
         const name = get('phn-name'), street = get('phn-street'), city = get('phn-city'), zip = get('phn-zip'), phone = get('phn-phone');
         if (!name || !street || !city || !zip || !phone) { showToast('Vyplňte všechna povinná pole adresy.', 'warning'); return; }
         if (!_checkoutCarrier) { showToast('Vyberte způsob doručení.', 'warning'); return; }
+        const direct = (mode === 'direct');
         const btn = document.getElementById('create-order-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Zpracovávám…'; }
         try {
@@ -11562,10 +11683,14 @@
             const order = rows?.[0];
             if (!order) throw new Error('Objednávka nenalezena nebo čas vypršel.');
             const shippingFee = _checkoutCarrier.price;
-            const total = Number(order.subtotal) + Number(order.platform_fee) + shippingFee;
+            // Bez escrow (na dobírku): platformě jen provize (3 % + 29) + doprava; cena zboží je dobírka
+            const fee = direct ? (Math.round(Number(order.subtotal) * 0.03) + 29) : Number(order.platform_fee);
+            const total = direct ? (fee + shippingFee) : (Number(order.subtotal) + Number(order.platform_fee) + shippingFee);
+            const patch = { shipping_address: {name, street, city, zip, phone}, carrier: _checkoutCarrier.id, shipping_fee: shippingFee, total, updated_at: new Date().toISOString() };
+            if (direct) { patch.payment_type = 'direct'; patch.platform_fee = fee; }
             await fetch(`${SUPABASE_URL}/rest/v1/objednavky?id=eq.${orderId}`, {
                 method: 'PATCH', headers: { ...hdrs, 'Prefer': 'return=minimal' },
-                body: JSON.stringify({ shipping_address: {name, street, city, zip, phone}, carrier: _checkoutCarrier.id, shipping_fee: shippingFee, total, updated_at: new Date().toISOString() })
+                body: JSON.stringify(patch)
             });
             _checkoutCarrier = null;
             navigate('objednavka-ok', orderId);
@@ -11610,11 +11735,12 @@
         } catch(e) { showToast('Chyba: ' + e.message, 'error'); }
     };
 
-    window.createSecondBidderOrder = async function(offerId, auctionId, sellerId, bidderAmount) {
+    window.createSecondBidderOrder = async function(offerId, auctionId, sellerId, bidderAmount, mode) {
         const get = i => (document.getElementById(i)?.value || '').trim();
         const name = get('phn-name'), street = get('phn-street'), city = get('phn-city'), zip = get('phn-zip'), phone = get('phn-phone');
         if (!name || !street || !city || !zip || !phone) { showToast('Vyplňte všechna povinná pole adresy.', 'warning'); return; }
         if (!_checkoutCarrier) { showToast('Vyberte způsob doručení.', 'warning'); return; }
+        const direct = (mode === 'direct');
         const btn = document.getElementById('create-order-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Zpracovávám…'; }
         try {
@@ -11625,12 +11751,15 @@
             const offer = offerRows?.[0];
             if (!offer) throw new Error('Nabídka nenalezena nebo již zpracována.');
             const subtotal = Number(bidderAmount);
-            const platformFee = Math.round(subtotal * 0.05) + 49;
+            // Bez escrow (na dobírku): platformě jen provize (3 % + 29) + doprava; cena zboží je dobírka
+            const platformFee = direct ? (Math.round(subtotal * 0.03) + 29) : (Math.round(subtotal * 0.05) + 49);
             const shippingFee = _checkoutCarrier.price;
-            const total = subtotal + platformFee + shippingFee;
+            const total = direct ? (platformFee + shippingFee) : (subtotal + platformFee + shippingFee);
+            const ordBody = { buyer_id: window.currentUser.id, seller_id: sellerId, status: 'pending', subtotal, platform_fee: platformFee, shipping_fee: shippingFee, total, item_type: 'aukce', auction_id: String(auctionId), shipping_address: {name, street, city, zip, phone}, carrier: _checkoutCarrier.id };
+            if (direct) ordBody.payment_type = 'direct';
             const rNewOrd = await fetch(`${SUPABASE_URL}/rest/v1/objednavky`, {
                 method: 'POST', headers: hdrs,
-                body: JSON.stringify({ buyer_id: window.currentUser.id, seller_id: sellerId, status: 'pending', subtotal, platform_fee: platformFee, shipping_fee: shippingFee, total, item_type: 'aukce', auction_id: String(auctionId), shipping_address: {name, street, city, zip, phone}, carrier: _checkoutCarrier.id })
+                body: JSON.stringify(ordBody)
             });
             const newOrdRows = await rNewOrd.json();
             const orderId = (Array.isArray(newOrdRows) ? newOrdRows[0] : newOrdRows)?.id;
