@@ -11672,26 +11672,23 @@
         const name = get('phn-name'), street = get('phn-street'), city = get('phn-city'), zip = get('phn-zip'), phone = get('phn-phone');
         if (!name || !street || !city || !zip || !phone) { showToast('Vyplňte všechna povinná pole adresy.', 'warning'); return; }
         if (!_checkoutCarrier) { showToast('Vyberte způsob doručení.', 'warning'); return; }
-        const direct = (mode === 'direct');
         const btn = document.getElementById('create-order-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Zpracovávám…'; }
         try {
             const token = await _ensureValidToken();
             const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-            const rOrd = await fetch(`${SUPABASE_URL}/rest/v1/objednavky?id=eq.${orderId}&buyer_id=eq.${window.currentUser.id}&item_type=eq.aukce&status=eq.pending&select=subtotal,platform_fee&limit=1`, { headers: hdrs });
-            const rows = await rOrd.json();
-            const order = rows?.[0];
-            if (!order) throw new Error('Objednávka nenalezena nebo čas vypršel.');
-            const shippingFee = _checkoutCarrier.price;
-            // Bez escrow (na dobírku): platformě jen provize (3 % + 29) + doprava; cena zboží je dobírka
-            const fee = direct ? (Math.round(Number(order.subtotal) * 0.03) + 29) : Number(order.platform_fee);
-            const total = direct ? (fee + shippingFee) : (Number(order.subtotal) + Number(order.platform_fee) + shippingFee);
-            const patch = { shipping_address: {name, street, city, zip, phone}, carrier: _checkoutCarrier.id, shipping_fee: shippingFee, total, updated_at: new Date().toISOString() };
-            if (direct) { patch.payment_type = 'direct'; patch.platform_fee = fee; }
-            await fetch(`${SUPABASE_URL}/rest/v1/objednavky?id=eq.${orderId}`, {
-                method: 'PATCH', headers: { ...hdrs, 'Prefer': 'return=minimal' },
-                body: JSON.stringify(patch)
+            // Provize i total počítá server (finalize_auction_order) — klient je neposílá
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/finalize_auction_order`, {
+                method: 'POST', headers: hdrs,
+                body: JSON.stringify({
+                    p_order_id: orderId,
+                    p_mode: (mode === 'direct') ? 'direct' : 'escrow',
+                    p_carrier: _checkoutCarrier.id,
+                    p_shipping_fee: _checkoutCarrier.price,
+                    p_address: { name, street, city, zip, phone }
+                })
             });
+            if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.message || 'Objednávku se nepodařilo dokončit.'); }
             _checkoutCarrier = null;
             navigate('objednavka-ok', orderId);
         } catch(e) {
@@ -11740,38 +11737,26 @@
         const name = get('phn-name'), street = get('phn-street'), city = get('phn-city'), zip = get('phn-zip'), phone = get('phn-phone');
         if (!name || !street || !city || !zip || !phone) { showToast('Vyplňte všechna povinná pole adresy.', 'warning'); return; }
         if (!_checkoutCarrier) { showToast('Vyberte způsob doručení.', 'warning'); return; }
-        const direct = (mode === 'direct');
         const btn = document.getElementById('create-order-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Zpracovávám…'; }
         try {
             const token = await _ensureValidToken();
-            const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
-            const rOff = await fetch(`${SUPABASE_URL}/rest/v1/auction_offers?id=eq.${offerId}&bidder_id=eq.${window.currentUser.id}&status=eq.offer_sent&limit=1`, { headers: hdrs });
-            const offerRows = await rOff.json();
-            const offer = offerRows?.[0];
-            if (!offer) throw new Error('Nabídka nenalezena nebo již zpracována.');
-            const subtotal = Number(bidderAmount);
-            // Bez escrow (na dobírku): platformě jen provize (3 % + 29) + doprava; cena zboží je dobírka
-            const platformFee = direct ? (Math.round(subtotal * 0.03) + 29) : (Math.round(subtotal * 0.05) + 49);
-            const shippingFee = _checkoutCarrier.price;
-            const total = direct ? (platformFee + shippingFee) : (subtotal + platformFee + shippingFee);
-            const ordBody = { buyer_id: window.currentUser.id, seller_id: sellerId, status: 'pending', subtotal, platform_fee: platformFee, shipping_fee: shippingFee, total, item_type: 'aukce', auction_id: String(auctionId), shipping_address: {name, street, city, zip, phone}, carrier: _checkoutCarrier.id };
-            if (direct) ordBody.payment_type = 'direct';
-            const rNewOrd = await fetch(`${SUPABASE_URL}/rest/v1/objednavky`, {
+            const hdrs = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+            // Provize i total počítá server (create_auction_offer_order) — vytvoří objednávku + položku a označí nabídku
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/create_auction_offer_order`, {
                 method: 'POST', headers: hdrs,
-                body: JSON.stringify(ordBody)
+                body: JSON.stringify({
+                    p_offer_id: offerId,
+                    p_mode: (mode === 'direct') ? 'direct' : 'escrow',
+                    p_carrier: _checkoutCarrier.id,
+                    p_shipping_fee: _checkoutCarrier.price,
+                    p_address: { name, street, city, zip, phone }
+                })
             });
-            const newOrdRows = await rNewOrd.json();
-            const orderId = (Array.isArray(newOrdRows) ? newOrdRows[0] : newOrdRows)?.id;
+            if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.message || 'Objednávku se nepodařilo vytvořit.'); }
+            const res = await r.json().catch(() => null);
+            const orderId = (Array.isArray(res) ? res[0] : res)?.order_id;
             if (!orderId) throw new Error('Nepodařilo se vytvořit objednávku.');
-            await fetch(`${SUPABASE_URL}/rest/v1/objednavka_polozky`, {
-                method: 'POST', headers: { ...hdrs, 'Prefer': 'return=minimal' },
-                body: JSON.stringify({ order_id: orderId, item_id: String(auctionId), item_type: 'aukce', title: offer.auction_title || 'Aukce', price: subtotal, img: offer.item_img || null })
-            });
-            await fetch(`${SUPABASE_URL}/rest/v1/auction_offers?id=eq.${offerId}`, {
-                method: 'PATCH', headers: { ...hdrs, 'Prefer': 'return=minimal' },
-                body: JSON.stringify({ status: 'accepted', offer_order_id: orderId, updated_at: new Date().toISOString() })
-            });
             _checkoutCarrier = null;
             navigate('objednavka-ok', orderId);
         } catch(e) {
