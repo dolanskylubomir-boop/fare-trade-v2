@@ -1095,6 +1095,13 @@
         return /(revolut|pay\s?pal|monzo|wise\b|iban|na\s+ú?čet|na\s+u?cet|číslo\s+ú?čtu|cislo\s+u?ctu|převod\w*\s+předem|prevod\w*\s+predem|zaplať?\s+předem|zaplat\s+predem|zálohu?\s+předem|zalohu?\s+predem|platb\w*\s+bokem|mimo\s+(aplikac|platform|systém|system)|dárkov\w*\s+kart|darkov\w*\s+kart|google\s?play\s+kart|paysafe|steam\s+kart)/i.test(t);
     };
 
+    // Měkká detekce domlouvání osobní schůzky / místa předání mimo platformu.
+    // (Konkrétní města/obce řeší AI vrstva; tady jen jasné fráze.)
+    window._meetupHint = function(text) {
+        var t = (text || '').toLowerCase();
+        return /(sejde?me se|sejít se|kde se s[ie]jdeme|potk[aá](me|t) se|kde se potk[aá]me|setk[aá]me se|setkat se|místo setkán[ií]|kde se uvidíme|přivez(u|eš|e)|dovez(u|eš|e)|donesu|vyzvedne(š|te)?\s?si|vyzvednout si|vyzvednu|stav[ií]?m se|zastav\s?se|počk[aá]m\s+(u|na|před)|[čc]ek[aá]m u|u zast[aá]vky|u nádraž[ií]|u\s+(tesc|kauflandu?|lidl|albert|billy|penny|obchodu|samošky)|na náměst[ií]|před\s+(domem|školou|úřadem|obchodem)|bydl[ií]m\s+(v|ve|na|u)|moje adresa|má adresa|pošli adresu|posli adresu|na jak[ée] adrese|kde bydlíš)/i.test(t);
+    };
+
     window.showMessageModal = function(itemId, sellerId, itemTitle, itemType) {
         if (!window.currentUser) { showToast('Pro odeslání zprávy se musíte přihlásit.', 'warning'); navigate('login'); return; }
         if (window.currentUser.id === sellerId) { showToast('Nemůžete psát zprávu sami sobě.', 'warning'); return; }
@@ -1149,6 +1156,7 @@
             if (/blocked_word/.test(msg)) msg = 'Zpráva obsahuje zakázané výrazy.';
             else if (/blocked_contact/.test(msg)) msg = 'Zpráva obsahuje kontaktní údaje (telefon/e-mail/odkaz) — nejsou v chatu povolené.';
             else if (/off_platform/.test(msg)) msg = 'Domlouvání platby nebo prodeje mimo platformu není povoleno.';
+            else if (/meetup/.test(msg)) msg = 'Domlouvání osobní schůzky / místa předání mimo platformu není povoleno (řešte v objednávce po zaplacení).';
             return { error: msg || ('Chyba ' + r2.status) };
         }
         return { ok: true };
@@ -1165,6 +1173,7 @@
         if (text.length < 2) { showErr('Zpráva je příliš krátká.'); return; }
         if (_censorCheck(text)) { showErr('Zpráva obsahuje zakázaný obsah (kontaktní údaje).'); return; }
         if (window._paymentScamHint(text)) { showErr('Domlouvání platby nebo prodeje mimo platformu není povoleno. Vše řešte přes platformu (escrow ochrana).'); return; }
+        if (window._meetupHint(text)) { showErr('Domlouvání osobní schůzky / místa předání mimo platformu není povoleno. Osobní předání řešte v objednávce po zaplacení (escrow).'); return; }
         if (btn) { btn.disabled = true; btn.textContent = 'Odesílám…'; }
         try {
             const token = await _ensureValidToken();
@@ -11281,6 +11290,7 @@
         if (text.length < 2) { showToast('Odpověď je příliš krátká.', 'warning'); return; }
         if (_censorCheck(text)) { showToast('Odpověď obsahuje zakázaný obsah (kontaktní údaje).', 'warning'); return; }
         if (window._paymentScamHint(text)) { showToast('Domlouvání platby/prodeje mimo platformu není povoleno. Vše řešte přes platformu.', 'warning'); return; }
+        if (window._meetupHint(text)) { showToast('Domlouvání osobní schůzky/místa předání mimo platformu není povoleno. Řešte v objednávce po zaplacení.', 'warning'); return; }
         const token = await _ensureValidToken();
         if (!token) { showToast('Chyba ověření.', 'warning'); return; }
         try {
@@ -14037,6 +14047,7 @@
             // Předkontrola (okamžitá odezva; server to navíc vynucuje v triggeru)
             if (typeof _censorCheck === 'function' && _censorCheck(body)) { _chatNotice('🚫 Zpráva obsahuje kontaktní údaje (telefon/e-mail/odkaz) — v chatu je nelze poslat.'); return; }
             if (window._paymentScamHint && window._paymentScamHint(body)) { _chatNotice('🚫 Domlouvání prodeje nebo platby mimo platformu není v chatu povoleno.'); return; }
+            if (window._meetupHint && window._meetupHint(body)) { _chatNotice('🚫 Domlouvání osobní schůzky/místa předání mimo platformu není povoleno — řešte přes platformu (escrow).'); return; }
             _chatClearNotice();
             const btn = document.getElementById('gc-send');
             if (btn) btn.disabled = true; inp.disabled = true;
@@ -14053,6 +14064,7 @@
                     else if (t.includes('blocked_word')) msg = '🚫 Zpráva obsahuje zakázaný výraz — nelze ji odeslat.';
                     else if (t.includes('blocked_contact')) msg = '🚫 Zpráva obsahuje kontaktní údaje — v chatu je nelze poslat.';
                     else if (t.includes('off_platform')) msg = '🚫 Domlouvání prodeje/platby mimo platformu není povoleno.';
+                    else if (t.includes('meetup')) msg = '🚫 Domlouvání osobní schůzky/místa předání mimo platformu není povoleno.';
                     else if (t.includes('is_banned') || t.includes('row-level') || t.includes('violates')) msg = 'Nemáte oprávnění psát do chatu.';
                     _chatNotice(msg);
                 } else {
