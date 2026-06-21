@@ -13915,6 +13915,9 @@
             if (!m || _seen.has(m.id)) return;
             _seen.add(m.id);
             const mine = window.currentUser && m.user_id === window.currentUser.id;
+            const isAdmin = window._userRole === 'admin';
+            const flagged = m.flagged === true;
+            const canDel = isAdmin || mine;
             const time = new Date(m.created_at).toLocaleTimeString('cs-CZ', { hour:'2-digit', minute:'2-digit' });
             const name = esc(m.display_name || 'Uživatel');
             const av = m.avatar_url
@@ -13928,9 +13931,14 @@
                     <div class="flex items-center gap-1.5 mb-0.5 ${mine ? 'flex-row-reverse' : ''}">
                         <span class="text-[11px] font-bold text-gray-600 truncate max-w-[140px]">${mine ? 'Vy' : name}</span>
                         <span class="text-[10px] text-gray-300">${time}</span>
+                        ${(flagged && isAdmin) ? `<span data-flag class="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 rounded-full" title="${esc(m.flag_reason||'označeno AI')}">⚠️ ${esc(m.flag_reason||'')}</span>` : ''}
                     </div>
                     <div class="px-3 py-2 rounded-2xl text-sm leading-snug break-words ${mine ? 'bg-sky-500 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-700 rounded-bl-sm'}" style="white-space:pre-wrap;word-break:break-word">${esc(m.body)}</div>
-                </div>`;
+                </div>
+                ${(canDel || (flagged && isAdmin)) ? `<div class="self-center shrink-0 flex flex-col gap-1">
+                    ${(flagged && isAdmin) ? `<button onclick="_chatClearFlag('${m.id}')" aria-label="Ponechat zprávu" title="Ponechat (zrušit příznak)" class="w-6 h-6 rounded-full text-gray-300 hover:text-emerald-600 hover:bg-emerald-50 flex items-center justify-center transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg></button>` : ''}
+                    ${canDel ? `<button onclick="_chatDelete('${m.id}')" aria-label="Smazat zprávu" title="${(isAdmin&&!mine)?'Smazat zprávu (moderace)':'Smazat zprávu'}" class="w-6 h-6 rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ''}
+                </div>` : ''}`;
             const cont = document.getElementById('gc-msgs');
             if (!cont) return;
             if (prepend) cont.insertBefore(row, cont.firstChild); else cont.appendChild(row);
@@ -13942,7 +13950,7 @@
             _loading = true;
             const ld = document.getElementById('gc-loading');
             try {
-                const r = await fetch(`${SUPABASE_URL}/rest/v1/global_chat_messages?select=id,user_id,display_name,avatar_url,body,created_at&order=created_at.desc&limit=${PAGE}`, { headers: _hdrs() });
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/global_chat_messages?select=id,user_id,display_name,avatar_url,body,created_at,flagged,flag_reason&order=created_at.desc&limit=${PAGE}`, { headers: _hdrs() });
                 const rows = await r.json();
                 if (ld) ld.remove();
                 if (!Array.isArray(rows)) return;
@@ -13966,7 +13974,7 @@
             const btn = document.getElementById('gc-older'); if (btn) btn.textContent = 'Načítám…';
             const list = _list(); const prevH = list ? list.scrollHeight : 0;
             try {
-                const r = await fetch(`${SUPABASE_URL}/rest/v1/global_chat_messages?select=id,user_id,display_name,avatar_url,body,created_at&created_at=lt.${encodeURIComponent(_oldestTs)}&order=created_at.desc&limit=${PAGE}`, { headers: _hdrs() });
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/global_chat_messages?select=id,user_id,display_name,avatar_url,body,created_at,flagged,flag_reason&created_at=lt.${encodeURIComponent(_oldestTs)}&order=created_at.desc&limit=${PAGE}`, { headers: _hdrs() });
                 const rows = await r.json();
                 if (Array.isArray(rows) && rows.length) {
                     rows.forEach(m => _renderMsg(m, true));    // desc → prepend = nejstarší nahoru
@@ -13987,6 +13995,9 @@
             const body = (inp.value || '').trim();
             if (!body) return;
             if (body.length > 500) { showToast('Zpráva je příliš dlouhá (max 500 znaků).','warning'); return; }
+            // Předkontrola (okamžitá odezva; server to navíc vynucuje v triggeru)
+            if (typeof _censorCheck === 'function' && _censorCheck(body)) { showToast('Zpráva obsahuje kontaktní údaje (telefon/e-mail/odkaz) — v chatu nejsou povolené.','warning'); return; }
+            if (window._paymentScamHint && window._paymentScamHint(body)) { showToast('Domlouvání prodeje nebo platby mimo platformu není v chatu povoleno.','warning'); return; }
             const btn = document.getElementById('gc-send');
             if (btn) btn.disabled = true; inp.disabled = true;
             try {
@@ -13997,7 +14008,13 @@
                 });
                 if (!r.ok) {
                     const t = await r.text().catch(() => '');
-                    showToast(t.includes('rate_limited') ? 'Posíláte zprávy moc rychle — chvíli počkejte.' : (t.includes('is_banned')||t.includes('row-level') ? 'Nemáte oprávnění psát do chatu.' : 'Zprávu se nepodařilo odeslat.'), 'warning');
+                    let msg = 'Zprávu se nepodařilo odeslat.';
+                    if (t.includes('rate_limited')) msg = 'Posíláte zprávy moc rychle — chvíli počkejte.';
+                    else if (t.includes('blocked_word')) msg = 'Zpráva obsahuje zakázané výrazy.';
+                    else if (t.includes('blocked_contact')) msg = 'Zpráva obsahuje kontaktní údaje — v chatu nejsou povolené.';
+                    else if (t.includes('off_platform')) msg = 'Domlouvání prodeje/platby mimo platformu není povoleno.';
+                    else if (t.includes('is_banned') || t.includes('row-level') || t.includes('violates')) msg = 'Nemáte oprávnění psát do chatu.';
+                    showToast(msg, 'warning');
                 } else { inp.value = ''; _chatGrow(inp); }
             } catch(e) { showToast('Chyba spojení.','error'); }
             if (btn) btn.disabled = false; inp.disabled = false; inp.focus();
@@ -14005,6 +14022,61 @@
 
         window._chatGrow = function(el) { if (!el) return; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 96) + 'px'; };
         window._chatKey = function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window._chatSend(); } };
+
+        // Mazání zprávy — autor nebo admin (RLS to navíc vynucuje na serveru)
+        window._chatDelete = async function(id) {
+            if (!id) return;
+            if (!confirm('Smazat tuto zprávu?')) return;
+            try {
+                const token = await _ensureValidToken();
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/global_chat_messages?id=eq.${id}`, { method:'DELETE', headers: { ..._hdrs(token), 'Prefer':'return=minimal' } });
+                if (r.ok) {
+                    const el = document.querySelector(`#gc-msgs [data-id="${id}"]`); if (el) el.remove();
+                    const q = document.querySelector(`#gc-mod-list [data-id="${id}"]`); if (q) q.remove();
+                    _seen.delete(id);
+                } else showToast('Smazání se nepodařilo (nemáte oprávnění?).','warning');
+            } catch(e) { showToast('Chyba spojení.','error'); }
+        };
+
+        // Admin: ponechat zprávu (zrušit AI příznak)
+        window._chatClearFlag = async function(id) {
+            if (!id) return;
+            try {
+                const token = await _ensureValidToken();
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/clear_chat_flag`, { method:'POST', headers: _hdrs(token), body: JSON.stringify({ p_id: id }) });
+                if (r.ok) {
+                    const badge = document.querySelector(`#gc-msgs [data-id="${id}"] [data-flag]`); if (badge) badge.remove();
+                    const clr = document.querySelector(`#gc-msgs [data-id="${id}"] button[aria-label="Ponechat zprávu"]`); if (clr) clr.remove();
+                    const q = document.querySelector(`#gc-mod-list [data-id="${id}"]`); if (q) q.remove();
+                    showToast('Zpráva ponechána.','success');
+                } else showToast('Akce se nezdařila.','warning');
+            } catch(e) { showToast('Chyba spojení.','error'); }
+        };
+
+        // Admin fronta: označené zprávy ke kontrole (get_flagged_chat)
+        window._chatModQueue = async function() {
+            if (window._userRole !== 'admin') return;
+            let rows = [];
+            try {
+                const token = await _ensureValidToken();
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_flagged_chat`, { method:'POST', headers: _hdrs(token), body: '{}' });
+                rows = await r.json(); if (!Array.isArray(rows)) rows = [];
+            } catch(e) {}
+            const items = rows.length ? rows.map(m => `<div data-id="${m.id}" class="border border-amber-100 bg-amber-50/40 rounded-2xl p-3 flex flex-col gap-2">
+                    <div class="flex items-center justify-between gap-2"><span class="text-xs font-bold text-gray-600 truncate">${esc(m.display_name||'Uživatel')}</span><span class="text-[10px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">⚠️ ${esc(m.flag_reason||'')}</span></div>
+                    <p class="text-sm text-gray-700 break-words" style="white-space:pre-wrap;word-break:break-word">${esc(m.body)}</p>
+                    <div class="flex gap-2 justify-end"><button onclick="_chatClearFlag('${m.id}')" class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">Ponechat</button><button onclick="_chatDelete('${m.id}')" class="text-xs font-bold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">Smazat</button></div>
+                </div>`).join('') : '<p class="text-center text-gray-400 text-sm py-8">Žádné označené zprávy. ✓</p>';
+            const wrap = document.createElement('div');
+            wrap.id = 'gc-mod-modal';
+            wrap.className = 'fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm fade-in';
+            wrap.onclick = () => wrap.remove();
+            wrap.innerHTML = `<div onclick="event.stopPropagation()" class="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100"><h3 class="font-extrabold text-pastel-text flex items-center gap-2">⚠️ Označené zprávy <span class="text-xs font-normal text-gray-400">(${rows.length})</span></h3><button onclick="this.closest('#gc-mod-modal').remove()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center">✕</button></div>
+                <div id="gc-mod-list" class="overflow-y-auto p-4 flex flex-col gap-3">${items}</div>
+            </div>`;
+            document.body.appendChild(wrap);
+        };
 
         // Composer: input pro přihlášené, jinak výzva k přihlášení
         function _renderComposer() {
@@ -14044,6 +14116,8 @@
             const p = document.getElementById('gc-panel'), b = document.getElementById('gc-backdrop');
             if (b) b.classList.remove('hidden');
             if (p) { p.classList.remove('translate-y-full','sm:translate-x-full','pointer-events-none'); p.classList.add('pointer-events-auto'); }
+            const mb = document.getElementById('gc-mod-btn');
+            if (mb) { const adm = window._userRole === 'admin'; mb.classList.toggle('hidden', !adm); mb.classList.toggle('inline-flex', adm); }
             _renderComposer();
             _subscribe();
             if (!_loaded) _load(); else _scrollBottom();
@@ -14071,7 +14145,10 @@
                             <span class="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-500 to-fuchsia-500 text-white flex items-center justify-center text-sm">💬</span>
                             <div><p class="font-extrabold text-pastel-text text-sm leading-tight">Veřejný chat</p><p class="text-[11px] text-gray-400 leading-tight">Diskuze tržiště</p></div>
                         </div>
-                        <button onclick="_chatClose()" aria-label="Zavřít chat" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors">✕</button>
+                        <div class="flex items-center gap-2">
+                            <button id="gc-mod-btn" onclick="_chatModQueue()" title="Označené zprávy ke kontrole" class="hidden items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-[11px] font-bold px-2 py-1.5 rounded-lg transition-colors">⚠️ Ke kontrole</button>
+                            <button onclick="_chatClose()" aria-label="Zavřít chat" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors">✕</button>
+                        </div>
                     </header>
                     <div id="gc-list" class="flex-1 overflow-y-auto px-3 py-3 bg-gray-50/60">
                         <div id="gc-older-wrap" class="hidden flex justify-center pb-2"><button id="gc-older" onclick="_chatLoadOlder()" class="text-xs font-bold text-sky-600 bg-white border border-sky-100 hover:bg-sky-50 px-3 py-1.5 rounded-full transition-colors">↑ Načíst starší zprávy</button></div>
