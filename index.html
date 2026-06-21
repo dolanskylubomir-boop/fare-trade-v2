@@ -6086,13 +6086,20 @@
             }
             if (!(await _createBuyerAccount(email, password))) return;
         }
-        let sub, items, sellerId;
+        let sub, items, sellerId, cartKey = null, cartMode = 'escrow';
         if (kind === 'cart') {
-            const grp = window.Cart.get()[ref];
+            const parts = String(ref || '').split('|');
+            cartKey = parts[0];
+            cartMode = (parts[1] === 'direct') ? 'direct' : 'escrow';
+            const grp = window.Cart.get()[cartKey];
             if (!grp?.items?.length) { showToast('Košík je prázdný.','warning'); return; }
+            // Jen položky daného režimu (auto-split)
+            const sp = window._cartSplit(grp.items, window._cartGroupMode[cartKey] || 'escrow');
+            const subset = (cartMode === 'direct') ? sp.direct : sp.escrow;
+            if (!subset.length) { showToast('Žádné položky v tomto režimu.','warning'); return; }
             sellerId = grp.seller_id;
-            sub = grp.items.reduce((s,i)=>s+i.price,0);
-            items = grp.items.map(i => ({ item_id:String(i.id), item_type:i.type, title:i.title, price:i.price, img:i.img }));
+            sub = subset.reduce((s,i)=>s+i.price,0);
+            items = subset.map(i => ({ item_id:String(i.id), item_type:i.type, title:i.title, price:i.price, img:i.img }));
         } else {
             const it = dataPevnaCena.find(i => i.id == ref);
             if (!it) { showToast('Položka nenalezena.','warning'); return; }
@@ -6102,11 +6109,11 @@
             sub = it.price;
             items = [{ item_id:String(it.id), item_type:it.type, title:it.title, price:it.price, img:it.img }];
         }
-        const mode = (kind !== 'cart' && window._checkoutMode === 'direct') ? 'direct' : 'escrow';
+        const mode = (kind === 'cart') ? cartMode : (window._checkoutMode === 'direct' ? 'direct' : 'escrow');
         const fee = mode === 'direct' ? (Math.round(sub * 0.03) + 29) : (Math.round(sub * 0.05) + 49);
         const shipping = _checkoutCarrier.price;
         const total = mode === 'direct' ? (fee + shipping) : (sub + shipping + fee);
-        window._fixedOrderCtx = { kind, ref, sellerId, sub, fee, shipping, total, mode, carrier:_checkoutCarrier.id, address:{name,street,city,zip,phone,email:email||null}, items };
+        window._fixedOrderCtx = { kind, ref, sellerId, sub, fee, shipping, total, mode, carrier:_checkoutCarrier.id, address:{name,street,city,zip,phone,email:email||null}, items, cartKey, cartItemIds: items.map(i => i.item_id) };
         navigate('platba-brana');
     };
 
@@ -6139,7 +6146,11 @@
                 }
             } catch(e) {}
         }
-        if (ctx.kind === 'cart') window.Cart.clearSeller(ctx.ref);
+        if (ctx.kind === 'cart') {
+            // Odebrat jen zaplacené položky (escrow/dobírka blok), ne celou skupinu prodejce
+            const ck = ctx.cartKey || ctx.ref;
+            (ctx.cartItemIds || []).forEach(id => window.Cart.removeItem(ck, id));
+        }
         _checkoutCarrier = null;
         window._fixedOrderCtx = null;
         window._lastOrderPaid = true;
@@ -8311,6 +8322,34 @@
         const it = [...(dataAukce||[]), ...(dataPevnaCena||[])].find(x => String(x.id) === String(id));
         return !!(it && it.allow_direct);
     };
+    window._lookupDirectOnly = function(id) {
+        const it = [...(dataAukce||[]), ...(dataPevnaCena||[])].find(x => String(x.id) === String(id));
+        return !!(it && it.direct_only);
+    };
+    // Rozdělení položek košíku na escrow / dobírku.
+    //  • escrow-only (allow_direct=false)        → vždy escrow
+    //  • jen bez escrow (direct_only=true)        → vždy dobírka
+    //  • obojí (allow_direct, !direct_only)       → dle zvoleného režimu skupiny (gm)
+    //  • když je „bez escrow" globálně vypnuto    → dobírkové položky jsou nedostupné
+    window._cartGroupMode = window._cartGroupMode || {};
+    window._cartSplit = function(items, groupMode) {
+        const gm = (groupMode === 'direct') ? 'direct' : 'escrow';
+        const de = window._directEnabled();
+        const escrow = [], direct = [], unavailable = [];
+        (items || []).forEach(function(i){
+            const allowD = window._lookupAllowDirect(i.id);
+            const onlyD  = window._lookupDirectOnly(i.id);
+            if (!de) { if (onlyD) unavailable.push(i); else escrow.push(i); return; }
+            if (onlyD || (allowD && gm === 'direct')) direct.push(i);
+            else escrow.push(i);
+        });
+        const hasFlexible = (items || []).some(i => window._lookupAllowDirect(i.id) && !window._lookupDirectOnly(i.id));
+        return { escrow, direct, unavailable, hasFlexible };
+    };
+    window._setCartGroupMode = function(groupKey, mode) {
+        window._cartGroupMode[groupKey] = (mode === 'direct') ? 'direct' : 'escrow';
+        navigate('kosik');
+    };
     // Vejde se zásilka k dopravci? (váha i rozměr; neznámé hodnoty neomezují)
     window._carrierFits = function(d, kg, dimsStr) {
         if (!d || !d.tierKey) return true;
@@ -8971,7 +9010,6 @@
         if (!window._isSellerVerified()) { showToast('Košík je dostupný až po ověření účtu přes BankID. Jako kupující použijte „Koupit ihned".','warning'); return; }
         const item = dataPevnaCena.find(i => String(i.id) === String(itemId));
         if (!item) return;
-        if (window._directOnly(item)) { showToast('Tento inzerát je jen bez escrow (na dobírku) — košík je pro escrow nákup. Použijte „Koupit ihned".','warning'); return; }
         if (window.Cart.isIn(String(itemId))) { navigate('kosik'); return; }
         if (window.Cart.add(item)) {
             const btn = document.getElementById('cart-btn-' + itemId);
@@ -9670,8 +9708,42 @@
         if (!sellers.length) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in border border-white/50 min-h-[300px] flex flex-col items-center justify-center gap-4 text-center"><p class="text-6xl mb-2">🛒</p><h2 class="text-xl font-bold text-pastel-text">Košík je prázdný</h2><p class="text-gray-400 text-sm mt-1 mb-4">Přidejte si položky z nabídky pevných cen</p><button onclick="navigate('pevna-cena','Vše')" class="bg-pink-500 hover:bg-pink-600 text-white font-bold px-6 py-3 rounded-2xl transition-all">Procházet nabídky</button></div>`;
         const totalItems = window.Cart.count();
         let html = `<div class="w-full bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in border border-white/50"><div class="flex items-center justify-between mb-6"><h2 class="text-2xl font-extrabold text-pastel-text">🛒 Košík</h2><span class="text-sm text-gray-400">${totalItems} ${totalItems===1?'položka':'položek'} · ${sellers.length} ${sellers.length===1?'prodejce':'prodejci'}</span></div><div class="flex flex-col gap-5">`;
+        const _ph = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23f1f5f9%22/%3E%3C/svg%3E";
+        const _itemRow = (item, groupKey) => `<div class="flex items-center gap-3 py-2.5 cursor-pointer rounded-xl hover:bg-pink-50/60 transition-colors -mx-2 px-2" onclick="navigate('${item.type==='pevna_cena'?'pevna-cena-detail':'aukce-detail'}/${item.id}')">
+                    <img src="${item.img}" onerror="this.onerror=null;this.src='${_ph}'" class="w-14 h-14 rounded-xl object-cover shrink-0 bg-gray-50">
+                    <div class="flex-1 min-w-0"><p class="font-semibold text-sm text-pastel-text line-clamp-2">${item.title}</p><p class="text-pink-600 font-bold text-sm mt-0.5">${item.price.toLocaleString('cs-CZ')} Kč</p></div>
+                    <button onclick="event.stopPropagation();window.Cart.removeItem('${groupKey}','${item.id}');navigate('kosik')" class="shrink-0 w-8 h-8 rounded-full bg-red-50 hover:bg-red-500 hover:text-white text-red-400 flex items-center justify-center transition-all" title="Odebrat"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>`;
+        const _payBlock = (blockItems, mode, groupKey) => {
+            if (!blockItems.length) return '';
+            const bsub = blockItems.reduce((s,i)=>s+i.price,0);
+            const isDirect = mode === 'direct';
+            const hdr = isDirect
+                ? `<span class="inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full text-[11px] font-bold">🤝 Bez escrow · dobírka</span>`
+                : `<span class="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-[11px] font-bold">🔒 S escrow</span>`;
+            const note = isDirect ? 'Provize 3 % + 29 Kč · cenu zboží platíte na dobírku' : ('Provize 5 % + ' + ESCROW_FEE + ' Kč · peníze v úschově');
+            const btnCls = isDirect ? 'bg-amber-500 hover:bg-amber-600' : 'bg-pink-500 hover:bg-pink-600';
+            return `<div class="rounded-2xl border ${isDirect?'border-amber-100 bg-amber-50/30':'border-gray-100'} p-3 mb-3">
+                <div class="flex items-center justify-between mb-1.5">${hdr}<span class="text-sm font-extrabold ${isDirect?'text-amber-700':'text-pink-600'}">${bsub.toLocaleString('cs-CZ')} Kč</span></div>
+                <div class="flex flex-col divide-y divide-gray-50">${blockItems.map(it=>_itemRow(it, groupKey)).join('')}</div>
+                <div class="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row gap-2 items-center justify-between">
+                    <div class="text-[11px] text-gray-400 leading-tight">${note}</div>
+                    <button onclick="navigate('pokladna','${groupKey}|${mode}')" class="w-full sm:w-auto ${btnCls} shadow-md text-white font-bold px-6 py-2.5 rounded-2xl transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">Objednat a zaplatit <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+                </div>
+            </div>`;
+        };
         for (const [groupKey, group] of sellers) {
             const sub = group.items.reduce((s,i) => s + i.price, 0);
+            const gm = window._cartGroupMode[groupKey] || 'escrow';
+            const sp = window._cartSplit(group.items, gm);
+            const toggle = (sp.hasFlexible && window._directEnabled()) ? `<div class="flex items-center gap-2 mb-3 flex-wrap text-xs">
+                    <span class="text-gray-400 font-semibold">Položky „obojí" koupit:</span>
+                    <div class="inline-flex rounded-xl border border-gray-200 overflow-hidden">
+                        <button onclick="_setCartGroupMode('${groupKey}','escrow')" class="px-3 py-1.5 font-bold transition-colors ${gm!=='direct'?'bg-emerald-500 text-white':'bg-white text-gray-500 hover:bg-gray-50'}">🔒 S escrow</button>
+                        <button onclick="_setCartGroupMode('${groupKey}','direct')" class="px-3 py-1.5 font-bold transition-colors ${gm==='direct'?'bg-amber-500 text-white':'bg-white text-gray-500 hover:bg-gray-50'}">🤝 Dobírka</button>
+                    </div>
+                </div>` : '';
+            const unavail = sp.unavailable.length ? `<div class="rounded-2xl border border-gray-200 bg-gray-50 p-3 mb-1 text-xs text-gray-500">⏸️ Prodej bez escrow je teď vypnutý — ${sp.unavailable.length} ${sp.unavailable.length===1?'položka (jen na dobírku) je nedostupná':'položek (jen na dobírku) je nedostupných'}: ${sp.unavailable.map(i=>esc(i.title)).join(', ')}</div>` : '';
             html += `<div class="border border-gray-100 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-3">
@@ -9683,19 +9755,10 @@
                     </div>
                     <span class="text-lg font-extrabold text-pink-600">${sub.toLocaleString('cs-CZ')} Kč</span>
                 </div>
-                <div class="flex flex-col divide-y divide-gray-50">`;
-            for (const item of group.items) {
-                html += `<div class="flex items-center gap-3 py-2.5 cursor-pointer rounded-xl hover:bg-pink-50/60 transition-colors -mx-2 px-2" onclick="navigate('${item.type==='pevna_cena'?'pevna-cena-detail':'aukce-detail'}/${item.id}')">
-                    <img src="${item.img}" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23f1f5f9%22/%3E%3C/svg%3E'" class="w-14 h-14 rounded-xl object-cover shrink-0 bg-gray-50">
-                    <div class="flex-1 min-w-0"><p class="font-semibold text-sm text-pastel-text line-clamp-2">${item.title}</p><p class="text-pink-600 font-bold text-sm mt-0.5">${item.price.toLocaleString('cs-CZ')} Kč</p></div>
-                    <button onclick="event.stopPropagation();window.Cart.removeItem('${groupKey}','${item.id}');navigate('kosik')" class="shrink-0 w-8 h-8 rounded-full bg-red-50 hover:bg-red-500 hover:text-white text-red-400 flex items-center justify-center transition-all" title="Odebrat"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                </div>`;
-            }
-            html += `</div>
-                <div class="mt-4 pt-4 border-t border-gray-100 flex flex-col sm:flex-row gap-3 items-center justify-between">
-                    <div class="flex items-center gap-2 text-xs text-gray-400"><svg class="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>Escrow chráněná platba</div>
-                    <button onclick="navigate('pokladna','${groupKey}')" class="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 shadow-md text-white font-bold px-6 py-3 rounded-2xl transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap">Objednat a zaplatit <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
-                </div>
+                ${toggle}
+                ${_payBlock(sp.escrow, 'escrow', groupKey)}
+                ${_payBlock(sp.direct, 'direct', groupKey)}
+                ${unavail}
             </div>`;
         }
         const grandTotal = Object.values(cart).reduce((s,g) => s + g.items.reduce((ss,i) => ss + i.price, 0), 0);
@@ -9703,19 +9766,27 @@
         return html;
     };
 
-    views['pokladna'] = (groupKey) => {
+    views['pokladna'] = (param) => {
+        const parts = String(param || '').split('|');
+        const groupKey = parts[0];
+        const mode = (parts[1] === 'direct') ? 'direct' : 'escrow';
+        const isDirect = mode === 'direct';
         const cart = window.Cart.get();
         const group = cart[groupKey];
         if (!group?.items?.length) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center min-h-[300px] flex flex-col items-center justify-center gap-4"><p class="text-gray-500">Košík je prázdný.</p><button onclick="navigate('kosik')" class="bg-pink-500 text-white font-bold px-6 py-3 rounded-2xl">Zpět do košíku</button></div>`;
-        const sub = group.items.reduce((s,i) => s + i.price, 0);
-        const _cartW = group.items.reduce((s,i) => s + window._lookupWeight(i.id), 0);
-        // Dopravci v košíku = PRŮNIK metod všech položek (nabídneme jen ty, které podporují všechny položky)
-        const _methodSets = group.items.map(i => (window._lookupMethods(i.id) || []));
+        // Jen položky pro zvolený režim (auto-split escrow / dobírka)
+        const _sp = window._cartSplit(group.items, window._cartGroupMode[groupKey] || 'escrow');
+        const items = isDirect ? _sp.direct : _sp.escrow;
+        if (!items.length) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center min-h-[300px] flex flex-col items-center justify-center gap-4"><p class="text-gray-500">Žádné položky v tomto režimu.</p><button onclick="navigate('kosik')" class="bg-pink-500 text-white font-bold px-6 py-3 rounded-2xl">Zpět do košíku</button></div>`;
+        const sub = items.reduce((s,i) => s + i.price, 0);
+        const _cartW = items.reduce((s,i) => s + window._lookupWeight(i.id), 0);
+        // Dopravci = PRŮNIK metod položek v tomto bloku (nabídneme jen ty, které podporují všechny)
+        const _methodSets = items.map(i => (window._lookupMethods(i.id) || []));
         const _cartMethods = _methodSets.length ? _methodSets.reduce((acc, set) => acc.filter(m => set.includes(m))) : [];
-        const escrowFee = Math.round(sub * 0.05) + 49;
+        const platformFee = isDirect ? (Math.round(sub * 0.03) + 29) : (Math.round(sub * 0.05) + 49);
         _checkoutCarrier = null;
-        window._checkoutMode = 'escrow';
-        window._checkoutSubLabel = 'Zboží';
+        window._checkoutMode = mode;
+        window._checkoutSubLabel = 'Zboží celkem';
         const addressForm = `<div class="bg-gray-50 rounded-3xl p-5">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-bold text-pastel-text flex items-center gap-2"><svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Doručovací adresa</h3>
@@ -9738,21 +9809,25 @@
                             ${window._carrierCards(_cartW, '', _cartMethods)}
                         </div>
                     </div>`;
-        const itemRows = group.items.map(item => `<div class="flex items-center gap-3 py-3"><img src="${item.img}" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23f1f5f9%22/%3E%3C/svg%3E'" class="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0"><div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">${item.title}</p></div><span class="font-bold text-sm shrink-0 whitespace-nowrap">${item.price.toLocaleString('cs-CZ')} Kč</span></div>`).join('');
+        const itemRows = items.map(item => `<div class="flex items-center gap-3 py-3"><img src="${item.img}" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23f1f5f9%22/%3E%3C/svg%3E'" class="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0"><div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">${item.title}</p></div><span class="font-bold text-sm shrink-0 whitespace-nowrap">${item.price.toLocaleString('cs-CZ')} Kč</span></div>`).join('');
+        const feeRowInner = isDirect
+            ? `<span>Provize (3 % + 29 Kč)</span><span>${platformFee.toLocaleString('cs-CZ')} Kč</span>`
+            : `<span>Ochrana escrow (5 % + ${ESCROW_FEE} Kč)</span><span>${platformFee.toLocaleString('cs-CZ')} Kč</span>`;
         const rightPanel = `
                     <div class="bg-gray-50 rounded-3xl p-5">
-                        <h3 class="font-bold text-pastel-text mb-4">Souhrn objednávky</h3>
+                        <h3 class="font-bold text-pastel-text mb-4">Souhrn objednávky ${isDirect?'<span class="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full align-middle">🤝 dobírka</span>':'<span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full align-middle">🔒 escrow</span>'}</h3>
                         <div class="flex flex-col divide-y divide-gray-100">${itemRows}</div>
                         <div class="mt-4 flex flex-col gap-2 text-sm">
-                            <div class="flex justify-between"><span class="text-gray-500">Zboží celkem</span><span id="checkout-subtotal" data-val="${sub}" class="font-semibold">${sub.toLocaleString('cs-CZ')} Kč</span></div>
+                            <div class="flex justify-between"><span id="checkout-sub-label" class="text-gray-500">${isDirect?'Zboží celkem (dobírka při převzetí)':'Zboží celkem'}</span><span id="checkout-subtotal" data-val="${sub}" class="font-semibold">${sub.toLocaleString('cs-CZ')} Kč</span></div>
                             <div class="flex justify-between"><span class="text-gray-500">Doprava</span><span id="checkout-shipping-fee" class="font-semibold text-gray-400">— vyberte dopravce</span></div>
-                            <div class="flex justify-between text-xs text-gray-400"><span class="flex items-center gap-1">Ochrana escrow <button type="button" onclick="this.closest('.escrow-detail').classList.toggle('hidden')" class="w-4 h-4 rounded-full bg-gray-200 text-gray-500 font-bold text-[10px] leading-none inline-flex items-center justify-center hover:bg-gray-300 transition-colors">?</button></span><span>${escrowFee.toLocaleString('cs-CZ')} Kč</span></div>
-                            <div class="escrow-detail hidden bg-sky-50 rounded-xl px-3 py-2 text-xs text-sky-700 border border-sky-100">Platba je bezpečně držena v escrow a uvolní se prodejci až po potvrzení doručení kupujícím (5 % + 49 Kč).</div>
-                            <div class="flex justify-between pt-3 border-t border-gray-200 font-extrabold text-base"><span>Celkem k úhradě</span><span id="checkout-total" class="text-pink-600">—</span></div>
+                            <div id="checkout-fee-row" class="flex justify-between text-xs text-gray-400">${feeRowInner}</div>
+                            <div class="flex justify-between pt-3 border-t border-gray-200 font-extrabold text-base"><span>${isDirect?'K úhradě platformě':'Celkem k úhradě'}</span><span id="checkout-total" class="text-pink-600">—</span></div>
                         </div>
                     </div>
-                    <div class="bg-sky-50 border border-sky-100 rounded-2xl p-4 text-xs text-sky-700 flex gap-3 items-start"><svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg><span>Platba je chráněna escrow. Peníze jsou uvolněny prodejci až po potvrzení doručení kupujícím.</span></div>
-                    <button id="create-order-btn" onclick="startFixedPayment('cart','${groupKey}')" class="w-full bg-pink-500 hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 px-8 rounded-2xl transition-all shadow-[0_10px_20px_-10px_rgba(236,72,153,.6)] text-base">Nejprve vyberte způsob doručení</button>
+                    ${isDirect
+                        ? `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 flex gap-3 items-start"><span class="shrink-0 text-base">🤝</span><span><strong>Bez escrow (na dobírku).</strong> Platformě teď zaplatíte jen provizi + dopravu; <strong>cenu zboží zaplatíte na dobírku při převzetí</strong> dopravci. Nevztahuje se escrow ochrana — případné spory řešíte přímo s prodejcem.</span></div>`
+                        : `<div class="bg-sky-50 border border-sky-100 rounded-2xl p-4 text-xs text-sky-700 flex gap-3 items-start"><svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg><span>Platba je chráněna escrow. Peníze jsou uvolněny prodejci až po potvrzení doručení kupujícím.</span></div>`}
+                    <button id="create-order-btn" onclick="startFixedPayment('cart','${groupKey}|${mode}')" class="w-full ${isDirect?'bg-amber-500 hover:bg-amber-600':'bg-pink-500 hover:bg-pink-600'} disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 px-8 rounded-2xl transition-all shadow-[0_10px_20px_-10px_rgba(236,72,153,.6)] text-base">Nejprve vyberte způsob doručení</button>
                     <p class="text-center text-xs text-gray-400">Platební brána bude aktivována po výběru poskytovatele</p>`;
         return `<div class="w-full bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
             <button onclick="navigate('kosik')" class="mb-6 text-pink-500 font-bold hover:text-pink-600 flex items-center gap-2">← Zpět do košíku</button>
