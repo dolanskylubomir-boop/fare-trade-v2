@@ -1394,7 +1394,7 @@
     // Stav pro TOP modal
     let _topState = { id:null, type:null, selectedTier:null, vs:null };
     // Stav pro vyhledávání/řazení
-    let _listState = { search:'', sort:'top', priceMin:null, priceMax:null, condition:'', carrier:'', kraj:'', escrow:'' };
+    let _listState = { search:'', sort:'top', priceMin:null, priceMax:null, condition:'', carrier:'', kraj:'', escrow:'', seller:'' };
     const KRAJE = ['Praha','Středočeský','Jihočeský','Plzeňský','Karlovarský','Ústecký','Liberecký','Královéhradecký','Pardubický','Vysočina','Jihomoravský','Olomoucký','Zlínský','Moravskoslezský'];
 
     // Synchronní čtení uložené Supabase session z localStorage — žádný async, nemůže zamrznout
@@ -1778,6 +1778,18 @@
     };
 
     window.renderSearchSort = function(view, cat) {
+        // Prodejci v aktuálním pohledu/kategorii (bez vlastních inzerátů) — pro filtr „Prodejce"
+        const _sellSrc = (view === 'aukce') ? (window.dataAukce || []) : (window.dataPevnaCena || []);
+        const _sellMap = {};
+        _sellSrc.forEach(i => {
+            if ((i.db_status || 'aktivní') !== 'aktivní') return;
+            if (cat && cat !== 'Vše' && i.category !== cat) return;
+            if (!i.seller_id || (window.currentUser && i.seller_id === window.currentUser.id)) return;
+            if (!_sellMap[i.seller_id]) _sellMap[i.seller_id] = { name: i.seller || 'Prodejce', count: 0 };
+            _sellMap[i.seller_id].count++;
+        });
+        const _sellers = Object.keys(_sellMap).map(id => ({ id, name: _sellMap[id].name, count: _sellMap[id].count }))
+            .sort((a, b) => (b.count - a.count) || String(a.name).localeCompare(String(b.name), 'cs'));
         return `<div class="flex gap-2 mb-5">
             <div class="search-wrap flex-1">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/></svg>
@@ -1816,13 +1828,17 @@
                 <option value="" ${!_listState.kraj?'selected':''}>📍 Kraj: vše</option>
                 ${KRAJE.map(k=>`<option value="${k}" ${_listState.kraj===k?'selected':''}>${k}</option>`).join('')}
             </select>
+            ${_sellers.length ? `<select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0 max-w-[180px]" onchange="_listState.seller=this.value; navigate('${view}','${cat}')">
+                <option value="" ${!_listState.seller?'selected':''}>👤 Prodejce: vše</option>
+                ${_sellers.map(s=>`<option value="${s.id}" ${_listState.seller===s.id?'selected':''}>${esc(s.name)} (${s.count})</option>`).join('')}
+            </select>` : ''}
             ${window._directEnabled() ? `<select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.escrow=this.value; navigate('${view}','${cat}')">
                 <option value="" ${!_listState.escrow?'selected':''}>🔒 Escrow: vše</option>
                 <option value="escrow" ${_listState.escrow==='escrow'?'selected':''}>🔒 S escrow</option>
                 <option value="direct" ${_listState.escrow==='direct'?'selected':''}>🤝 Bez escrow</option>
             </select>` : ''}
             <button type="button" onclick="_nearbyFilter('${view}','${cat}')" title="Zobrazit inzeráty ve vašem kraji" class="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold text-sm transition-colors">📍 V okolí</button>
-            ${(_listState.priceMin||_listState.priceMax||_listState.condition||_listState.carrier||_listState.kraj||_listState.escrow)?`<button onclick="_listState.priceMin=null;_listState.priceMax=null;_listState.condition='';_listState.carrier='';_listState.kraj='';_listState.escrow='';navigate('${view}','${cat}')" class="text-xs text-gray-400 hover:text-red-400 transition-colors font-bold">✕ Zrušit filtry</button>`:''}
+            ${(_listState.priceMin||_listState.priceMax||_listState.condition||_listState.carrier||_listState.kraj||_listState.escrow||_listState.seller)?`<button onclick="_listState.priceMin=null;_listState.priceMax=null;_listState.condition='';_listState.carrier='';_listState.kraj='';_listState.escrow='';_listState.seller='';navigate('${view}','${cat}')" class="text-xs text-gray-400 hover:text-red-400 transition-colors font-bold">✕ Zrušit filtry</button>`:''}
             <div class="ml-auto inline-flex items-center rounded-xl border border-gray-200 bg-white overflow-hidden shrink-0">
                 <button type="button" data-layout-btn="grid" onclick="_setLayout('${view}','grid')" title="Dlaždice" class="px-2.5 py-1.5 transition-colors ${_listLayout==='grid'?'bg-gray-800 text-white':'text-gray-400 hover:bg-gray-50'}"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z"/></svg></button>
                 <button type="button" data-layout-btn="list" onclick="_setLayout('${view}','list')" title="Řádky" class="px-2.5 py-1.5 transition-colors ${_listLayout==='list'?'bg-gray-800 text-white':'text-gray-400 hover:bg-gray-50'}"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4h14v3H3V4zm0 5h14v3H3V9zm0 5h14v3H3v-3z"/></svg></button>
@@ -1841,6 +1857,7 @@
         if (_listState.condition) result = result.filter(i => i.condition === _listState.condition);
         if (_listState.carrier)   result = result.filter(i => Array.isArray(i.shipping_methods) && i.shipping_methods.includes(_listState.carrier));
         if (_listState.kraj)      result = result.filter(i => i.kraj === _listState.kraj);
+        if (_listState.seller)    result = result.filter(i => String(i.seller_id) === String(_listState.seller));
         if (_listState.escrow === 'escrow') result = result.filter(i => !i.direct_only);      // jde koupit přes escrow
         if (_listState.escrow === 'direct') result = result.filter(i => i.allow_direct);       // jde koupit bez escrow
         // Seřazení dle data — novější = větší číslo
