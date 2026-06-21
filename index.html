@@ -1145,7 +1145,10 @@
         if (!r2.ok) {
             const e2 = await r2.json().catch(function(){return{};});
             // DB trigger vrací zprávu v e2.message (RAISE EXCEPTION)
-            const msg = e2.message || e2.error || e2.hint || '';
+            let msg = e2.message || e2.error || e2.hint || '';
+            if (/blocked_word/.test(msg)) msg = 'Zpráva obsahuje zakázané výrazy.';
+            else if (/blocked_contact/.test(msg)) msg = 'Zpráva obsahuje kontaktní údaje (telefon/e-mail/odkaz) — nejsou v chatu povolené.';
+            else if (/off_platform/.test(msg)) msg = 'Domlouvání platby nebo prodeje mimo platformu není povoleno.';
             return { error: msg || ('Chyba ' + r2.status) };
         }
         return { ok: true };
@@ -1161,7 +1164,7 @@
         if (!text) { showErr('Zpráva nesmí být prázdná.'); return; }
         if (text.length < 2) { showErr('Zpráva je příliš krátká.'); return; }
         if (_censorCheck(text)) { showErr('Zpráva obsahuje zakázaný obsah (kontaktní údaje).'); return; }
-        if (window._paymentScamHint(text) && !confirm('⚠️ Vaše zpráva vypadá jako domluva na platbu mimo platformu.\n\nJen platba PŘES platformu je krytá escrow ochranou. Domluva bokem = bez ochrany a častý způsob podvodu.\n\nOpravdu chcete zprávu přesto odeslat?')) return;
+        if (window._paymentScamHint(text)) { showErr('Domlouvání platby nebo prodeje mimo platformu není povoleno. Vše řešte přes platformu (escrow ochrana).'); return; }
         if (btn) { btn.disabled = true; btn.textContent = 'Odesílám…'; }
         try {
             const token = await _ensureValidToken();
@@ -11260,7 +11263,7 @@
         if (!text) { showToast('Napište text odpovědi.', 'warning'); return; }
         if (text.length < 2) { showToast('Odpověď je příliš krátká.', 'warning'); return; }
         if (_censorCheck(text)) { showToast('Odpověď obsahuje zakázaný obsah (kontaktní údaje).', 'warning'); return; }
-        if (window._paymentScamHint(text) && !confirm('⚠️ Vaše zpráva vypadá jako domluva na platbu mimo platformu.\n\nJen platba PŘES platformu je krytá escrow ochranou. Domluva bokem = bez ochrany a častý způsob podvodu.\n\nOpravdu chcete zprávu přesto odeslat?')) return;
+        if (window._paymentScamHint(text)) { showToast('Domlouvání platby/prodeje mimo platformu není povoleno. Vše řešte přes platformu.', 'warning'); return; }
         const token = await _ensureValidToken();
         if (!token) { showToast('Chyba ověření.', 'warning'); return; }
         try {
