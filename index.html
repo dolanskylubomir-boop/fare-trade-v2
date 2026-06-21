@@ -692,6 +692,12 @@
                     </button>
                     <p class="text-xs text-gray-400 pl-1">Smazané fotky se po uložení odstraní z úložiště. Inzerát musí mít aspoň 1 fotku.</p>
                 </div>
+                <div class="flex flex-col gap-1" id="edit-direct-section" style="display:none">
+                    <label class="flex items-start gap-3 bg-gray-50 px-3 py-2.5 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+                        <input type="checkbox" id="edit-allow-direct" class="w-4 h-4 text-sky-500 rounded focus:ring-sky-400 mt-0.5">
+                        <span class="text-xs text-gray-600 leading-relaxed"><strong class="text-gray-800">🤝 Povolit i prodej bez escrow</strong> — kupující si u pokladny vybere. Cenu zboží si pak vyřídíte přímo (bez ochrany escrow); platformě se platí jen provize + doprava.</span>
+                    </label>
+                </div>
                 <div class="flex flex-col gap-1" id="edit-video-section">
                     <label class="text-xs font-bold text-gray-500 pl-1">🎥 Krátké video <span class="text-gray-400 font-normal">(volitelné, max 30 s / 40 MB)</span></label>
                     <input type="file" id="edit-video-input" accept="video/mp4,video/webm,video/quicktime" class="hidden" onchange="_editVideoPick(this)">
@@ -2582,6 +2588,8 @@
         _renderEditPhotos();
         _renderEditVideo();
         const _evSec = document.getElementById('edit-video-section'); if (_evSec) _evSec.style.display = window._videoEnabled() ? '' : 'none';
+        const _edSec = document.getElementById('edit-direct-section'); if (_edSec) _edSec.style.display = window._directEnabled() ? '' : 'none';
+        const _adChk = document.getElementById('edit-allow-direct'); if (_adChk) _adChk.checked = !!item.allow_direct;
 
         document.getElementById('modal-edit').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
@@ -2668,6 +2676,7 @@
             } else if (_ev.remove) {
                 updateObj.video_url = null; updateObj.video_path = null; updateObj.video_status = null;
             }
+            if (window._directEnabled()) updateObj.allow_direct = !!(document.getElementById('edit-allow-direct') && document.getElementById('edit-allow-direct').checked);
             btn.textContent = 'Ukládám…';
 
             const { error } = await supabaseClient.from(tableName).update(updateObj).eq('id', id);
@@ -2692,6 +2701,7 @@
                     patch.price = price;
                 }
                 if ('video_url' in updateObj) { patch.video_url = updateObj.video_url ? safeUrl(updateObj.video_url) : ''; patch.video_status = updateObj.video_status || ''; }
+                if ('allow_direct' in updateObj) patch.allow_direct = !!updateObj.allow_direct;
                 Object.assign(item, patch);
             }
 
@@ -3201,7 +3211,7 @@
                         starting_price: Number(item.starting_price)||0, current_price: Number(currentPrice)||0,
                         category: esc(item.category), subcategory: esc(item.subcategory || ''), img: safeImage(item),
                         images: (item.images || [safeImage(item)]).map(u => safeUrl(u)),
-                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[], kraj: esc(item.kraj||''), mesto: esc(item.mesto||''), video_url: item.video_url ? safeUrl(item.video_url) : '', video_status: item.video_status || '', video_expires_at: item.video_expires_at || null,
+                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[], kraj: esc(item.kraj||''), mesto: esc(item.mesto||''), video_url: item.video_url ? safeUrl(item.video_url) : '', video_status: item.video_status || '', video_expires_at: item.video_expires_at || null, allow_direct: item.allow_direct === true,
                         has360: item.has_360 || false, seller: seller.name,
                         verified: seller.verified, rating: seller.rating, rating_count: seller.rating_count || 0,
                         seller_total_sold: seller.total_sold_count || 0, seller_satisfaction: seller.satisfaction_pct || 0, seller_ship_hours: seller.avg_ship_hours || 0,
@@ -3224,7 +3234,7 @@
                         title: esc(item.title), price: Number(item.price)||0,
                         category: esc(item.category), subcategory: esc(item.subcategory || ''), img: safeImage(item),
                         images: (item.images || [safeImage(item)]).map(u => safeUrl(u)),
-                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[], kraj: esc(item.kraj||''), mesto: esc(item.mesto||''), video_url: item.video_url ? safeUrl(item.video_url) : '', video_status: item.video_status || '', video_expires_at: item.video_expires_at || null,
+                        condition: esc(item.condition), brand: esc(item.brand), shipping_methods: Array.isArray(item.shipping_methods)?item.shipping_methods:[], kraj: esc(item.kraj||''), mesto: esc(item.mesto||''), video_url: item.video_url ? safeUrl(item.video_url) : '', video_status: item.video_status || '', video_expires_at: item.video_expires_at || null, allow_direct: item.allow_direct === true,
                         has360: item.has_360 || false, seller: seller.name,
                         verified: seller.verified, rating: seller.rating, rating_count: seller.rating_count || 0,
                         seller_total_sold: seller.total_sold_count || 0, seller_satisfaction: seller.satisfaction_pct || 0, seller_ship_hours: seller.avg_ship_hours || 0,
@@ -4361,6 +4371,7 @@
                 kraj: (document.getElementById('ad-kraj')?.value || '').trim() || null,
                 mesto: (document.getElementById('ad-psc')?.value || '').trim() || null,
                 video_url: _videoUrl, video_path: _videoPath, video_status: _videoUrl ? 'pending' : null,
+                allow_direct: !!(document.getElementById('ad-allow-direct') && document.getElementById('ad-allow-direct').checked),
                 shipping_methods: Array.from(document.querySelectorAll('input[name="shipping"]:checked')).map(el=>el.value),
                 images: uploadedImages, has_360: (uploadedImages.length >= 4),
                 payment_type: 'escrow',
@@ -4406,7 +4417,7 @@
                 images: uploadedImages.map(u => safeUrl(u)),
                 condition: esc(adData.condition),
                 brand: esc(adData.brand || ''),
-                kraj: esc(adData.kraj || ''), mesto: esc(adData.mesto || ''), video_url: safeUrl(adData.video_url || ''), video_status: adData.video_status || '', shipping_methods: adData.shipping_methods || [],
+                kraj: esc(adData.kraj || ''), mesto: esc(adData.mesto || ''), video_url: safeUrl(adData.video_url || ''), video_status: adData.video_status || '', allow_direct: !!adData.allow_direct, shipping_methods: adData.shipping_methods || [],
                 has360: adData.has_360 || false,
                 seller: esc(sellerProfile.display_name || user.email?.split('@')[0] || ''),
                 verified: sellerProfile.kyc_status === 'verified',
@@ -7325,7 +7336,8 @@
                         <li>Při otevření sporu je platba pozastavena a Provozovatel případ prošetří do 48 hodin.</li>
                     </ol>
                     <p class="mb-2">Pokud Kupující nepotvrdí příjem ani neotevře spor do <strong>14 dní</strong> od data odeslání, Provozovatel platbu uvolní automaticky. Escrow chrání obě strany: Kupujícího před podvodem Prodávajícího, Prodávajícího před neoprávněnými spory díky fotografické dokumentaci zásilky.</p>
-                    <p><strong>Osobní předání:</strong> Je-li u objednávky zvoleno osobní předání, probíhá platba <strong>vždy přes escrow</strong> — Provozovatel nedoporučuje platby mimo Platformu (ztrácíte ochranu). Přesné místo a čas předání si strany domluví v <strong>chatu k objednávce</strong>, který se zpřístupní po zaplacení. Kupující po fyzickém převzetí zboží potvrdí doručení v aplikaci, čímž se uvolní platba Prodávajícímu. Komunikace musí zůstat v rámci Platformy a slouží i jako podklad pro případný spor; po dohodě lze konverzaci uzavřít, záznam zůstává zachován.</p>
+                    <p class="mb-2"><strong>Osobní předání:</strong> Je-li u objednávky zvoleno osobní předání, probíhá platba <strong>vždy přes escrow</strong> — Provozovatel nedoporučuje platby mimo Platformu (ztrácíte ochranu). Přesné místo a čas předání si strany domluví v <strong>chatu k objednávce</strong>, který se zpřístupní po zaplacení. Kupující po fyzickém převzetí zboží potvrdí doručení v aplikaci, čímž se uvolní platba Prodávajícímu. Komunikace musí zůstat v rámci Platformy a slouží i jako podklad pro případný spor; po dohodě lze konverzaci uzavřít, záznam zůstává zachován.</p>
+                    <p><strong>Přímý prodej (bez escrow):</strong> Pokud to Prodávající u inzerátu povolí a Provozovatel tuto možnost zpřístupní, může Kupující zvolit <strong>prodej bez escrow</strong>. V tom případě hradí Kupující Provozovateli <strong>pouze provizi a cenu dopravy</strong> (na účet Provozovatele) — tato částka <strong>není součástí escrow úschovy</strong> a slouží ke zprostředkování a vystavení přepravního štítku; teprve po jejím zaplacení se obchod potvrdí a vygeneruje štítek. <strong>Cenu zboží si Kupující a Prodávající vypořádají přímo mezi sebou</strong>, mimo Platformu. Na přímý prodej se <strong>nevztahuje escrow ochrana</strong> (úschova, automatické uvolnění, vrácení ceny zboží při sporu) — Provozovatel u něj neručí za zaplacení ani doručení zboží a Kupující i Prodávající nesou riziko sami. Provize a doprava se po potvrzení nevrací. Provozovatel důrazně doporučuje escrow variantu; přímý prodej je dobrovolná volba na vlastní odpovědnost.</p>
                 </section>
 
                 <section>
@@ -7724,6 +7736,14 @@
                     </div>
                     <div id="ai-ship-hint" class="mt-2"></div>
                 </div>
+                ${window._directEnabled() ? `<div class="bg-white/70 rounded-3xl border border-gray-100 p-5 mb-2 shadow-sm">
+                    <h3 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">🤝 Způsob prodeje</h3>
+                    <p class="text-xs text-gray-400 mb-3 leading-relaxed">Escrow ochrana je vždy k dispozici. Můžete navíc povolit i <strong>prodej bez escrow</strong> — kupující si pak u pokladny vybere.</p>
+                    <label class="flex items-start gap-3 bg-gray-50 px-4 py-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+                        <input type="checkbox" id="ad-allow-direct" class="w-4 h-4 text-sky-500 rounded focus:ring-sky-400 mt-0.5">
+                        <span class="text-xs text-gray-600 leading-relaxed"><strong class="text-gray-800">Povolit i prodej bez escrow (přímý prodej)</strong><br>Kupující zaplatí platformě jen provizi a dopravu; <strong>cenu zboží si vyřídíte přímo mezi sebou</strong> (bez úschovy = bez ochrany escrow). Escrow varianta zůstává nabídnutá taky.</span>
+                    </label>
+                </div>` : ''}
                 <div id="ad-video-section" style="${window._videoEnabled()?'':'display:none'}" class="bg-white/70 rounded-3xl border border-gray-100 p-5 mb-2 shadow-sm">
                     <h3 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">🎥 Krátké video <span class="text-xs font-normal text-gray-400">(volitelné)</span></h3>
                     <p class="text-xs text-gray-400 mb-3 leading-relaxed">Až <strong>30 s</strong>, do <strong>40 MB</strong> (mp4/webm). <strong>Placená služba</strong> — po schválení adminem zaplatíte za zveřejnění. Video uvidí jen přihlášení; po prodeji nebo vypršení se smaže.</p>
