@@ -13885,6 +13885,208 @@
         });
     }
 
+    // ══════════════════════════════════════════════════════════
+    //  VEŘEJNÝ CHAT TRŽIŠTĚ (global_chat_messages)
+    //  FAB → desktop pravý panel / mobil bottom-sheet. Supabase REST + Realtime.
+    // ══════════════════════════════════════════════════════════
+    (function(){
+        const PAGE = 50;
+        let _open = false, _subscribed = false, _oldestTs = null, _noMore = false, _loading = false, _unread = 0, _loaded = false;
+        const _seen = new Set();
+
+        const _hdrs = (token) => { const h = { 'apikey': SUPABASE_ANON_KEY, 'Content-Type':'application/json' }; if (token) h['Authorization'] = 'Bearer ' + token; return h; };
+        const _canPost = () => !!(window.currentUser && !window._isAnonBuyer);
+        const _list = () => document.getElementById('gc-list');
+        const _atBottom = () => { const el = _list(); return !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 80); };
+        const _scrollBottom = () => { const el = _list(); if (el) el.scrollTop = el.scrollHeight; };
+
+        function _updateUnread() {
+            const b = document.getElementById('gc-unread'); if (!b) return;
+            if (_unread > 0 && !_open) { b.textContent = _unread > 9 ? '9+' : String(_unread); b.classList.remove('hidden'); }
+            else b.classList.add('hidden');
+        }
+        function _updateOlderBtn() {
+            const w = document.getElementById('gc-older-wrap'); if (!w) return;
+            w.classList.toggle('hidden', _noMore || !_loaded);
+        }
+
+        // Vykreslení jedné zprávy (prepend = připojit nahoru u starších)
+        function _renderMsg(m, prepend) {
+            if (!m || _seen.has(m.id)) return;
+            _seen.add(m.id);
+            const mine = window.currentUser && m.user_id === window.currentUser.id;
+            const time = new Date(m.created_at).toLocaleTimeString('cs-CZ', { hour:'2-digit', minute:'2-digit' });
+            const name = esc(m.display_name || 'Uživatel');
+            const av = m.avatar_url
+                ? `<img src="${esc(m.avatar_url)}" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{className:'w-7 h-7 rounded-full bg-sky-100 text-sky-700 text-xs font-bold flex items-center justify-center shrink-0',textContent:'${name.charAt(0).toUpperCase()}'}))" class="w-7 h-7 rounded-full object-cover bg-gray-100 shrink-0">`
+                : `<span class="w-7 h-7 rounded-full bg-sky-100 text-sky-700 text-xs font-bold flex items-center justify-center shrink-0">${name.charAt(0).toUpperCase()}</span>`;
+            const row = document.createElement('div');
+            row.className = `flex items-end gap-2 ${mine ? 'flex-row-reverse' : ''}`;
+            row.setAttribute('data-id', m.id);
+            row.innerHTML = `${av}
+                <div class="max-w-[78%] flex flex-col ${mine ? 'items-end' : ''}">
+                    <div class="flex items-center gap-1.5 mb-0.5 ${mine ? 'flex-row-reverse' : ''}">
+                        <span class="text-[11px] font-bold text-gray-600 truncate max-w-[140px]">${mine ? 'Vy' : name}</span>
+                        <span class="text-[10px] text-gray-300">${time}</span>
+                    </div>
+                    <div class="px-3 py-2 rounded-2xl text-sm leading-snug break-words ${mine ? 'bg-sky-500 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-700 rounded-bl-sm'}" style="white-space:pre-wrap;word-break:break-word">${esc(m.body)}</div>
+                </div>`;
+            const cont = document.getElementById('gc-msgs');
+            if (!cont) return;
+            if (prepend) cont.insertBefore(row, cont.firstChild); else cont.appendChild(row);
+        }
+
+        // Načti posledních 50 zpráv (čte i nepřihlášený – veřejné)
+        async function _load() {
+            if (_loaded || _loading) return;
+            _loading = true;
+            const ld = document.getElementById('gc-loading');
+            try {
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/global_chat_messages?select=id,user_id,display_name,avatar_url,body,created_at&order=created_at.desc&limit=${PAGE}`, { headers: _hdrs() });
+                const rows = await r.json();
+                if (ld) ld.remove();
+                if (!Array.isArray(rows)) return;
+                const asc = rows.slice().reverse();           // nejstarší → nejnovější
+                asc.forEach(m => _renderMsg(m, false));
+                if (asc.length) _oldestTs = asc[0].created_at;
+                _noMore = rows.length < PAGE;
+                _loaded = true;
+                _updateOlderBtn();
+                _scrollBottom();
+            } catch(e) {
+                if (ld) ld.innerHTML = '<p class="text-xs text-red-500 text-center">Chat se nepodařilo načíst.</p>';
+            }
+            _loading = false;
+        }
+
+        // Dotáhni starších 50 a připoj nahoru (zachovej pozici scrollu)
+        window._chatLoadOlder = async function() {
+            if (_loading || _noMore || !_oldestTs) return;
+            _loading = true;
+            const btn = document.getElementById('gc-older'); if (btn) btn.textContent = 'Načítám…';
+            const list = _list(); const prevH = list ? list.scrollHeight : 0;
+            try {
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/global_chat_messages?select=id,user_id,display_name,avatar_url,body,created_at&created_at=lt.${encodeURIComponent(_oldestTs)}&order=created_at.desc&limit=${PAGE}`, { headers: _hdrs() });
+                const rows = await r.json();
+                if (Array.isArray(rows) && rows.length) {
+                    rows.forEach(m => _renderMsg(m, true));    // desc → prepend = nejstarší nahoru
+                    _oldestTs = rows[rows.length - 1].created_at;
+                    _noMore = rows.length < PAGE;
+                    if (list) list.scrollTop = list.scrollHeight - prevH; // zachovej pozici
+                } else { _noMore = true; }
+            } catch(e) {}
+            if (btn) btn.textContent = '↑ Načíst starší zprávy';
+            _updateOlderBtn();
+            _loading = false;
+        };
+
+        // Odeslání zprávy (jen přihlášený) — vykreslí ji Realtime (dedup přes _seen)
+        window._chatSend = async function() {
+            if (!_canPost()) { _renderComposer(); return; }
+            const inp = document.getElementById('gc-input'); if (!inp) return;
+            const body = (inp.value || '').trim();
+            if (!body) return;
+            if (body.length > 500) { showToast('Zpráva je příliš dlouhá (max 500 znaků).','warning'); return; }
+            const btn = document.getElementById('gc-send');
+            if (btn) btn.disabled = true; inp.disabled = true;
+            try {
+                const token = await _ensureValidToken();
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/global_chat_messages`, {
+                    method: 'POST', headers: { ..._hdrs(token), 'Prefer':'return=minimal' },
+                    body: JSON.stringify({ body })
+                });
+                if (!r.ok) {
+                    const t = await r.text().catch(() => '');
+                    showToast(t.includes('rate_limited') ? 'Posíláte zprávy moc rychle — chvíli počkejte.' : (t.includes('is_banned')||t.includes('row-level') ? 'Nemáte oprávnění psát do chatu.' : 'Zprávu se nepodařilo odeslat.'), 'warning');
+                } else { inp.value = ''; _chatGrow(inp); }
+            } catch(e) { showToast('Chyba spojení.','error'); }
+            if (btn) btn.disabled = false; inp.disabled = false; inp.focus();
+        };
+
+        window._chatGrow = function(el) { if (!el) return; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 96) + 'px'; };
+        window._chatKey = function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window._chatSend(); } };
+
+        // Composer: input pro přihlášené, jinak výzva k přihlášení
+        function _renderComposer() {
+            const el = document.getElementById('gc-composer'); if (!el) return;
+            if (_canPost()) {
+                el.innerHTML = `<div class="flex items-end gap-2">
+                    <textarea id="gc-input" rows="1" maxlength="500" placeholder="Napište zprávu…" oninput="_chatGrow(this)" onkeydown="_chatKey(event)" class="flex-1 resize-none max-h-24 px-3 py-2.5 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:border-sky-400 bg-white"></textarea>
+                    <button onclick="_chatSend()" id="gc-send" aria-label="Odeslat zprávu" class="shrink-0 w-10 h-10 rounded-full bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19V5m0 0l-7 7m7-7l7 7"/></svg></button>
+                </div>`;
+            } else {
+                el.innerHTML = `<div class="text-center text-sm text-gray-500 bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3">Pro zapojení do diskuze se musíte <button onclick="_chatClose();navigate('login')" class="text-sky-600 font-bold hover:underline">přihlásit</button>.</div>`;
+            }
+        }
+
+        // Realtime: nové zprávy + mazání
+        function _subscribe() {
+            if (_subscribed || !supabaseClient) return;
+            _subscribed = true;
+            supabaseClient.channel('rt_global_chat')
+                .on('postgres_changes', { event:'INSERT', schema:'public', table:'global_chat_messages' }, (p) => {
+                    const m = p.new; if (!m) return;
+                    const near = _atBottom();
+                    _renderMsg(m, false);
+                    if (_open && (near || (window.currentUser && m.user_id === window.currentUser.id))) _scrollBottom();
+                    else if (!_open) { _unread++; _updateUnread(); }
+                })
+                .on('postgres_changes', { event:'DELETE', schema:'public', table:'global_chat_messages' }, (p) => {
+                    const id = p.old && p.old.id; if (!id) return;
+                    const el = document.querySelector(`#gc-msgs [data-id="${id}"]`); if (el) el.remove();
+                    _seen.delete(id);
+                })
+                .subscribe();
+        }
+
+        window._chatOpen = function() {
+            _open = true; _unread = 0; _updateUnread();
+            const p = document.getElementById('gc-panel'), b = document.getElementById('gc-backdrop');
+            if (b) b.classList.remove('hidden');
+            if (p) { p.classList.remove('translate-y-full','sm:translate-x-full','pointer-events-none'); p.classList.add('pointer-events-auto'); }
+            _renderComposer();
+            _subscribe();
+            if (!_loaded) _load(); else _scrollBottom();
+        };
+        window._chatClose = function() {
+            _open = false;
+            const p = document.getElementById('gc-panel'), b = document.getElementById('gc-backdrop');
+            if (b) b.classList.add('hidden');
+            if (p) { p.classList.add('translate-y-full','sm:translate-x-full','pointer-events-none'); p.classList.remove('pointer-events-auto'); }
+        };
+        window._chatToggle = function() { _open ? window._chatClose() : window._chatOpen(); };
+
+        window._initGlobalChat = function() {
+            if (document.getElementById('gc-fab')) return;
+            const root = document.createElement('div');
+            root.innerHTML = `
+                <button id="gc-fab" onclick="_chatToggle()" aria-label="Otevřít veřejný chat" class="fixed z-[60] bottom-5 right-5 w-14 h-14 rounded-full bg-gradient-to-tr from-sky-500 to-fuchsia-500 text-white shadow-lg shadow-sky-400/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3-3-3z"/></svg>
+                    <span id="gc-unread" class="hidden absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-white"></span>
+                </button>
+                <div id="gc-backdrop" onclick="_chatClose()" class="hidden fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm sm:hidden"></div>
+                <section id="gc-panel" aria-label="Veřejný chat tržiště" class="fixed z-[61] inset-x-0 bottom-0 h-[85vh] rounded-t-3xl sm:inset-y-0 sm:right-0 sm:left-auto sm:bottom-auto sm:h-full sm:w-[340px] sm:rounded-t-none bg-white shadow-2xl border-t sm:border-t-0 sm:border-l border-gray-100 flex flex-col translate-y-full sm:translate-y-0 sm:translate-x-full pointer-events-none transition-transform duration-300 will-change-transform">
+                    <header class="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 shrink-0">
+                        <div class="flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-500 to-fuchsia-500 text-white flex items-center justify-center text-sm">💬</span>
+                            <div><p class="font-extrabold text-pastel-text text-sm leading-tight">Veřejný chat</p><p class="text-[11px] text-gray-400 leading-tight">Diskuze tržiště</p></div>
+                        </div>
+                        <button onclick="_chatClose()" aria-label="Zavřít chat" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors">✕</button>
+                    </header>
+                    <div id="gc-list" class="flex-1 overflow-y-auto px-3 py-3 bg-gray-50/60">
+                        <div id="gc-older-wrap" class="hidden flex justify-center pb-2"><button id="gc-older" onclick="_chatLoadOlder()" class="text-xs font-bold text-sky-600 bg-white border border-sky-100 hover:bg-sky-50 px-3 py-1.5 rounded-full transition-colors">↑ Načíst starší zprávy</button></div>
+                        <div id="gc-loading" class="flex justify-center py-8"><div class="w-6 h-6 border-[3px] border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div>
+                        <div id="gc-msgs" class="flex flex-col gap-2"></div>
+                    </div>
+                    <div id="gc-composer" class="shrink-0 border-t border-gray-100 p-3 bg-white"></div>
+                </section>`;
+            document.body.appendChild(root);
+            _renderComposer();
+            // Aktualizuj composer při změně přihlášení (input ↔ výzva k přihlášení)
+            try { if (supabaseClient && supabaseClient.auth && supabaseClient.auth.onAuthStateChange) supabaseClient.auth.onAuthStateChange(() => _renderComposer()); } catch(e) {}
+        };
+    })();
+
     document.addEventListener('DOMContentLoaded', () => {
         // Referral: zachyť ?ref=KÓD do localStorage; aplikuj, jakmile je uživatel přihlášen
         try {
@@ -13905,6 +14107,7 @@
         });
 
         setupRealtime();
+        window._initGlobalChat && window._initGlobalChat();
     });
 
     // === PWA Service Worker ===
