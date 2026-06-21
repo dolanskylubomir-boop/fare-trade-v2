@@ -8227,10 +8227,18 @@
     // KOŠÍK & OBJEDNÁVKY
     // ──────────────────────────────────────────────────────────────
     const DOPRAVCI = [
-        { id:'zasilkovna', name:'Zásilkovna', price:89,  tierKey:'Zásilkovna', desc:'Výdejní místo nebo adresa', icon:'📦' },
-        { id:'ppl',        name:'PPL Parcel', price:119, tierKey:'PPL',        desc:'Doručení na adresu',         icon:'🚚' },
-        { id:'dpd',        name:'DPD',        price:109, tierKey:'DPD',        desc:'Adresa nebo DPD Pickup Box', icon:'🚛' },
+        { id:'zasilkovna', name:'Zásilkovna',  price:89,  tierKey:'Zásilkovna',  desc:'Výdejní místo nebo adresa', icon:'📦' },
+        { id:'ppl',        name:'PPL Parcel',  price:119, tierKey:'PPL',         desc:'Doručení na adresu',         icon:'🚚' },
+        { id:'dpd',        name:'DPD',         price:109, tierKey:'DPD',         desc:'Adresa nebo DPD Pickup Box', icon:'🚛' },
+        { id:'cp',         name:'Česká pošta', price:89,  tierKey:'Česká pošta', desc:'Balík na poštu / do ruky',   icon:'📮' },
     ];
+    // Dopravci nabídnutí v pokladně = JEN ti, které prodejce zvolil u inzerátu (vč. ceny dle ceníku).
+    // Staré inzeráty bez vyplněných shipping_methods → ukáží se všichni (žádná regrese).
+    window._offeredCarriers = function(methods) {
+        const sel = Array.isArray(methods) ? methods : [];
+        if (!sel.length) return DOPRAVCI.slice();
+        return DOPRAVCI.filter(d => sel.includes(d.tierKey) || sel.includes(d.name));
+    };
 
     // Hmotnostní + rozměrový ceník dopravců (orientační pásma „do X kg = cena Kč";
     // maxLongestCm = nejdelší strana, maxSumCm = součet D+Š+V).
@@ -8311,7 +8319,7 @@
     // Vykreslení dopravců s cenou dle hmotnosti — nevhodné (váha/rozměr) jsou neklikatelné.
     // methods = nabízené způsoby dopravy inzerátu (kvůli osobnímu předání).
     window._carrierCards = function(weightKg, dimsStr, methods) {
-        let html = DOPRAVCI.map(function(d){
+        let html = window._offeredCarriers(methods).map(function(d){
             if (!window._carrierFits(d, weightKg, dimsStr)) {
                 return `<div class="carrier-card !border-gray-100 opacity-50 cursor-not-allowed" title="Nevhodné pro hmotnost/rozměr zásilky"><div class="flex items-center justify-between"><div class="flex items-center gap-3"><span class="text-2xl grayscale">${d.icon}</span><div><p class="font-bold text-sm text-gray-400">${d.name}</p><p class="text-[11px] text-amber-600">Nevhodné — váha/rozměr zásilky</p></div></div><span class="text-xs font-bold text-gray-300 whitespace-nowrap">—</span></div></div>`;
             }
@@ -8325,7 +8333,7 @@
     };
     window._carrierRadios = function(weightKg, accent, dimsStr, methods) {
         accent = accent || 'amber';
-        let html = DOPRAVCI.map(function(d){
+        let html = window._offeredCarriers(methods).map(function(d){
             if (!window._carrierFits(d, weightKg, dimsStr)) {
                 return `<label class="flex items-center gap-3 p-3 rounded-xl border-2 border-gray-100 opacity-50 cursor-not-allowed"><input type="radio" disabled class="accent-gray-400"><span class="text-lg grayscale">${d.icon}</span><span class="flex-1 text-sm font-medium text-gray-400">${d.name}</span><span class="text-[11px] font-bold text-amber-600">Nevhodné — váha/rozměr</span></label>`;
             }
@@ -9689,7 +9697,9 @@
         if (!group?.items?.length) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center min-h-[300px] flex flex-col items-center justify-center gap-4"><p class="text-gray-500">Košík je prázdný.</p><button onclick="navigate('kosik')" class="bg-pink-500 text-white font-bold px-6 py-3 rounded-2xl">Zpět do košíku</button></div>`;
         const sub = group.items.reduce((s,i) => s + i.price, 0);
         const _cartW = group.items.reduce((s,i) => s + window._lookupWeight(i.id), 0);
-        const _cartMethods = group.items.every(i => (window._lookupMethods(i.id)||[]).some(m => String(m).toLowerCase().includes('osobní'))) ? ['Osobní předání'] : [];
+        // Dopravci v košíku = PRŮNIK metod všech položek (nabídneme jen ty, které podporují všechny položky)
+        const _methodSets = group.items.map(i => (window._lookupMethods(i.id) || []));
+        const _cartMethods = _methodSets.length ? _methodSets.reduce((acc, set) => acc.filter(m => set.includes(m))) : [];
         const escrowFee = Math.round(sub * 0.05) + 49;
         _checkoutCarrier = null;
         window._checkoutMode = 'escrow';
