@@ -98,6 +98,10 @@
         html.dark .bg-pink-100, html.dark .bg-rose-100, html.dark .bg-fuchsia-100 { background-color:rgba(236,72,153,.18) !important; }
         html.dark .bg-indigo-100, html.dark .bg-violet-100, html.dark .bg-purple-100 { background-color:rgba(139,92,246,.18) !important; }
         html.dark .bg-orange-100 { background-color:rgba(249,115,22,.18) !important; }
+        /* pastelové gradienty (from/to *-50) → tmavá karta, ať je na nich světlý text čitelný (jinak světlý text na světlém gradientu = nečitelné) */
+        html.dark .from-red-50,html.dark .from-orange-50,html.dark .from-amber-50,html.dark .from-yellow-50,html.dark .from-lime-50,html.dark .from-green-50,html.dark .from-emerald-50,html.dark .from-teal-50,html.dark .from-cyan-50,html.dark .from-sky-50,html.dark .from-blue-50,html.dark .from-indigo-50,html.dark .from-violet-50,html.dark .from-purple-50,html.dark .from-fuchsia-50,html.dark .from-pink-50,html.dark .from-rose-50,html.dark .from-slate-50,html.dark .from-gray-50 { --tw-gradient-from:#1b222c !important; }
+        html.dark .to-red-50,html.dark .to-orange-50,html.dark .to-amber-50,html.dark .to-yellow-50,html.dark .to-lime-50,html.dark .to-green-50,html.dark .to-emerald-50,html.dark .to-teal-50,html.dark .to-cyan-50,html.dark .to-sky-50,html.dark .to-blue-50,html.dark .to-indigo-50,html.dark .to-violet-50,html.dark .to-purple-50,html.dark .to-fuchsia-50,html.dark .to-pink-50,html.dark .to-rose-50,html.dark .to-slate-50,html.dark .to-gray-50 { --tw-gradient-to:#1b222c !important; }
+        html.dark .via-red-50,html.dark .via-orange-50,html.dark .via-amber-50,html.dark .via-yellow-50,html.dark .via-green-50,html.dark .via-emerald-50,html.dark .via-sky-50,html.dark .via-blue-50,html.dark .via-indigo-50,html.dark .via-purple-50,html.dark .via-pink-50,html.dark .via-rose-50 { --tw-gradient-via:#1b222c !important; }
         .bg-animated { background: #F8F4F0; }
         @media (prefers-reduced-motion:reduce) {
             *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
@@ -1752,7 +1756,7 @@
         const counts = {}; const subCounts = {}; let total = 0;
         data.forEach(i => {
             counts[i.category] = (counts[i.category] || 0) + 1; total++;
-            if (i.subcategory) { const k = i.category + ' ' + i.subcategory; subCounts[k] = (subCounts[k] || 0) + 1; }
+            if (i.subcategory) { const k = i.category + '\0' + i.subcategory; subCounts[k] = (subCounts[k] || 0) + 1; }
         });
         const activeCls    = isAukce ? 'bg-sky-500 text-white shadow-sm' : 'bg-pink-500 text-white shadow-sm';
         const subActiveCls = isAukce ? 'bg-sky-100 text-sky-700' : 'bg-pink-100 text-pink-700';
@@ -1769,7 +1773,7 @@
             </button>`;
             const subBlock = (active && obj && obj.sub.length) ? `<div class="flex flex-col gap-0.5 mt-0.5 mb-1.5 ml-4 pl-2 border-l-2 border-gray-100">
                 ${obj.sub.map(s => {
-                    const sc = subCounts[kat + ' ' + s] || 0;
+                    const sc = subCounts[kat + '\0' + s] || 0;
                     const sActive = currentSub === s;
                     return `<button onclick="setSubcategory('${view}','${kat}','${s}')" class="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${sActive ? subActiveCls : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'}">
                         <span class="truncate">${s}</span><span class="shrink-0 text-[10px] ${sActive ? '' : 'text-gray-300'}">${sc}</span>
@@ -12969,13 +12973,15 @@
                 uploadDoc(frontFile, 'front'),
                 backFile ? uploadDoc(backFile, 'back') : Promise.resolve(null)
             ]);
-            const patch = { kyc_birth_number: birthNum };
-            if (frontUrl) patch.kyc_id_front = frontUrl;
-            if (backUrl)  patch.kyc_id_back  = backUrl;
-            const h = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${uid}`, { method: 'PATCH', headers: h, body: JSON.stringify(patch) });
+            // RPC uloží doklady, označí k přezkoumání (kyc_status='pending') A upozorní adminy
+            const h = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_dac7_kyc`, {
+                method: 'POST', headers: h,
+                body: JSON.stringify({ p_birth_number: birthNum, p_front: frontUrl || null, p_back: backUrl || null })
+            });
             if (!r.ok) throw new Error(await r.text());
-            showToast('Identifikace uložena! Admin ji brzy ověří.', 'success');
+            window._kycStatus = 'pending';
+            showToast('Identifikace odeslána! Admin byl upozorněn a brzy ji ověří.', 'success');
             const badge = document.getElementById('dac7-kyc-badge');
             if (badge) { badge.textContent = 'Čeká na ověření'; badge.className = 'text-xs px-2 py-0.5 rounded-full font-bold uppercase bg-amber-100 text-amber-700'; }
         } catch(e) {
