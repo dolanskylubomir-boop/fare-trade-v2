@@ -162,6 +162,9 @@
         .pfb-cta:hover{transform:translateY(-2px);box-shadow:0 20px 40px -12px rgba(14,132,199,.7) !important;filter:brightness(1.04)}
         .pfb-cta-pink{background:linear-gradient(150deg,#db2777,#f43f8e) !important;box-shadow:0 14px 30px -12px rgba(236,72,153,.55)}
         .pfb-cta-pink:hover{box-shadow:0 20px 40px -12px rgba(236,72,153,.7) !important;filter:brightness(1.04)}
+        .pfb-cta:active,.pfb-cta-pink:active{transform:scale(.97) !important;transition-duration:.08s !important}
+        /* jednotný „press" u plnošířkových akčních tlačítek (sekundární CTA) */
+        button.w-full.rounded-2xl:not(:disabled):active{transform:scale(.985)}
         .pfb-seller{background:rgba(20,35,58,.035) !important;border:1px solid rgba(20,35,58,.1) !important;border-radius:18px !important;backdrop-filter:blur(6px);transition:border-color .2s,box-shadow .2s}
         .pfb-seller:hover{border-color:rgba(14,132,199,.35) !important;box-shadow:0 10px 26px -16px rgba(14,132,199,.35)}
         html.dark .pfb-seller{background:rgba(255,255,255,.05) !important;border-color:rgba(255,255,255,.1) !important}
