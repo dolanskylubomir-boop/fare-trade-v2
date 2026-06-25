@@ -293,6 +293,7 @@
         /* animovaný „video" hero podklad */
         .home-hero-stage{min-height:212px;box-shadow:0 22px 54px -26px rgba(20,35,58,.55)}
         .home-hero-stage .vip-band{background:transparent!important;box-shadow:none!important;border-radius:0!important}
+        .home-hero-stage .vip-band::before{display:none!important}
         #home-bg{display:block}
         .pfb-si:nth-child(odd){border-right:1px solid rgba(20,35,58,.07)}
         .pfb-si:not(:nth-last-child(-n+2)){border-bottom:1px solid rgba(20,35,58,.07)}
@@ -2303,9 +2304,9 @@
         function build() {
             cv = document.getElementById('home-bg'); if (!cv) return false;
             ctx = cv.getContext('2d'); resize();
-            const n = Math.max(12, Math.min(40, Math.round(W * H / 15000)));
+            const n = Math.max(16, Math.min(52, Math.round(W * H / 11000)));
             nodes = [];
-            for (let i = 0; i < n; i++) nodes.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .18, vy: (Math.random() - .5) * .18, r: 1 + Math.random() * 2, heart: Math.random() < .2 });
+            for (let i = 0; i < n; i++) nodes.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .2, vy: (Math.random() - .5) * .2, r: 1.2 + Math.random() * 2.4, heart: Math.random() < .3 });
             return true;
         }
         function heart(x, y, s, c) { ctx.save(); ctx.translate(x, y); ctx.scale(s / 16, s / 16); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, 4); ctx.bezierCurveTo(-7, -4, -7, -12, 0, -6); ctx.bezierCurveTo(7, -12, 7, -4, 0, 4); ctx.fill(); ctx.restore(); }
@@ -2316,11 +2317,11 @@
             const g = ctx.createLinearGradient(0, 0, W, H);
             g.addColorStop(0, '#141a26'); g.addColorStop(.5, '#10131d'); g.addColorStop(1, '#0c0f17');
             ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-            const blobs = [['#f43f5e', .16], ['#f59e0b', .12], ['#0ea5e9', .15], ['#10b981', .12]];
+            const blobs = [['#f43f5e', .28], ['#f59e0b', .22], ['#0ea5e9', .26], ['#10b981', .22]];
             for (let i = 0; i < blobs.length; i++) {
                 const cx = W * (.5 + .42 * Math.cos(t * (.6 + i * .2) + i * 1.7));
                 const cy = H * (.5 + .42 * Math.sin(t * (.5 + i * .25) + i * 2.1));
-                const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * .6);
+                const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * .7);
                 rg.addColorStop(0, rgba(blobs[i][0], blobs[i][1])); rg.addColorStop(1, rgba(blobs[i][0], 0));
                 ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
             }
@@ -2329,12 +2330,12 @@
                 if (a.x < 0 || a.x > W) a.vx *= -1; if (a.y < 0 || a.y > H) a.vy *= -1;
                 for (let j = i + 1; j < nodes.length; j++) {
                     const b = nodes[j], dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy);
-                    if (d < 130) { ctx.strokeStyle = 'rgba(255,205,222,' + (0.14 * (1 - d / 130)) + ')'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+                    if (d < 140) { ctx.strokeStyle = 'rgba(255,210,226,' + (0.22 * (1 - d / 140)) + ')'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
                 }
             }
             for (const a of nodes) {
-                if (a.heart) heart(a.x, a.y, a.r * 2.6, 'rgba(255,120,150,.6)');
-                else { ctx.fillStyle = 'rgba(255,236,245,.6)'; ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, 7); ctx.fill(); }
+                if (a.heart) heart(a.x, a.y, a.r * 2.8, 'rgba(255,130,160,.8)');
+                else { ctx.fillStyle = 'rgba(255,240,248,.8)'; ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, 7); ctx.fill(); }
             }
             if (!reduce && running) raf = requestAnimationFrame(frame);
         }
@@ -7300,7 +7301,7 @@
             <div class="w-full max-w-[1240px] mx-auto">
                 <div class="home-hero-stage relative rounded-[2rem] overflow-hidden mb-3 fade-in">
                     <canvas id="home-bg" class="absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true"></canvas>
-                    <div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(100deg,rgba(13,16,24,.85) 0%,rgba(13,16,24,.5) 52%,rgba(13,16,24,.28) 100%)"></div>
+                    <div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(100deg,rgba(11,14,22,.74) 0%,rgba(11,14,22,.38) 52%,rgba(11,14,22,.1) 100%)"></div>
                     <div id="fullreg-promo" class="relative"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mb-3 fade-in">
