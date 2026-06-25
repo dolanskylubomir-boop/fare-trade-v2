@@ -8296,10 +8296,10 @@
             <div id="similar-${item.id}"></div>
             ${!isOwner ? `<div class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-100 p-3 flex gap-2 shadow-lg sm:hidden" id="sticky-cta-aukce">
   <div class="flex-1 min-w-0">
-    <div class="text-xs text-gray-500">Aktuální cena</div>
-    <div class="font-extrabold text-sky-500 text-lg leading-tight">${item.price.toLocaleString('cs-CZ')} Kč</div>
+    <div class="text-xs text-gray-500">Konečná cena pro kupujícího</div>
+    <div class="font-extrabold text-sky-500 text-lg leading-tight">${prices.total.toLocaleString('cs-CZ')} Kč</div>
   </div>
-  <button onclick="toggleBidMenu('${item.id}')" class="bg-sky-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-sky-600 transition-colors shrink-0">
+  <button onclick="toggleBidMenu('${item.id}')" class="pfb-cta bg-sky-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm shrink-0">
     🔨 Přihodit
   </button>
 </div>
@@ -14034,7 +14034,7 @@
             : `<div class="flex items-center gap-1.5 mb-2 text-sm font-bold text-indigo-700">🤖 Automatické přihazování</div>`;
         return `<div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-3.5">
             ${cur}
-            <p class="text-[11px] text-indigo-500/80 mb-2 leading-snug">Zadejte nejvyšší částku, kterou jste ochotni zaplatit. Přihazujeme za vás jen o nutné minimum — soupeři neuvidí váš limit.</p>
+            <p class="text-[11px] text-indigo-500 mb-2 leading-snug">Zadejte nejvyšší částku, kterou jste ochotni zaplatit. Přihazujeme za vás jen o nutné minimum — soupeři neuvidí váš limit.</p>
             <div class="flex gap-2">
                 <div class="relative flex-1">
                     <input id="maxbid-input-${item.id}" type="number" min="0" inputmode="numeric" placeholder="${my ? my : 'např. '+(Number(item.price)+500)}" value="${my || ''}"
