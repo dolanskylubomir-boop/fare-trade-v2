@@ -238,6 +238,36 @@
         .pfb-sl{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8A97AB}
         .pfb-sv{font-size:22px;font-weight:800;margin-top:4px;color:#14233A;letter-spacing:-.01em}
         html.dark .pfb-sv{color:#EAF0F8}
+        /* === Profil: dashboard layout (boční panel + obsah) === */
+        .pfb-dash{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px;align-items:start}
+        .pfb-side{display:flex;flex-direction:column;gap:14px;min-width:0}
+        .pfb-main{display:flex;flex-direction:column;gap:0;min-width:0}
+        @media(max-width:1080px){.pfb-dash{grid-template-columns:1fr}}
+        .pfb-id-side{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;padding:24px 18px 20px}
+        .pfb-id-side .pfb-avatar{width:74px;height:74px;font-size:29px}
+        .pfb-id-side .pfb-mail{margin-top:0}
+        .pfb-id-side .pfb-badges{justify-content:center;margin-top:4px}
+        .pfb-logout-side{margin-top:8px;font:inherit;font-size:12.5px;font-weight:600;color:#6B7787;display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:11px;border:1px solid rgba(20,35,58,.12);background:0;cursor:pointer}
+        .pfb-logout-side:hover{color:#14233A;border-color:rgba(20,35,58,.25)}
+        html.dark .pfb-logout-side{color:#8B98AE;border-color:rgba(255,255,255,.12)}
+        html.dark .pfb-logout-side:hover{color:#EAF0F8;border-color:rgba(255,255,255,.25)}
+        .pfb-mini{display:flex;align-items:center;gap:13px;padding:14px 16px;width:100%}
+        .pfb-mico{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;border:1px solid;flex:0 0 auto}
+        .pfb-sky .pfb-mico{background:rgba(14,132,199,.1);color:#0E84C7;border-color:rgba(14,132,199,.2)}
+        .pfb-green .pfb-mico{background:rgba(14,159,110,.1);color:#0E9F6E;border-color:rgba(14,159,110,.2)}
+        .pfb-amber .pfb-mico{background:rgba(199,98,26,.1);color:#C7621A;border-color:rgba(199,98,26,.2)}
+        html.dark .pfb-sky .pfb-mico{color:#46BEF7;background:rgba(70,190,247,.12);border-color:rgba(70,190,247,.25)}
+        html.dark .pfb-green .pfb-mico{color:#39D49B;background:rgba(57,212,155,.12);border-color:rgba(57,212,155,.25)}
+        html.dark .pfb-amber .pfb-mico{color:#F5C24B;background:rgba(245,194,75,.12);border-color:rgba(245,194,75,.25)}
+        .pfb-mtxt{flex:1;min-width:0;text-align:left}
+        .pfb-mbig{font-size:19px;font-weight:700;letter-spacing:-.02em;color:#14233A;margin-top:1px}
+        html.dark .pfb-mbig{color:#EAF0F8}
+        .pfb-mchev{color:#B6C0CE;flex:0 0 auto;transition:color .2s,transform .2s}
+        .pfb-clk:hover .pfb-mchev{transform:translateX(2px)}
+        .pfb-sky.pfb-clk:hover .pfb-mchev{color:#0E84C7}
+        .pfb-green.pfb-clk:hover .pfb-mchev{color:#0E9F6E}
+        .pfb-amber.pfb-clk:hover .pfb-mchev{color:#C7621A}
+        .pfb-stats-side{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
         /* karty katalogu — glass v tmavém/love režimu + hover glow (konzistence s bento) */
         .ad-card{transition:border-color .2s,box-shadow .25s,transform .25s}
         .ad-card:hover{border-color:rgba(14,132,199,.4) !important;box-shadow:0 16px 38px -18px rgba(14,132,199,.32)}
@@ -7957,42 +7987,50 @@
             };
             return `
             <div class="w-full max-w-[1480px] mx-auto fade-in">
-              <div class="pfb-grid">
+              <div class="pfb-dash">
+                <aside class="pfb-side">
                 <!-- Identita -->
-                <div class="pfb-card pfb-12 pfb-id">
+                <div class="pfb-card pfb-id-side">
                     <div id="profile-initials" class="pfb-avatar select-none">⌛</div>
-                    <div style="min-width:0;flex:1">
-                        <h2 id="profile-name" class="pfb-name">Načítám…</h2>
-                        <div id="profile-email" class="pfb-mail">…</div>
-                        <div class="pfb-badges">
-                            <span id="profile-verified-badge" class="hidden pf-seal">${_svg.shield} Ověřený účet</span>
-                            <span id="profile-hero-extra" class="pfb-badges" style="margin-top:0"></span>
-                        </div>
+                    <h2 id="profile-name" class="pfb-name">Načítám…</h2>
+                    <div id="profile-email" class="pfb-mail">…</div>
+                    <div class="pfb-badges">
+                        <span id="profile-verified-badge" class="hidden pf-seal">${_svg.shield} Ověřený účet</span>
+                        <span id="profile-hero-extra" class="pfb-badges" style="margin-top:0"></span>
                     </div>
-                    <button onclick="handleLogout()" class="pfb-logout">${_svg.logout} Odhlásit se</button>
+                    <button onclick="handleLogout()" class="pfb-logout-side">${_svg.logout} Odhlásit se</button>
                 </div>
                 <!-- Úschova (jen ověření) -->
                 ${verified ? `
-                <button onclick="navigate('escrow')" class="pfb-card pfb-clk pfb-4 pfb-sky">
-                    <div class="pfb-escrow"><div class="pfb-eico">${_svg.lock}</div><div class="pfb-elab">Úschova — prodej</div><div class="pfb-ebig pf-num" id="profile-escrow-sell">—</div><div class="pfb-efoot">Uvolní se po potvrzení doručení</div></div>
+                <button onclick="navigate('escrow')" class="pfb-card pfb-clk pfb-mini pfb-sky">
+                    <div class="pfb-mico">${_svg.lock}</div>
+                    <div class="pfb-mtxt"><div class="pfb-elab">Úschova — prodej</div><div class="pfb-mbig pf-num" id="profile-escrow-sell">—</div></div>
+                    <div class="pfb-mchev">${_svg.chev}</div>
                 </button>
-                <button onclick="navigate('escrow-nakup')" class="pfb-card pfb-clk pfb-4 pfb-green">
-                    <div class="pfb-escrow"><div class="pfb-eico">${_svg.cart}</div><div class="pfb-elab">Úschova — nákup</div><div class="pfb-ebig pf-num" id="profile-escrow-buy">—</div><div class="pfb-efoot">Chráněno escrow ochranou</div></div>
+                <button onclick="navigate('escrow-nakup')" class="pfb-card pfb-clk pfb-mini pfb-green">
+                    <div class="pfb-mico">${_svg.cart}</div>
+                    <div class="pfb-mtxt"><div class="pfb-elab">Úschova — nákup</div><div class="pfb-mbig pf-num" id="profile-escrow-buy">—</div></div>
+                    <div class="pfb-mchev">${_svg.chev}</div>
                 </button>
-                <button onclick="navigate('penezenka')" class="pfb-card pfb-clk pfb-4 pfb-amber">
-                    <div class="pfb-escrow"><div class="pfb-eico">${_svg.wallet}</div><div class="pfb-elab">Peněženka</div><div class="pfb-ebig pf-num" id="profile-wallet-balance">0 Kč</div><div class="pfb-efoot">Dobít kredit</div></div>
+                <button onclick="navigate('penezenka')" class="pfb-card pfb-clk pfb-mini pfb-amber">
+                    <div class="pfb-mico">${_svg.wallet}</div>
+                    <div class="pfb-mtxt"><div class="pfb-elab">Peněženka</div><div class="pfb-mbig pf-num" id="profile-wallet-balance">0 Kč</div></div>
+                    <div class="pfb-mchev">${_svg.chev}</div>
                 </button>` : ''}
-                <!-- DAC7 banner (plní JS) -->
-                <div id="dac7-banner" class="pfb-12"></div>
                 <!-- Statistiky -->
-                <div class="pfb-card pfb-stat pfb-2"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div><div class="pfb-sl">Aktivní</div><div id="profile-active-ads-count" class="pfb-sv pf-num">0</div></div>
-                <div class="pfb-card pfb-stat pfb-2"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V7H4v5M2 12h20v8H2z"/></svg></div><div class="pfb-sl">Prodejů</div><div id="profile-sales-count" class="pfb-sv pf-num">0</div></div>
-                <div class="pfb-card pfb-stat pfb-2"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8h12l-1 12H7z"/><path d="M9 8a3 3 0 016 0"/></svg></div><div class="pfb-sl">Nákupů</div><div id="profile-purchase-count" class="pfb-sv pf-num">0</div></div>
-                <div class="pfb-card pfb-stat pfb-2"><div class="pfb-sic" style="color:#C7621A"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.8L6.6 19.6l1-6L3.3 9.4l6-.9z"/></svg></div><div class="pfb-sl">Hodnocení</div><div id="profile-rating" class="pfb-sv pf-num">0.0</div></div>
-                <div class="pfb-card pfb-stat pfb-2"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16v11H4z"/><path d="M9 9V5h6v4"/></svg></div><div class="pfb-sl">Prodáno</div><div id="profile-earned" class="pfb-sv pf-num">0 Kč</div></div>
-                <div class="pfb-card pfb-stat pfb-2"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg></div><div class="pfb-sl">Nakoupeno</div><div id="profile-spent" class="pfb-sv pf-num">0 Kč</div></div>
+                <div class="pfb-stats-side">
+                <div class="pfb-card pfb-stat"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div><div class="pfb-sl">Aktivní</div><div id="profile-active-ads-count" class="pfb-sv pf-num">0</div></div>
+                <div class="pfb-card pfb-stat"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V7H4v5M2 12h20v8H2z"/></svg></div><div class="pfb-sl">Prodejů</div><div id="profile-sales-count" class="pfb-sv pf-num">0</div></div>
+                <div class="pfb-card pfb-stat"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8h12l-1 12H7z"/><path d="M9 8a3 3 0 016 0"/></svg></div><div class="pfb-sl">Nákupů</div><div id="profile-purchase-count" class="pfb-sv pf-num">0</div></div>
+                <div class="pfb-card pfb-stat"><div class="pfb-sic" style="color:#C7621A"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.8L6.6 19.6l1-6L3.3 9.4l6-.9z"/></svg></div><div class="pfb-sl">Hodnocení</div><div id="profile-rating" class="pfb-sv pf-num">0.0</div></div>
+                <div class="pfb-card pfb-stat"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16v11H4z"/><path d="M9 9V5h6v4"/></svg></div><div class="pfb-sl">Prodáno</div><div id="profile-earned" class="pfb-sv pf-num">0 Kč</div></div>
+                <div class="pfb-card pfb-stat"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg></div><div class="pfb-sl">Nakoupeno</div><div id="profile-spent" class="pfb-sv pf-num">0 Kč</div></div>
+                </div><!-- /statistiky -->
+                </aside>
+                <main class="pfb-main">
+                <div id="dac7-banner"></div>
                 <!-- Taby + obsah -->
-                <div class="pfb-card pfb-12">
+                <div class="pfb-card">
                     <div class="pf-tabbar">
                             ${verified ? `<button id="tab-btn-inzeraty"  onclick="navigate('profil/inzeraty')"   class="${tab('inzeraty')}">${_svg.list}Inzeráty</button>` : ''}
                             ${verified ? `<button id="tab-btn-transakce" onclick="navigate('profil/transakce')"  class="${tab('transakce')}">${_svg.swap}Transakce</button>` : ''}
@@ -8007,6 +8045,7 @@
                     </div>
                     <div class="p-5 md:p-8" id="profile-tab-content">${renderProfileTabContent(activeTab)}</div>
                 </div>
+                </main>
               </div>
             </div>`;
         },
