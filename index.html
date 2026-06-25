@@ -111,6 +111,21 @@
         html.love main,html.love #app,html.love footer{position:relative;z-index:1}
         /* love režim: prosklené panely (detail inzerátu, modály, hlavička) prosvítají animaci */
         html.love .bg-white\/95,html.love .bg-white\/90,html.love .bg-white\/80{background-color:rgba(24,16,34,.52) !important;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+        /* ── Detail inzerátu — výrazný cenový box / CTA / panel prodejce ── */
+        .pfb-price{position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(14,132,199,.08),rgba(46,190,247,.03)) !important;border:1px solid rgba(14,132,199,.2) !important;box-shadow:0 16px 44px -26px rgba(14,132,199,.45)}
+        .pfb-price::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#0E84C7,#46BEF7)}
+        html.dark .pfb-price{background:linear-gradient(135deg,rgba(70,190,247,.12),rgba(70,190,247,.02)) !important;border-color:rgba(70,190,247,.3) !important}
+        .pfb-price-pink{background:linear-gradient(135deg,rgba(236,72,153,.08),rgba(236,72,153,.03)) !important;border-color:rgba(236,72,153,.22) !important;box-shadow:0 16px 44px -26px rgba(236,72,153,.45)}
+        .pfb-price-pink::before{background:linear-gradient(180deg,#db2777,#ec4899)}
+        html.dark .pfb-price-pink{background:linear-gradient(135deg,rgba(244,114,182,.12),rgba(244,114,182,.02)) !important;border-color:rgba(244,114,182,.3) !important}
+        .pfb-cta{background:linear-gradient(150deg,#2E6FB0,#0E84C7) !important;box-shadow:0 14px 30px -12px rgba(14,132,199,.55);transition:transform .15s,box-shadow .25s !important}
+        .pfb-cta:hover{transform:translateY(-2px);box-shadow:0 20px 40px -12px rgba(14,132,199,.7) !important;filter:brightness(1.04)}
+        .pfb-cta-pink{background:linear-gradient(150deg,#db2777,#f43f8e) !important;box-shadow:0 14px 30px -12px rgba(236,72,153,.55)}
+        .pfb-cta-pink:hover{box-shadow:0 20px 40px -12px rgba(236,72,153,.7) !important;filter:brightness(1.04)}
+        .pfb-seller{background:rgba(20,35,58,.035) !important;border:1px solid rgba(20,35,58,.1) !important;border-radius:18px !important;backdrop-filter:blur(6px);transition:border-color .2s,box-shadow .2s}
+        .pfb-seller:hover{border-color:rgba(14,132,199,.35) !important;box-shadow:0 10px 26px -16px rgba(14,132,199,.35)}
+        html.dark .pfb-seller{background:rgba(255,255,255,.05) !important;border-color:rgba(255,255,255,.1) !important}
+        html.love .pfb-seller{background:rgba(26,18,36,.42) !important}
         /* skleněné karty v love režimu prosvítají na pozadí */
         html.love .pf-stats{background:rgba(27,34,44,.55) !important;backdrop-filter:blur(10px)}
         html.love .pf-tabbar{background:rgba(20,16,28,.5) !important}
@@ -8219,8 +8234,8 @@
                                 </div>
                             </button>
                         </div>
-                        <div class="flex items-center gap-3 ${timeInfo.urgent?'bg-red-50 border-red-200':'bg-gray-50'} p-3 rounded-2xl mb-4 border">
-                            <div class="w-10 h-10 rounded-full bg-sky-200 flex items-center justify-center text-sky-700 font-bold shrink-0">${item.seller.charAt(0).toUpperCase()}</div>
+                        <div class="pfb-seller flex items-center gap-3 ${timeInfo.urgent?'bg-red-50 border-red-200':'bg-gray-50'} p-3 rounded-2xl mb-4 border">
+                            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-white font-extrabold shrink-0 shadow-md shadow-sky-500/30">${item.seller.charAt(0).toUpperCase()}</div>
                             <div>
                                 <p class="font-bold text-gray-800 text-sm flex items-center gap-1">${item.seller}${item.verified?`<svg class="w-4 h-4 text-sky-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`:''}</p>
                                 <p class="text-xs ${timeInfo.urgent?'text-red-600 font-bold countdown-urgent':timeInfo.urgent?'text-red-500':'text-gray-500'}">⏱ ${timeInfo.text} · <button id="detail-seller-rating-${item.seller_id}" onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
@@ -8232,9 +8247,9 @@
                             <p id="desc-text-${item.id}" class="text-gray-600 text-sm leading-relaxed ${item.description&&item.description.length>160?'line-clamp-4':''}" style="white-space:pre-wrap">${item.description||'<span class="text-gray-400 italic">Popis nebyl uveden.</span>'}</p>
                             ${item.description&&item.description.length>160?`<button id="desc-btn-${item.id}" onclick="toggleDesc('${item.id}')" class="mt-2 text-sky-500 hover:text-sky-600 text-xs font-bold flex items-center gap-1 transition-colors">Zobrazit celý popis <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg></button>`:''}
                         </div>
-                        <div class="bg-sky-50 border border-sky-100 p-5 rounded-3xl mb-5">
+                        <div class="pfb-price bg-sky-50 border border-sky-100 p-5 rounded-3xl mb-5">
                             <p class="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Aktuální cena</p>
-                            <div class="text-3xl font-black text-gray-800 mb-3" id="price-${item.id}" data-price="${item.price}">${item.price.toLocaleString('cs-CZ')} Kč</div>
+                            <div class="text-4xl font-black text-gray-800 mb-3" id="price-${item.id}" data-price="${item.price}">${item.price.toLocaleString('cs-CZ')} Kč</div>
                             <div class="border-t border-sky-200/50 pt-3">
                                 ${window._directOnly(item) ? `
                                 <p class="text-gray-500 text-xs font-semibold uppercase mb-1">🤝 Jen bez escrow (na dobírku)</p>
@@ -8263,7 +8278,7 @@
                             </div>` : `
                             <div class="flex flex-col gap-2">
                                 <div class="relative">
-                                <button onclick="toggleBidMenu('${item.id}')" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-4 px-8 rounded-2xl transition-all shadow-lg text-lg">Přihodit</button>
+                                <button onclick="toggleBidMenu('${item.id}')" class="pfb-cta w-full bg-sky-500 text-white font-bold py-4 px-8 rounded-2xl text-lg flex items-center justify-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M14 4l6 6-7 7-6-6z"/><path d="M14 10l-9 9"/></svg>Přihodit</button>
                                 <div id="bid-menu-${item.id}" class="hidden absolute bottom-full left-0 w-full mb-3 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 z-20">
                                     <div class="flex flex-wrap justify-center gap-2">
                                         ${[50,100,200,500,1000].map(a=>`<button onclick="placeBid('${item.id}',${a})" class="flex-1 min-w-[28%] bg-sky-50 text-sky-700 hover:bg-sky-500 hover:text-white py-3 rounded-xl font-bold text-base transition-colors">+${a}</button>`).join('')}
@@ -8337,7 +8352,7 @@
             const reserveMinutes = isReserved ? _reserveCountdown(item.reserved_until) : '';
             const buyButtons = isReserved
                 ? `<div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-center mb-1"><div class="text-2xl mb-1">🔒</div><p class="font-bold text-orange-800 text-sm">Položka je dočasně rezervována</p><p class="text-orange-600 text-xs mt-1">Rezervace vyprší za ${reserveMinutes}</p><p class="text-gray-400 text-xs mt-2">Po vypršení bude znovu dostupná.</p></div><button disabled class="w-full bg-gray-100 text-gray-400 font-bold py-4 px-8 rounded-2xl cursor-not-allowed text-xl opacity-60">Koupit ihned</button><button disabled class="w-full flex items-center justify-center gap-2 bg-gray-50 text-gray-400 font-bold py-3 px-8 rounded-2xl cursor-not-allowed text-sm opacity-60">🔒 Nedostupné</button>`
-                : `<button onclick="buyItem('${item.id}')" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-4 px-8 rounded-2xl transition-all shadow-[0_10px_20px_-10px_rgba(236,72,153,.6)] text-xl">Koupit ihned</button>${window._isSellerVerified() ? `<button id="cart-btn-${item.id}" onclick="addToCart('${item.id}')" class="w-full flex items-center justify-center gap-2 bg-white border-2 border-pink-200 hover:bg-pink-50 hover:border-pink-400 text-pink-600 font-bold py-3 px-8 rounded-2xl transition-all text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>Přidat do košíku</button>` : ''}`;
+                : `<button onclick="buyItem('${item.id}')" class="pfb-cta-pink w-full bg-pink-500 text-white font-bold py-4 px-8 rounded-2xl text-xl flex items-center justify-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>Koupit ihned</button>${window._isSellerVerified() ? `<button id="cart-btn-${item.id}" onclick="addToCart('${item.id}')" class="w-full flex items-center justify-center gap-2 bg-white border-2 border-pink-200 hover:bg-pink-50 hover:border-pink-400 text-pink-600 font-bold py-3 px-8 rounded-2xl transition-all text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>Přidat do košíku</button>` : ''}`;
             return `
             <div class="w-full bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
                 <button onclick="navigate('${backNav}')" class="mb-6 text-pink-500 font-bold hover:text-pink-600 flex items-center gap-2">← ${backText}</button>
@@ -8361,8 +8376,8 @@
                         </div>
                         <h2 class="text-2xl md:text-4xl font-extrabold mb-3 text-pastel-text">${item.title}</h2>
                         ${item.kraj?`<p class="text-sm text-gray-500 -mt-2 mb-3 flex items-center gap-1">📍 ${esc(item.kraj)} kraj${_offersPickup(item.shipping_methods)?' · možné osobní předání':''}</p>`:''}
-                        <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-2xl mb-4 border border-gray-100">
-                            <div class="w-10 h-10 rounded-full bg-pink-200 flex items-center justify-center text-pink-700 font-bold shrink-0">${item.seller.charAt(0).toUpperCase()}</div>
+                        <div class="pfb-seller flex items-center gap-3 bg-gray-50 p-3 rounded-2xl mb-4 border border-gray-100">
+                            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-600 flex items-center justify-center text-white font-extrabold shrink-0 shadow-md shadow-pink-500/30">${item.seller.charAt(0).toUpperCase()}</div>
                             <div>
                                 <p class="font-bold text-gray-800 text-sm flex items-center gap-1">${item.seller}${item.verified?`<svg class="w-4 h-4 text-sky-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`:''}</p>
                                 <p class="text-xs text-gray-400"><button id="detail-seller-rating-${item.seller_id}" onclick="_showSellerReviews('${item.seller_id}','${item.seller.replace(/'/g,'')}')" class="underline decoration-dotted hover:text-yellow-500 transition-colors">${item.rating_count > 0 ? `⭐ ${Number(item.rating).toFixed(1)} (${item.rating_count}x hodnocení)` : '⭐ Nový prodejce'}</button> · 👁 ${item.views_count||0}</p>
@@ -8375,9 +8390,9 @@
                             ${item.description&&item.description.length>160?`<button id="desc-btn-${item.id}" onclick="toggleDesc('${item.id}')" class="mt-2 text-pink-500 hover:text-pink-600 text-xs font-bold flex items-center gap-1 transition-colors">Zobrazit celý popis <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg></button>`:''}
                             ${item.condition_notes?`<div class="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3"><p class="text-xs font-bold text-amber-700 mb-1">⚠️ Prodejce uvádí k stavu zboží:</p><p class="text-sm text-amber-800" style="white-space:pre-wrap">${item.condition_notes}</p></div>`:''}
                         </div>
-                        <div class="bg-pink-50 border border-pink-100 p-5 rounded-3xl mb-5">
+                        <div class="pfb-price-pink bg-pink-50 border border-pink-100 p-5 rounded-3xl mb-5">
                             <div class="flex items-center justify-between mb-1"><p class="text-gray-400 text-xs font-semibold uppercase tracking-wider">Cena prodejce</p>${item.original_price && item.original_price > item.price ? `<span class="bg-rose-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">🔻 Sníženo −${Math.round((1-item.price/item.original_price)*100)}%</span>` : ''}</div>
-                            <div class="flex items-end gap-2 mb-3"><div class="text-3xl font-black text-gray-800">${item.price.toLocaleString('cs-CZ')} Kč</div>${item.original_price && item.original_price > item.price ? `<div class="text-base text-gray-400 line-through font-semibold mb-1">${item.original_price.toLocaleString('cs-CZ')} Kč</div>` : ''}</div>
+                            <div class="flex items-end gap-2 mb-3"><div class="text-4xl font-black text-gray-800">${item.price.toLocaleString('cs-CZ')} Kč</div>${item.original_price && item.original_price > item.price ? `<div class="text-base text-gray-400 line-through font-semibold mb-1">${item.original_price.toLocaleString('cs-CZ')} Kč</div>` : ''}</div>
                             <div class="border-t border-pink-200/50 pt-3">
                                 ${window._directOnly(item) ? `
                                 <p class="text-gray-500 text-xs font-semibold uppercase mb-1">🤝 Jen bez escrow (na dobírku)</p>
