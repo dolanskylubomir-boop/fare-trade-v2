@@ -1867,11 +1867,14 @@
     };
 
     window.renderEmptyState = function(icon, title, subtitle, btnLabel, btnAction) {
+      const ico = (window._IC && window._IC[icon])
+        ? window._fic(window._IC[icon], '#0EA5E9', 46)
+        : `<span class="text-5xl">${icon}</span>`;
       return `
     <div class="flex flex-col items-center justify-center py-16 px-6 text-center fade-in">
       <div class="relative mb-5">
-        <div class="absolute inset-0 bg-gradient-to-br from-sky-200/50 to-fuchsia-200/40 blur-2xl rounded-full"></div>
-        <div class="relative w-24 h-24 rounded-full bg-gradient-to-br from-sky-50 to-fuchsia-50 border border-white shadow-inner flex items-center justify-center text-5xl">${icon}</div>
+        <div class="absolute inset-0 bg-gradient-to-br from-sky-200/50 to-emerald-200/40 blur-2xl rounded-full"></div>
+        <div class="relative w-24 h-24 rounded-full bg-gradient-to-br from-sky-50 to-emerald-50 border border-white shadow-inner flex items-center justify-center">${ico}</div>
       </div>
       <h3 class="text-lg font-extrabold text-gray-800 mb-2">${esc(title)}</h3>
       <p class="text-sm text-gray-400 max-w-xs leading-relaxed">${esc(subtitle)}</p>
@@ -5068,7 +5071,9 @@
         bulb:'<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.5 1 .5 1.6h6c0-.6 0-1.2.5-1.6A6 6 0 0 0 12 3z"/>',
         gift:'<rect x="3" y="9" width="18" height="11" rx="1.5"/><path d="M3 13h18M12 9v11"/><path d="M12 9C9.5 9 8.5 5 12 6.2 15.5 5 14.5 9 12 9z"/>',
         receipt:'<path d="M5 3h14v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
-        gavel:'<path d="M14 4l6 6-3 3-6-6z"/><path d="M11 7 4 14l3 3 7-7"/><path d="M4 21h9"/>'
+        gavel:'<path d="M14 4l6 6-3 3-6-6z"/><path d="M11 7 4 14l3 3 7-7"/><path d="M4 21h9"/>',
+        cart:'<path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>',
+        tag:'<path d="M3 11V4h7l11 11-7 7L3 11z"/><circle cx="7.5" cy="7.5" r="1.3"/>'
     };
     // Barevná feature ikona (drží paletu: sky / verified green)
     window._fic = function(p, color, size){ size = size || 28; return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="' + (color || 'currentColor') + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
@@ -5158,7 +5163,7 @@
                     ${dropped ? `<span class="text-xs text-gray-400 line-through font-semibold">${origTotal.toLocaleString('cs-CZ')} Kč</span>` : ''}
                     <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                 </button>`}
-                <button class="w-full font-bold py-2.5 rounded-xl transition-colors border text-sm ${btnCls}">${btnLabel}</button>
+                <button class="w-full font-bold py-2.5 rounded-xl transition-all active:scale-[0.97] border text-sm ${btnCls}">${btnLabel}</button>
             </div>
         </div>`;
     };
@@ -5220,7 +5225,7 @@
                         </button>
                         <div class="text-[10px] text-gray-400 leading-tight mt-0.5 truncate">${dropped ? `<span class="line-through mr-1">${origTotal.toLocaleString('cs-CZ')} Kč</span>` : ''}Prodejce <span id="list-seller-${item.id}">${item.price.toLocaleString('cs-CZ')} Kč</span></div>`}
                     </div>
-                    <button class="w-full sm:w-auto sm:shrink-0 font-bold py-2 px-4 sm:px-6 rounded-xl transition-colors border text-sm ${btnCls}">${btnLabel}</button>
+                    <button class="w-full sm:w-auto sm:shrink-0 font-bold py-2 px-4 sm:px-6 rounded-xl transition-all active:scale-[0.97] border text-sm ${btnCls}">${btnLabel}</button>
                 </div>
             </div>
         </div>`;
@@ -6197,7 +6202,7 @@
             const f        = window._txFilter || 'vse';
             const mySales  = allTx.filter(tx=>tx.seller_id===window.currentUser.id && _txMatchFilter(tx.status,f)).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
             const myBuys   = allTx.filter(tx=>tx.buyer_id===window.currentUser.id   && _txMatchFilter(tx.status,f)).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-            if (!mySales.length && !myBuys.length) return renderEmptyState('📦', 'Žádné transakce', 'Tady uvidíš historii všech nákupů a prodejů.', null, null);
+            if (!mySales.length && !myBuys.length) return renderEmptyState('box', 'Žádné transakce', 'Tady uvidíš historii všech nákupů a prodejů.', null, null);
             const badge = (status, isSeller) => {
                 if (status==='created'||status==='pending') return isSeller?'<span class="badge-blue">Čeká na platbu</span>':'<span class="badge-blue">Objednáno</span>';
                 if (status==='paid')                        return '<span class="badge-yellow">Zaplaceno</span>';
@@ -6262,13 +6267,13 @@
                 const container = document.getElementById('oblibene-section');
                 if (!container) return;
                 const favs = await loadFavoritesForTab();
-                if (!favs.length) { container.innerHTML = renderEmptyState('❤️', 'Žádné oblíbené', 'Přidej inzeráty do oblíbených klikem na srdíčko.', null, null); return; }
+                if (!favs.length) { container.innerHTML = renderEmptyState('heart', 'Žádné oblíbené', 'Přidej inzeráty do oblíbených klikem na srdíčko.', null, null); return; }
                 const INACTIVE = ['prodano','prodáno','zruseno','archivovano','archivováno','ceka_na_platbu'];
                 const activeFavs = favs.filter(item => {
                     const live = [...dataAukce,...dataPevnaCena].find(i=>i.id===item.item_id);
                     return live && !INACTIVE.includes(live.db_status);
                 });
-                if (!activeFavs.length) { container.innerHTML = renderEmptyState('❤️', 'Žádné oblíbené', 'Přidej inzeráty do oblíbených klikem na srdíčko.', null, null); return; }
+                if (!activeFavs.length) { container.innerHTML = renderEmptyState('heart', 'Žádné oblíbené', 'Přidej inzeráty do oblíbených klikem na srdíčko.', null, null); return; }
                 const _oShown = window._pageShown.oblibene || 10;
                 let html = '<div class="flex flex-col gap-3">';
                 activeFavs.slice(0, _oShown).forEach(item => {
@@ -8526,7 +8531,7 @@
                         ${renderCategories('aukce', kategorieFilter, _currentSubcategory)}
                         ${renderSearchSort('aukce', kategorieFilter)}
                         ${window._renderRecentRow()}
-                        ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('🔨', 'Žádné aktivní aukce', 'Momentálně neprobíhá žádná aukce. Sleduj to tady — aukce přibývají každý den.', 'Vložit aukci', "navigate('novy-inzerat')") : '')}
+                        ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('gavel', 'Žádné aktivní aukce', 'Momentálně neprobíhá žádná aukce. Sleduj to tady — aukce přibývají každý den.', 'Vložit aukci', "navigate('novy-inzerat')") : '')}
                         <div id="listing-grid" class="${_gridContainerClass()}">
                             ${filteredData.map(item => _renderItem(item)).join('')}
                         </div>
@@ -8688,7 +8693,7 @@
                         ${renderCategories('pevna-cena', kategorieFilter, _currentSubcategory)}
                         ${renderSearchSort('pevna-cena', kategorieFilter)}
                         ${window._renderRecentRow()}
-                        ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('🏷️', 'Zatím žádné inzeráty', 'Buď první! Přidej svůj první inzerát a oslovíš tisíce kupujících.', 'Vložit inzerát', "navigate('novy-inzerat')") : '')}
+                        ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('tag', 'Zatím žádné inzeráty', 'Buď první! Přidej svůj první inzerát a oslovíš tisíce kupujících.', 'Vložit inzerát', "navigate('novy-inzerat')") : '')}
                         <div id="listing-grid" class="${_gridContainerClass()}">
                             ${filteredData.map(item => _renderItem(item)).join('')}
                         </div>
@@ -11403,7 +11408,7 @@
             if (Array.isArray(orders)) window._myOrdersCache = orders;
             _renderFilterBar('obj-filter-bar', OBJ_FILTERS, window._objFilter || 'vse', '_setObjFilter');
             const filtered = Array.isArray(orders) ? orders.filter(o => _txMatchFilter(o.status, window._objFilter || 'vse')) : [];
-            if (!filtered.length) { container.innerHTML = renderEmptyState('🛒', 'Žádné objednávky', 'Tady se zobrazí objednávky ke zpracování.', null, null); return; }
+            if (!filtered.length) { container.innerHTML = renderEmptyState('cart', 'Žádné objednávky', 'Tady se zobrazí objednávky ke zpracování.', null, null); return; }
             const FI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f1f5f9'/%3E%3C/svg%3E";
             const _shown = window._objShown || 10;
             container.innerHTML = filtered.slice(0, _shown).map(o => {
@@ -11543,7 +11548,7 @@
             const buyerMap = await _attachBuyerNames(orders, hdrs);
             _updateObjednavkyAlertBadge(orders);
             _renderFilterBar('obj-filter-bar', OBJ_FILTERS, window._objFilter || 'vse', '_setObjFilter');
-            if (!Array.isArray(orders) || !orders.length) { container.innerHTML = renderEmptyState('🛒', 'Žádné objednávky', 'Tady se zobrazí objednávky ke zpracování.', null, null); return; }
+            if (!Array.isArray(orders) || !orders.length) { container.innerHTML = renderEmptyState('cart', 'Žádné objednávky', 'Tady se zobrazí objednávky ke zpracování.', null, null); return; }
             const filtered = orders.filter(o => _txMatchFilter(o.status, window._objFilter || 'vse'));
             if (!filtered.length) { container.innerHTML = '<p class="text-gray-500 text-center py-6 fade-in text-sm">Žádné objednávky pro zvolený filtr.</p>'; return; }
             const FI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f1f5f9'/%3E%3C/svg%3E";
@@ -11772,7 +11777,7 @@
                 if (dot) dot.classList.add('hidden');
             }
 
-            if (!msgs.length) { container.innerHTML = renderEmptyState('💬', 'Žádné zprávy', 'Zatím nemáš žádnou konverzaci. Napiš prodejci přes detail inzerátu.', null, null); return; }
+            if (!msgs.length) { container.innerHTML = renderEmptyState('chat', 'Žádné zprávy', 'Zatím nemáš žádnou konverzaci. Napiš prodejci přes detail inzerátu.', null, null); return; }
 
             // Seskupit do konverzací podle item_id + druhá strana
             const threads = {};
