@@ -89,6 +89,14 @@
         html.dark .text-gray-900\/80, html.dark .text-gray-800\/80, html.dark .text-gray-700\/80, html.dark .text-gray-600\/80 { color:#aab4c2 !important; }
         html.dark .text-red-900\/80, html.dark .text-rose-900\/80 { color:#fca5a5 !important; }
         html.dark .text-amber-900\/80, html.dark .text-yellow-900\/80 { color:#fcd34d !important; }
+        /* bg opacity varianty (bg-…-50/40, /60, /70…) — základní třída je nechytá → tmavý tint */
+        html.dark [class*="bg-sky-50/"], html.dark [class*="bg-blue-50/"] { background-color:rgba(14,165,233,.12) !important; }
+        html.dark [class*="bg-indigo-50/"], html.dark [class*="bg-violet-50/"], html.dark [class*="bg-purple-50/"] { background-color:rgba(139,92,246,.12) !important; }
+        html.dark [class*="bg-emerald-50/"], html.dark [class*="bg-green-50/"] { background-color:rgba(16,185,129,.12) !important; }
+        html.dark [class*="bg-amber-50/"], html.dark [class*="bg-yellow-50/"] { background-color:rgba(245,158,11,.12) !important; }
+        html.dark [class*="bg-red-50/"], html.dark [class*="bg-rose-50/"] { background-color:rgba(239,68,68,.12) !important; }
+        html.dark [class*="bg-pink-50/"], html.dark [class*="bg-fuchsia-50/"] { background-color:rgba(236,72,153,.12) !important; }
+        html.dark [class*="bg-orange-50/"] { background-color:rgba(249,115,22,.12) !important; }
         /* střední akcentové texty (-400/-500/-600) → také zesvětlit (ceny, odkazy, labely na tmavém) */
         html.dark .text-sky-600, html.dark .text-sky-500, html.dark .text-sky-400, html.dark .text-blue-600, html.dark .text-blue-500 { color:#7dd3fc !important; }
         html.dark .text-emerald-600, html.dark .text-emerald-500, html.dark .text-green-600, html.dark .text-green-500 { color:#6ee7b7 !important; }
@@ -14041,7 +14049,7 @@
         const cur = my
             ? `<div class="flex items-center justify-between gap-2 mb-2 text-sm"><span class="text-indigo-700 font-bold">🤖 Váš limit: ${my.toLocaleString('cs-CZ')} Kč</span><span class="text-[11px] text-indigo-400 font-semibold">přihazujeme za vás</span></div>`
             : `<div class="flex items-center gap-1.5 mb-2 text-sm font-bold text-indigo-700">🤖 Automatické přihazování</div>`;
-        return `<div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-3.5">
+        return `<div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3.5">
             ${cur}
             <p class="text-[11px] text-indigo-500 mb-2 leading-snug">Zadejte nejvyšší částku, kterou jste ochotni zaplatit. Přihazujeme za vás jen o nutné minimum — soupeři neuvidí váš limit.</p>
             <div class="flex gap-2">
