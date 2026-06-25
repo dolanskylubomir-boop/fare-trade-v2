@@ -268,6 +268,12 @@
         .pfb-green.pfb-clk:hover .pfb-mchev{color:#0E9F6E}
         .pfb-amber.pfb-clk:hover .pfb-mchev{color:#C7621A}
         .pfb-stats-side{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+        .pfb-statbox{padding:0;overflow:hidden}
+        .pfb-statgrid{display:grid;grid-template-columns:1fr 1fr}
+        .pfb-si{padding:15px 16px}
+        .pfb-si:nth-child(odd){border-right:1px solid rgba(20,35,58,.07)}
+        .pfb-si:not(:nth-last-child(-n+2)){border-bottom:1px solid rgba(20,35,58,.07)}
+        html.dark .pfb-si:nth-child(odd),html.dark .pfb-si:not(:nth-last-child(-n+2)){border-color:rgba(255,255,255,.08)}
         /* === Mobilní filtr (bottom sheet) === */
         .ft-grab,.ft-sheet-head,.ft-sheet-foot,.ft-backdrop{display:none}
         @media(max-width:767px){
@@ -8104,13 +8110,15 @@
                     <div class="pfb-mchev">${_svg.chev}</div>
                 </button>` : ''}
                 <!-- Statistiky -->
-                <div class="pfb-stats-side">
-                <div class="pfb-card pfb-stat"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div><div class="pfb-sl">Aktivní</div><div id="profile-active-ads-count" class="pfb-sv pf-num">0</div></div>
-                <div class="pfb-card pfb-stat"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V7H4v5M2 12h20v8H2z"/></svg></div><div class="pfb-sl">Prodejů</div><div id="profile-sales-count" class="pfb-sv pf-num">0</div></div>
-                <div class="pfb-card pfb-stat"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8h12l-1 12H7z"/><path d="M9 8a3 3 0 016 0"/></svg></div><div class="pfb-sl">Nákupů</div><div id="profile-purchase-count" class="pfb-sv pf-num">0</div></div>
-                <div class="pfb-card pfb-stat"><div class="pfb-sic" style="color:#C7621A"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.8L6.6 19.6l1-6L3.3 9.4l6-.9z"/></svg></div><div class="pfb-sl">Hodnocení</div><div id="profile-rating" class="pfb-sv pf-num">0.0</div></div>
-                <div class="pfb-card pfb-stat"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16v11H4z"/><path d="M9 9V5h6v4"/></svg></div><div class="pfb-sl">Prodáno</div><div id="profile-earned" class="pfb-sv pf-num">0 Kč</div></div>
-                <div class="pfb-card pfb-stat"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg></div><div class="pfb-sl">Nakoupeno</div><div id="profile-spent" class="pfb-sv pf-num">0 Kč</div></div>
+                <div class="pfb-card pfb-statbox">
+                  <div class="pfb-statgrid">
+                    <div class="pfb-si"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div><div class="pfb-sl">Aktivní</div><div id="profile-active-ads-count" class="pfb-sv pf-num">0</div></div>
+                    <div class="pfb-si"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V7H4v5M2 12h20v8H2z"/></svg></div><div class="pfb-sl">Prodejů</div><div id="profile-sales-count" class="pfb-sv pf-num">0</div></div>
+                    <div class="pfb-si"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8h12l-1 12H7z"/><path d="M9 8a3 3 0 016 0"/></svg></div><div class="pfb-sl">Nákupů</div><div id="profile-purchase-count" class="pfb-sv pf-num">0</div></div>
+                    <div class="pfb-si"><div class="pfb-sic" style="color:#C7621A"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.8L6.6 19.6l1-6L3.3 9.4l6-.9z"/></svg></div><div class="pfb-sl">Hodnocení</div><div id="profile-rating" class="pfb-sv pf-num">0.0</div></div>
+                    <div class="pfb-si"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16v11H4z"/><path d="M9 9V5h6v4"/></svg></div><div class="pfb-sl">Prodáno</div><div id="profile-earned" class="pfb-sv pf-num">0 Kč</div></div>
+                    <div class="pfb-si"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg></div><div class="pfb-sl">Nakoupeno</div><div id="profile-spent" class="pfb-sv pf-num">0 Kč</div></div>
+                  </div>
                 </div><!-- /statistiky -->
                 </aside>
                 <main class="pfb-main">
