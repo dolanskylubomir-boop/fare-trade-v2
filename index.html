@@ -5036,8 +5036,32 @@
         eye:'<path d="M2.5 12C4 7.9 7.7 5 12 5s8 2.9 9.5 7c-1.5 4.1-5.2 7-9.5 7s-8-2.9-9.5-7z"/><circle cx="12" cy="12" r="3"/>',
         cam:'<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/>',
         drop:'<path d="M3 7l6 6 4-4 8 8"/><path d="M21 17v-4h-4"/>',
-        money:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9.5v.01M18 14.5v.01"/>'
+        money:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9.5v.01M18 14.5v.01"/>',
+        lock:'<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+        idcard:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M13 9h5M13 13h4M5.5 16c.6-1.4 1.7-2 3-2s2.4.6 3 2"/>',
+        lockkey:'<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.2"/>',
+        shield:'<path d="M12 3l8 3v6c0 4.5-3.2 7.5-8 9-4.8-1.5-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+        db:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',
+        clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+        flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+        bell:'<path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 21h4"/>',
+        people:'<circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.5a3 3 0 0 1 0 5.8M20.5 20a5.5 5.5 0 0 0-4-5.3"/>',
+        chat:'<path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l.8-5.5A8 8 0 1 1 21 12z"/>',
+        heart:'<path d="M12 20S3 14.5 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 14.5 12 20 12 20z"/>',
+        robot:'<rect x="4" y="8" width="16" height="11" rx="2"/><path d="M12 8V5M9 13h.01M15 13h.01M2 12v3M22 12v3"/>',
+        box:'<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/>',
+        scale:'<path d="M12 3v18M7 21h10M5 7h14l-3 7H8z"/><path d="M5 7 3 12a3 3 0 0 0 4 0zM19 7l2 5a3 3 0 0 1-4 0z"/>',
+        sun2:'<path d="M17 18a5 5 0 0 0-10 0"/><path d="M12 2v3M5 9 3 8M19 9l2-1M5 21h14"/>',
+        wallet:'<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M16 12h3"/>',
+        pin2:'<path d="M12 21s7-5.5 7-11a7 7 0 0 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+        search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+        bulb:'<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.5 1 .5 1.6h6c0-.6 0-1.2.5-1.6A6 6 0 0 0 12 3z"/>',
+        gift:'<rect x="3" y="9" width="18" height="11" rx="1.5"/><path d="M3 13h18M12 9v11"/><path d="M12 9C9.5 9 8.5 5 12 6.2 15.5 5 14.5 9 12 9z"/>',
+        receipt:'<path d="M5 3h14v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+        gavel:'<path d="M14 4l6 6-3 3-6-6z"/><path d="M11 7 4 14l3 3 7-7"/><path d="M4 21h9"/>'
     };
+    // Barevná feature ikona (drží paletu: sky / verified green)
+    window._fic = function(p, color, size){ size = size || 28; return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="' + (color || 'currentColor') + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
     // Reputační odznaky prodejce (bod 3) — z agregovaných polí profilu
     window._sellerBadges = function(item) {
         const badges = [];
@@ -7508,16 +7532,16 @@
             <h3 class="text-xl font-extrabold text-gray-800 mb-4 px-1">Jak vás chráníme</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
                 ${[
-                    ['🔒','Escrow ochrana plateb','Peníze prodejci uvolníme až poté, co potvrdíte přijetí zboží. Když něco nesedí, otevřete spor a peníze se vrací k vám.'],
-                    ['🪪','Ověření přes BankID','Každý prodejce prokazuje totožnost bankovní identitou. Žádná anonymita — za každým prodejem je skutečný, dohledatelný člověk. Ověření zároveň splní DAC7 (prodejce neřeší limit prodejů); vstupních 65 Kč se vrací do peněženky.'],
-                    ['⚡','Okamžitý ban podvodníků','Jediné porušení pravidel znamená trvalý zákaz přístupu. Podvodník se nevrátí pod novým jménem — totožnost je ověřená.'],
-                    ['🔐','Šifrované spojení a relace','Veškerá komunikace běží přes HTTPS. Po 30 minutách nečinnosti vás automaticky odhlásíme, aby k účtu nikdo nedostal přístup z cizího zařízení.'],
-                    ['🧱','Ochrana proti podvržení obsahu','Striktní bezpečnostní politika (CSP) blokuje cizí skripty a vkládání škodlivého kódu. Nikdo vám do stránky nic nepodstrčí.'],
-                    ['🗄️','Přístup jen k vlastním datům','Server hlídá, že každý vidí a mění výhradně svoje údaje, inzeráty a objednávky — i kdyby se někdo pokusil obejít aplikaci.'],
-                    ['⏰','Férové rezervace a platby','Nezaplacená objednávka se po 2 hodinách automaticky zruší a zboží se vrátí do prodeje. Opakované nezaplacení vede k zablokování účtu — prodejcům tak neblokují frontu neplatiči.'],
-                    ['🚩','Nahlášení & auto-moderace','Podezřelý inzerát nebo uživatele nahlásíte jedním klikem — admin to prověří. Nové inzeráty navíc procházejí automatickou kontrolou na zakázaná slova ještě před zveřejněním.'],
-                    ['⭐','Oboustranné hodnocení','Hodnotí se prodejce i kupující. Reputace a odznaky (Superprodejce, % spokojených, Rychlý odesílatel) jsou veřejné — hned poznáte, s kým obchodujete.'],
-                    ['🤝','I osobní předání přes escrow','Vyzvednutí osobně? Platba i tak běží přes escrow a uvolní se až po potvrzení převzetí. Přesné místo a kontakt se odemknou po zaplacení a domluví se v chatu — chrání to před obejitím platformy.'],
+                    [window._fic(window._IC.lock,'#0E9F6E'),'Escrow ochrana plateb','Peníze prodejci uvolníme až poté, co potvrdíte přijetí zboží. Když něco nesedí, otevřete spor a peníze se vrací k vám.'],
+                    [window._fic(window._IC.idcard,'#0EA5E9'),'Ověření přes BankID','Každý prodejce prokazuje totožnost bankovní identitou. Žádná anonymita — za každým prodejem je skutečný, dohledatelný člověk. Ověření zároveň splní DAC7 (prodejce neřeší limit prodejů); vstupních 65 Kč se vrací do peněženky.'],
+                    [window._fic(window._IC.bolt,'#0EA5E9'),'Okamžitý ban podvodníků','Jediné porušení pravidel znamená trvalý zákaz přístupu. Podvodník se nevrátí pod novým jménem — totožnost je ověřená.'],
+                    [window._fic(window._IC.lockkey,'#0EA5E9'),'Šifrované spojení a relace','Veškerá komunikace běží přes HTTPS. Po 30 minutách nečinnosti vás automaticky odhlásíme, aby k účtu nikdo nedostal přístup z cizího zařízení.'],
+                    [window._fic(window._IC.shield,'#0EA5E9'),'Ochrana proti podvržení obsahu','Striktní bezpečnostní politika (CSP) blokuje cizí skripty a vkládání škodlivého kódu. Nikdo vám do stránky nic nepodstrčí.'],
+                    [window._fic(window._IC.db,'#0EA5E9'),'Přístup jen k vlastním datům','Server hlídá, že každý vidí a mění výhradně svoje údaje, inzeráty a objednávky — i kdyby se někdo pokusil obejít aplikaci.'],
+                    [window._fic(window._IC.clock,'#0EA5E9'),'Férové rezervace a platby','Nezaplacená objednávka se po 2 hodinách automaticky zruší a zboží se vrátí do prodeje. Opakované nezaplacení vede k zablokování účtu — prodejcům tak neblokují frontu neplatiči.'],
+                    [window._fic(window._IC.flag,'#0EA5E9'),'Nahlášení & auto-moderace','Podezřelý inzerát nebo uživatele nahlásíte jedním klikem — admin to prověří. Nové inzeráty navíc procházejí automatickou kontrolou na zakázaná slova ještě před zveřejněním.'],
+                    [window._fic(window._IC.star,'#0E9F6E'),'Oboustranné hodnocení','Hodnotí se prodejce i kupující. Reputace a odznaky (Superprodejce, % spokojených, Rychlý odesílatel) jsou veřejné — hned poznáte, s kým obchodujete.'],
+                    [window._fic(window._IC.people,'#0E9F6E'),'I osobní předání přes escrow','Vyzvednutí osobně? Platba i tak běží přes escrow a uvolní se až po potvrzení převzetí. Přesné místo a kontakt se odemknou po zaplacení a domluví se v chatu — chrání to před obejitím platformy.'],
                 ].map(([icon,title,desc]) => `
                 <div class="bg-white rounded-2xl p-5 shadow-md border border-gray-100 flex gap-4">
                     <div class="text-3xl shrink-0">${icon}</div>
@@ -7620,13 +7644,13 @@
             <!-- Klíčové výhody -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 ${[
-                    ['🔒','Escrow ochrana','Peníze uvolněny až po potvrzení přijetí zboží kupujícím'],
-                    ['🪪','Ověření přes BankID','Žádná anonymita — víc důvěry, rychlejší prodej. Splní DAC7 (neřešíte limit prodejů); 65 Kč se vrací do peněženky'],
-                    ['⚡','Ban za podvod','Jediné porušení pravidel = trvalý zákaz přístupu'],
-                    ['🔔','Realtime notifikace','Okamžité upozornění na každou aktivitu ve vašem účtu'],
+                    [window._fic(window._IC.lock,'#0E9F6E'),'Escrow ochrana','Peníze uvolněny až po potvrzení přijetí zboží kupujícím'],
+                    [window._fic(window._IC.idcard,'#0EA5E9'),'Ověření přes BankID','Žádná anonymita — víc důvěry, rychlejší prodej. Splní DAC7 (neřešíte limit prodejů); 65 Kč se vrací do peněženky'],
+                    [window._fic(window._IC.bolt,'#0EA5E9'),'Ban za podvod','Jediné porušení pravidel = trvalý zákaz přístupu'],
+                    [window._fic(window._IC.bell,'#0EA5E9'),'Realtime notifikace','Okamžité upozornění na každou aktivitu ve vašem účtu'],
                 ].map(([icon,title,desc]) => `
                 <div class="bg-white/90 backdrop-blur-xl rounded-2xl p-5 shadow-md border border-white/50 text-center">
-                    <div class="text-3xl mb-2">${icon}</div>
+                    <div class="mb-2 flex justify-center">${icon}</div>
                     <p class="font-extrabold text-gray-800 text-sm mb-1">${title}</p>
                     <p class="text-xs text-gray-500 leading-snug">${desc}</p>
                 </div>`).join('')}
@@ -7634,7 +7658,7 @@
 
             <!-- Interaktivní návody -->
             <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] p-7 md:p-10 shadow-lg border border-white/50 mb-8">
-                <h3 class="text-xl md:text-2xl font-extrabold text-pastel-text mb-1">📖 Návody krok za krokem</h3>
+                <h3 class="text-xl md:text-2xl font-extrabold text-pastel-text mb-1 flex items-center gap-2"><svg class="w-6 h-6 text-sky-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/></svg>Návody krok za krokem</h3>
                 <p class="text-gray-500 text-sm mb-6">Klikni na téma a ukážeme ti přesně, jak na to — jednoduše a názorně. Pochopí to každý.</p>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                     ${['koupit','prodat','odeslat','aukce','nabidka','video','oblibene','spor'].map(k=>{const g=window._GUIDES[k];return `<button onclick="showGuide('${k}')" class="group bg-gradient-to-br from-${g.color}-50 to-white border border-${g.color}-100 hover:border-${g.color}-300 hover:shadow-md rounded-2xl p-4 text-left transition-all">
@@ -7704,28 +7728,28 @@
                 <h3 class="text-xl md:text-2xl font-extrabold text-pastel-text mb-6">Co platforma umí</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     ${[
-                        ['🔔','Realtime notifikace','Každý příhoz, zpráva, doručení nebo akce admina vám přijde okamžitě — v aplikaci i jako push notifikace v prohlížeči.'],
-                        ['💬','Zprávy v aplikaci','Bezpečná komunikace přímo u každého inzerátu. Bez sdílení telefonů nebo e-mailů. Všechny vlákna na jednom místě.'],
-                        ['❤️','Oblíbené','Uložte si inzeráty nebo aukce, které vás zaujaly, a sledujte vývoj ceny. Vlastní seznam přístupný kdykoliv z profilu.'],
-                        ['🤖','AI popis zboží','Napište název zboží — AI vám okamžitě navrhne profesionální popis i výhody produktu. Ušetříte čas a přilákáte více zájemců.'],
-                        ['📦','Sledování zásilky','Číslo zásilky zadané prodejcem je okamžitě dostupné v detailu objednávky s přímým odkazem na sledování.'],
-                        ['⭐','Hodnocení a recenze','Po každé transakci obě strany hodnotí. Průměrné hodnocení a počet recenzí jsou veřejně viditelné — pomáhají bezpečně vybrat prodejce.'],
-                        ['🪪','Ověření přes BankID','Prodejci ověří totožnost bankovní identitou (BankID) — okamžitě, dle EU směrnice DAC7. Vstupní poplatek 65 Kč vrátíme do peněženky. Bez ověření nelze prodávat ani přihazovat v aukcích.'],
-                        ['⚖️','Spory s admin rozhodčím','Problém s objednávkou? Otevřete spor přímo v aplikaci, nahrajte fotodůkazy. Admin případ objektivně rozhodne do 48 hodin. Při výhře kupujícího se vystaví předplacený štítek na vratku a vrací se cena + provize + původní doprava (mínus zpětná doprava).'],
-                        ['🏖️','Prázdninový režim','Odjíždíte? Zapnete režim a vaše inzeráty se dočasně skryjí a pozastaví se jejich platnost; na příchozí dotazy odpoví uložená automatická zpráva. Po vypnutí se vše obnoví.'],
-                        ['💰','Peněženka a přehled Escrow','Virtuální kredit (vratky, vrácených 65 Kč za ověření, úhrada TOPování) a živé přehledy — Escrow prodej (co vám po dokončení přijde) i Escrow nákup (co máte zaplacené v úschově).'],
-                        ['💬','Nabídnout cenu / smlouvání','U inzerátů s pevnou cenou můžete poslat vlastní nabídku. Prodejce ji přijme, odmítne nebo dá protinabídku. Po dohodě zaplatíte dohodnutou cenu přes escrow.'],
-                        ['🔻','Alert na slevu','Máte zboží v oblíbených a prodejce sníží cenu? Přijde vám upozornění. Inzerát navíc dostane odznak „Sníženo".'],
-                        ['🔔','Hlídač hledání','Uložte si hledaný výraz nebo kategorii a dostanete notifikaci, jakmile přibude odpovídající inzerát.'],
-                        ['📍','Lokalita & osobní předání','U inzerátů vidíte kraj a můžete filtrovat „V okolí". Osobní předání probíhá taky přes escrow — přesné místo se odemkne po zaplacení a domluvíte ho v chatu k objednávce.'],
-                        ['📷','Hromadné vkládání z fotek','Nahrajte víc fotek najednou — AI z každé vytvoří koncept (název, popis, cena, kategorie). Jen zkontrolujete a zveřejníte.'],
-                        ['💡','Cenové doporučení','Při vkládání vám podle reálných dat ukážeme doporučenou cenu (medián podobných inzerátů).'],
-                        ['🎁','Pozvi kamaráda','Sdílejte svůj odkaz — když se kamarád zaregistruje a nakoupí, dostanete oba bonus do peněženky.'],
-                        ['🧾','Faktury','Ke každé dokončené objednávce se vystaví faktura s pořadovým číslem. Prodejce má navíc roční přehled (DAC7) a doklad o poplatcích.'],
-                        ['🤖','Automatické přihazování','U aukce zadáte maximální částku a platforma přihazuje za vás jen o nutné minimum — soupeři váš limit nevidí. Ručně přihodit nad limit můžete dál.'],
-                        ['🔨','Časová osa příhozů','U každé aukce vidíte počet příhozů a po kliknutí kompletní (anonymní) historii — kdy a o kolik se přihazovalo, kdo právě vede.'],
-                        ['❤️','Oblíbení prodejci','Uložte si prodejce srdcem. V profilu pak máte sekci „Oblíbení prodejci" a jedním klikem zobrazíte vše, co nabízí.'],
-                        ['🎥','Video u inzerátu (placené)','Přidejte ke zboží krátké video pro vyšší důvěru. Po schválení adminem a zaplacení se zobrazí přihlášeným po nastavenou dobu; pak se smaže.'],
+                        [window._fic(window._IC.bell,'#0EA5E9'),'Realtime notifikace','Každý příhoz, zpráva, doručení nebo akce admina vám přijde okamžitě — v aplikaci i jako push notifikace v prohlížeči.'],
+                        [window._fic(window._IC.chat,'#0EA5E9'),'Zprávy v aplikaci','Bezpečná komunikace přímo u každého inzerátu. Bez sdílení telefonů nebo e-mailů. Všechny vlákna na jednom místě.'],
+                        [window._fic(window._IC.heart,'#0E9F6E'),'Oblíbené','Uložte si inzeráty nebo aukce, které vás zaujaly, a sledujte vývoj ceny. Vlastní seznam přístupný kdykoliv z profilu.'],
+                        [window._fic(window._IC.robot,'#0EA5E9'),'AI popis zboží','Napište název zboží — AI vám okamžitě navrhne profesionální popis i výhody produktu. Ušetříte čas a přilákáte více zájemců.'],
+                        [window._fic(window._IC.box,'#0EA5E9'),'Sledování zásilky','Číslo zásilky zadané prodejcem je okamžitě dostupné v detailu objednávky s přímým odkazem na sledování.'],
+                        [window._fic(window._IC.star,'#0E9F6E'),'Hodnocení a recenze','Po každé transakci obě strany hodnotí. Průměrné hodnocení a počet recenzí jsou veřejně viditelné — pomáhají bezpečně vybrat prodejce.'],
+                        [window._fic(window._IC.idcard,'#0EA5E9'),'Ověření přes BankID','Prodejci ověří totožnost bankovní identitou (BankID) — okamžitě, dle EU směrnice DAC7. Vstupní poplatek 65 Kč vrátíme do peněženky. Bez ověření nelze prodávat ani přihazovat v aukcích.'],
+                        [window._fic(window._IC.scale,'#0EA5E9'),'Spory s admin rozhodčím','Problém s objednávkou? Otevřete spor přímo v aplikaci, nahrajte fotodůkazy. Admin případ objektivně rozhodne do 48 hodin. Při výhře kupujícího se vystaví předplacený štítek na vratku a vrací se cena + provize + původní doprava (mínus zpětná doprava).'],
+                        [window._fic(window._IC.sun2,'#0EA5E9'),'Prázdninový režim','Odjíždíte? Zapnete režim a vaše inzeráty se dočasně skryjí a pozastaví se jejich platnost; na příchozí dotazy odpoví uložená automatická zpráva. Po vypnutí se vše obnoví.'],
+                        [window._fic(window._IC.wallet,'#0E9F6E'),'Peněženka a přehled Escrow','Virtuální kredit (vratky, vrácených 65 Kč za ověření, úhrada TOPování) a živé přehledy — Escrow prodej (co vám po dokončení přijde) i Escrow nákup (co máte zaplacené v úschově).'],
+                        [window._fic(window._IC.chat,'#0EA5E9'),'Nabídnout cenu / smlouvání','U inzerátů s pevnou cenou můžete poslat vlastní nabídku. Prodejce ji přijme, odmítne nebo dá protinabídku. Po dohodě zaplatíte dohodnutou cenu přes escrow.'],
+                        [window._fic(window._IC.drop,'#0E9F6E'),'Alert na slevu','Máte zboží v oblíbených a prodejce sníží cenu? Přijde vám upozornění. Inzerát navíc dostane odznak „Sníženo".'],
+                        [window._fic(window._IC.bell,'#0EA5E9'),'Hlídač hledání','Uložte si hledaný výraz nebo kategorii a dostanete notifikaci, jakmile přibude odpovídající inzerát.'],
+                        [window._fic(window._IC.pin2,'#0EA5E9'),'Lokalita & osobní předání','U inzerátů vidíte kraj a můžete filtrovat „V okolí". Osobní předání probíhá taky přes escrow — přesné místo se odemkne po zaplacení a domluvíte ho v chatu k objednávce.'],
+                        [window._fic(window._IC.cam,'#0EA5E9'),'Hromadné vkládání z fotek','Nahrajte víc fotek najednou — AI z každé vytvoří koncept (název, popis, cena, kategorie). Jen zkontrolujete a zveřejníte.'],
+                        [window._fic(window._IC.bulb,'#0EA5E9'),'Cenové doporučení','Při vkládání vám podle reálných dat ukážeme doporučenou cenu (medián podobných inzerátů).'],
+                        [window._fic(window._IC.gift,'#0E9F6E'),'Pozvi kamaráda','Sdílejte svůj odkaz — když se kamarád zaregistruje a nakoupí, dostanete oba bonus do peněženky.'],
+                        [window._fic(window._IC.receipt,'#0EA5E9'),'Faktury','Ke každé dokončené objednávce se vystaví faktura s pořadovým číslem. Prodejce má navíc roční přehled (DAC7) a doklad o poplatcích.'],
+                        [window._fic(window._IC.robot,'#0EA5E9'),'Automatické přihazování','U aukce zadáte maximální částku a platforma přihazuje za vás jen o nutné minimum — soupeři váš limit nevidí. Ručně přihodit nad limit můžete dál.'],
+                        [window._fic(window._IC.gavel,'#0EA5E9'),'Časová osa příhozů','U každé aukce vidíte počet příhozů a po kliknutí kompletní (anonymní) historii — kdy a o kolik se přihazovalo, kdo právě vede.'],
+                        [window._fic(window._IC.heart,'#0E9F6E'),'Oblíbení prodejci','Uložte si prodejce srdcem. V profilu pak máte sekci „Oblíbení prodejci" a jedním klikem zobrazíte vše, co nabízí.'],
+                        [window._fic(window._IC.cam,'#0EA5E9'),'Video u inzerátu (placené)','Přidejte ke zboží krátké video pro vyšší důvěru. Po schválení adminem a zaplacení se zobrazí přihlášeným po nastavenou dobu; pak se smaže.'],
                     ].map(([icon,title,desc]) => `
                     <div class="flex items-start gap-4 bg-gray-50 rounded-2xl p-4 border border-gray-100">
                         <span class="text-2xl shrink-0 mt-0.5">${icon}</span>
