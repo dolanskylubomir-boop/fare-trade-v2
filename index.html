@@ -1205,6 +1205,24 @@
         { id:'ostatni',      name:'Ostatní',           icon:'📦', sub:[] },
     ];
     const vsechnyKategorie = ['Vše', ...KATEGORIE.map(k => k.name)];
+    // Jednotné line (stroke) ikony kategorií — dědí barvu textu (currentColor)
+    const CAT_SVG = {
+        vse:          '<rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/>',
+        elektronika:  '<rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M2 20.5h20"/>',
+        moda:         '<path d="M8 3.5 4 7.5l2.2 2.2L8 8.2V20.5h8V8.2l1.8 1.5L20 7.5 16 3.5l-1.6 1.4a3.6 3.6 0 0 1-4.8 0z"/>',
+        sperky:       '<path d="M6 3.5h12l3 5-9 12-9-12z"/><path d="M3 8.5h18"/><path d="M9 3.5 7 8.5l5 11.5 5-11.5-2-5"/>',
+        sberatelstvi: '<circle cx="12" cy="9" r="5.5"/><path d="M8.5 13.5 6.5 21l5.5-3 5.5 3-2-7.5"/>',
+        domacnost:    '<path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.8V20h13V9.8"/><path d="M10 20v-5.5h4V20"/>',
+        sport:        '<circle cx="12" cy="12" r="8.5"/><path d="M3.6 12h16.8M12 3.5v17M6 6c3.5 2.6 3.5 9.4 0 12M18 6c-3.5 2.6-3.5 9.4 0 12"/>',
+        knihy:        '<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 1 6.5 18H19v3H6.5A1.5 1.5 0 0 1 5 19.5z"/>',
+        hracky:       '<rect x="3" y="13" width="8" height="8" rx="1.6"/><rect x="13" y="13" width="8" height="8" rx="1.6"/><path d="M7 13V8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v5"/>',
+        auta:         '<path d="M5 11l1.6-4.6A2 2 0 0 1 8.5 5h7a2 2 0 0 1 1.9 1.4L19 11"/><path d="M3 11h18v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="16.5" r="1.4"/><circle cx="16.5" cy="16.5" r="1.4"/>',
+        ostatni:      '<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/>'
+    };
+    window._catSvg = function(id) {
+        const p = CAT_SVG[id] || CAT_SVG.ostatni;
+        return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">' + p + '</svg>';
+    };
     const FALLBACK_IMG     = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 4 3%22%3E%3Crect width=%224%22 height=%223%22 fill=%22%23f1f5f9%22/%3E%3Crect x=%221.4%22 y=%220.7%22 width=%221.2%22 height=%221%22 rx=%220.12%22 fill=%22%23e2e8f0%22/%3E%3Ccircle cx=%222%22 cy=%221.2%22 r=%220.28%22 fill=%22%23f8fafc%22/%3E%3Ccircle cx=%222%22 cy=%221.2%22 r=%220.16%22 fill=%22%23cbd5e1%22/%3E%3C/svg%3E";
 
     // ──────────────────────────────────────────────────────────────
@@ -1994,7 +2012,7 @@
             const cnt = (kat === 'Vše') ? total : (counts[kat] || 0);
             const active = currentFilter === kat;
             const obj = KATEGORIE.find(k => k.name === kat);
-            const icon = (kat === 'Vše') ? '🗂️' : (obj ? obj.icon : '📦');
+            const icon = window._catSvg((kat === 'Vše') ? 'vse' : (obj ? obj.id : 'ostatni'));
             const badge = active
                 ? `<span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full text-white" style="background:rgba(255,255,255,.22)">${cnt}</span>`
                 : `<span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">${cnt}</span>`;
