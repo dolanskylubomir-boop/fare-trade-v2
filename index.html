@@ -239,10 +239,20 @@
         .pfb-sv{font-size:22px;font-weight:800;margin-top:4px;color:#14233A;letter-spacing:-.01em}
         html.dark .pfb-sv{color:#EAF0F8}
         /* === Profil: dashboard layout (boční panel + obsah) === */
-        .pfb-dash{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px;align-items:start}
-        .pfb-side{display:flex;flex-direction:column;gap:14px;min-width:0}
-        .pfb-main{display:flex;flex-direction:column;gap:0;min-width:0}
-        @media(max-width:1080px){.pfb-dash{grid-template-columns:1fr}}
+        .pfb-dash{display:grid;grid-template-columns:300px 300px minmax(0,1fr);gap:18px;align-items:start}
+        .pfb-side{display:flex;flex-direction:column;gap:14px;min-width:0;grid-column:1;grid-row:1}
+        .pfb-c2{min-width:0;grid-column:2;grid-row:1}
+        .pfb-main{display:flex;flex-direction:column;gap:0;min-width:0;grid-column:3;grid-row:1}
+        @media(max-width:1240px){
+            .pfb-dash{grid-template-columns:300px minmax(0,1fr)}
+            .pfb-side{grid-column:1;grid-row:1}
+            .pfb-c2{grid-column:1;grid-row:2}
+            .pfb-main{grid-column:2;grid-row:1 / span 2}
+        }
+        @media(max-width:860px){
+            .pfb-dash{grid-template-columns:1fr}
+            .pfb-side,.pfb-c2,.pfb-main{grid-column:1;grid-row:auto}
+        }
         .pfb-id-side{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;padding:24px 18px 20px}
         .pfb-id-side .pfb-avatar{width:74px;height:74px;font-size:29px}
         .pfb-id-side .pfb-mail{margin-top:0}
@@ -457,7 +467,7 @@
 
     <!-- ===== HEADER ===== -->
     <header class="w-full py-3 sm:py-3.5 px-4 sm:px-6 bg-white/80 backdrop-blur-xl border-b border-gray-100 shadow-[0_2px_14px_-10px_rgba(0,0,0,0.25)] z-40 sticky top-0 transition-all">
-        <div class="max-w-[1480px] mx-auto flex items-center gap-3 sm:gap-4">
+        <div class="max-w-[1560px] mx-auto flex items-center gap-3 sm:gap-4">
             <div class="cursor-pointer shrink-0 flex items-center gap-2.5" onclick="navigate('home')">
                 <span class="hidden sm:flex w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 items-center justify-center shadow-md shadow-sky-500/30 shrink-0">
                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -530,7 +540,7 @@
 
     <!-- ===== PWA INSTALL BANNER (Android/desktop) ===== -->
     <div id="pwa-banner" class="hidden w-full bg-gradient-to-r from-sky-500 to-sky-600 text-white z-30">
-        <div class="max-w-[1480px] mx-auto px-4 py-2.5 flex items-center gap-3">
+        <div class="max-w-[1560px] mx-auto px-4 py-2.5 flex items-center gap-3">
             <span class="text-xl shrink-0">📲</span>
             <div class="flex-1 min-w-0 cursor-pointer" onclick="window._triggerPwaInstall()">
                 <span class="font-bold text-sm">Nainstalovat FairTrade</span>
@@ -544,7 +554,7 @@
     </div>
     <!-- ===== PWA INSTALL BANNER (iOS Safari) ===== -->
     <div id="pwa-banner-ios" class="hidden w-full bg-gradient-to-r from-sky-500 to-sky-600 text-white z-30">
-        <div class="max-w-[1480px] mx-auto px-4 py-3 flex items-start gap-3">
+        <div class="max-w-[1560px] mx-auto px-4 py-3 flex items-start gap-3">
             <span class="text-xl shrink-0 mt-0.5">📲</span>
             <div class="flex-1 min-w-0">
                 <div class="font-bold text-sm">Přidat FairTrade na plochu</div>
@@ -558,7 +568,7 @@
         </div>
     </div>
 
-    <main id="app" class="flex-grow w-full max-w-[1480px] mx-auto px-3 py-5 sm:px-5 md:p-8 pb-28 md:pb-8 flex flex-col justify-center relative"></main>
+    <main id="app" class="flex-grow w-full max-w-[1560px] mx-auto px-3 py-5 sm:px-5 md:p-8 pb-28 md:pb-8 flex flex-col justify-center relative"></main>
 
     <!-- ===== MOBILNÍ NAVIGACE ===== -->
     <nav id="mobile-nav" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-6px_25px_-10px_rgba(0,0,0,0.15)]">
@@ -8078,7 +8088,7 @@
                 gear:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V20a2 2 0 11-4 0v-.2A1.6 1.6 0 006 18.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00-1.1-2.7H2a2 2 0 110-4h.2A1.6 1.6 0 003.7 6l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H8a1.6 1.6 0 001-1.5V2a2 2 0 114 0v.2a1.6 1.6 0 002.7 1.1l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V8a1.6 1.6 0 001.5 1H22a2 2 0 110 4h-.2a1.6 1.6 0 00-1.4 1z"/></svg>'
             };
             return `
-            <div class="w-full max-w-[1480px] mx-auto fade-in">
+            <div class="w-full max-w-[1560px] mx-auto fade-in">
               <div class="pfb-dash">
                 <aside class="pfb-side">
                 <!-- Identita -->
@@ -8109,7 +8119,9 @@
                     <div class="pfb-mtxt"><div class="pfb-elab">Peněženka</div><div class="pfb-mbig pf-num" id="profile-wallet-balance">0 Kč</div></div>
                     <div class="pfb-mchev">${_svg.chev}</div>
                 </button>` : ''}
-                <!-- Statistiky -->
+                </aside>
+                <!-- Statistiky (samostatný sloupec vedle profilu) -->
+                <div class="pfb-c2">
                 <div class="pfb-card pfb-statbox">
                   <div class="pfb-statgrid">
                     <div class="pfb-si"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div><div class="pfb-sl">Aktivní</div><div id="profile-active-ads-count" class="pfb-sv pf-num">0</div></div>
@@ -8120,7 +8132,7 @@
                     <div class="pfb-si"><div class="pfb-sic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg></div><div class="pfb-sl">Nakoupeno</div><div id="profile-spent" class="pfb-sv pf-num">0 Kč</div></div>
                   </div>
                 </div><!-- /statistiky -->
-                </aside>
+                </div>
                 <main class="pfb-main">
                 <div id="dac7-banner"></div>
                 <!-- Taby + obsah -->
