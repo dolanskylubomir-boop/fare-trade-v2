@@ -2140,10 +2140,20 @@
     window._openFilterSheet = function() {
         // Přesun do <body> — rodič katalogu má backdrop-filter, který by jinak ukotvil
         // position:fixed vůči sobě (panel by skončil na konci stránky, ne dole na obrazovce).
-        document.querySelectorAll('body > .ft-adv, body > .ft-backdrop').forEach(e => e.remove());
-        const s = document.getElementById('ft-adv'), bd = document.getElementById('ft-backdrop');
-        if (bd) document.body.appendChild(bd);
-        if (s) document.body.appendChild(s);
+        const inApp = document.querySelector('#app .ft-adv');
+        let s, bd;
+        if (inApp) {
+            // čerstvý sheet z lišty → zahodit starou přesunutou kopii a přesunout čerstvý
+            document.querySelectorAll('body > .ft-adv, body > .ft-backdrop').forEach(e => e.remove());
+            s = inApp;
+            bd = document.querySelector('#app .ft-backdrop');
+        } else {
+            // už přesunutý v body (po zavření bez re-renderu) → znovu použít, NEMAZAT
+            s = document.querySelector('body > .ft-adv');
+            bd = document.querySelector('body > .ft-backdrop');
+        }
+        if (bd && bd.parentNode !== document.body) document.body.appendChild(bd);
+        if (s && s.parentNode !== document.body) document.body.appendChild(s);
         requestAnimationFrame(() => { if (bd) bd.classList.add('open'); if (s) s.classList.add('open'); });
     };
     window._closeFilterSheet = function(view) {
