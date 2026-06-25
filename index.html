@@ -243,6 +243,8 @@
         .pfb-side{display:flex;flex-direction:column;gap:14px;min-width:0;grid-column:1;grid-row:1}
         .pfb-c2{min-width:0;grid-column:2;grid-row:1}
         .pfb-main{display:flex;flex-direction:column;gap:0;min-width:0;grid-column:3;grid-row:1}
+        /* ukotvit profil + statistiky při scrollu (jen 3 sloupce vedle sebe) */
+        @media(min-width:1241px){.pfb-side,.pfb-c2{position:sticky;top:88px}}
         @media(max-width:1240px){
             .pfb-dash{grid-template-columns:300px minmax(0,1fr)}
             .pfb-side{grid-column:1;grid-row:1}
@@ -569,7 +571,7 @@
         </div>
     </div>
 
-    <main id="app" class="flex-grow w-full max-w-[1680px] mx-auto px-3 py-5 sm:px-5 md:p-8 pb-28 md:pb-8 flex flex-col justify-center relative"></main>
+    <main id="app" class="flex-grow w-full max-w-[1680px] mx-auto px-3 py-5 sm:px-5 md:p-8 pb-28 md:pb-8 flex flex-col justify-start relative"></main>
 
     <!-- ===== MOBILNÍ NAVIGACE ===== -->
     <nav id="mobile-nav" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-6px_25px_-10px_rgba(0,0,0,0.15)]">
