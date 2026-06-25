@@ -273,6 +273,8 @@
         @media(max-width:767px){
             .ft-adv{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex!important;flex-direction:column!important;align-items:stretch!important;flex-wrap:nowrap!important;gap:13px;background:#fff;border-radius:24px 24px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom));max-height:84vh;overflow-y:auto;overflow-x:hidden;transform:translateY(102%);transition:transform .34s cubic-bezier(.32,.72,0,1);box-shadow:0 -18px 50px -18px rgba(10,16,28,.45)}
             .ft-adv.open{transform:translateY(0)}
+            /* sheet v liště (#app, uvnitř blur-obalu) je mis-ukotvený → schovat; viditelná je jen kopie přesunutá do body */
+            #app .ft-adv,#app .ft-backdrop{display:none!important}
             .ft-adv>*{flex:0 0 auto;width:100%}
             .ft-adv .ft-price-row{display:flex;align-items:center;width:100%}
             .ft-adv .ft-price-row input{flex:1;width:auto;padding:12px 14px;font-size:15px}
