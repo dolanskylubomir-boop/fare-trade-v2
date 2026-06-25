@@ -108,7 +108,9 @@
         html.love #love-bg{display:block}
         html.love body{background:transparent !important}
         html.love .bg-animated{background:transparent !important}
-        html.love header,html.love main,html.love #app,html.love footer{position:relative;z-index:1}
+        html.love main,html.love #app,html.love footer{position:relative;z-index:1}
+        /* love režim: prosklené panely (detail inzerátu, modály, hlavička) prosvítají animaci */
+        html.love .bg-white\/95,html.love .bg-white\/90,html.love .bg-white\/80{background-color:rgba(24,16,34,.52) !important;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
         /* skleněné karty v love režimu prosvítají na pozadí */
         html.love .pf-stats{background:rgba(27,34,44,.55) !important;backdrop-filter:blur(10px)}
         html.love .pf-tabbar{background:rgba(20,16,28,.5) !important}
