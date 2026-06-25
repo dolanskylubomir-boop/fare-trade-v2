@@ -103,6 +103,39 @@
         html.dark .to-red-50,html.dark .to-orange-50,html.dark .to-amber-50,html.dark .to-yellow-50,html.dark .to-lime-50,html.dark .to-green-50,html.dark .to-emerald-50,html.dark .to-teal-50,html.dark .to-cyan-50,html.dark .to-sky-50,html.dark .to-blue-50,html.dark .to-indigo-50,html.dark .to-violet-50,html.dark .to-purple-50,html.dark .to-fuchsia-50,html.dark .to-pink-50,html.dark .to-rose-50,html.dark .to-slate-50,html.dark .to-gray-50 { --tw-gradient-to:#1b222c !important; }
         html.dark .via-red-50,html.dark .via-orange-50,html.dark .via-amber-50,html.dark .via-yellow-50,html.dark .via-green-50,html.dark .via-emerald-50,html.dark .via-sky-50,html.dark .via-blue-50,html.dark .via-indigo-50,html.dark .via-purple-50,html.dark .via-pink-50,html.dark .via-rose-50 { --tw-gradient-via:#1b222c !important; }
         .bg-animated { background: #F8F4F0; }
+        /* ═══ Profil — redesign (inkoustový „výpis" panel) ═══ */
+        .pf-grid{display:grid;grid-template-columns:330px 1fr;gap:22px;align-items:start}
+        @media(max-width:880px){.pf-grid{grid-template-columns:1fr}}
+        .pf-rail{position:sticky;top:84px;background:linear-gradient(180deg,#1A2C47,#15243B);color:#EAF0F8;border-radius:22px;padding:24px 22px;box-shadow:0 24px 50px -28px rgba(20,35,58,.55);overflow:hidden}
+        @media(max-width:880px){.pf-rail{position:static}}
+        .pf-rail-glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 60% at 80% -10%,rgba(70,190,247,.16),transparent 60%)}
+        .pf-rail>*{position:relative}
+        .pf-id{display:flex;gap:15px;align-items:center}
+        .pf-avatar{width:62px;height:62px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;font-weight:800;font-size:25px;color:#fff;background:linear-gradient(150deg,#2E6FB0,#46BEF7);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+        .pf-name{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:#fff}
+        .pf-handle{color:#8C9AB2;font-size:12.5px;margin-top:2px;word-break:break-all}
+        .pf-seal{align-items:center;gap:6px;margin-top:10px;background:rgba(57,212,155,.13);color:#39D49B;border:1px solid rgba(57,212,155,.28)!important;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+        .pf-meta{display:flex;flex-wrap:wrap;gap:7px 12px;margin-top:13px;color:#8C9AB2;font-size:12px;align-items:center}
+        .pf-rule{height:1px;background:rgba(255,255,255,.09);margin:18px 0}
+        .pf-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#8C9AB2;display:block;margin-bottom:2px}
+        .pf-row{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border:0;border-bottom:1px dashed rgba(255,255,255,.09);background:0;cursor:pointer;text-align:left;font-family:inherit;color:inherit}
+        .pf-row:last-child{border-bottom:0}
+        .pf-lab{display:flex;align-items:center;gap:10px;color:#EAF0F8;font-size:13px;font-weight:500}
+        .pf-ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(255,255,255,.06);color:#8C9AB2;flex:0 0 auto}
+        .pf-val{font-size:16px;font-weight:600;color:#EAF0F8;white-space:nowrap}
+        .pf-row.pf-hero .pf-val{font-size:20px;color:#fff}
+        .pf-row.pf-hero .pf-ic{background:rgba(70,190,247,.14);color:#46BEF7}
+        .pf-row:hover .pf-val{color:#46BEF7}
+        .pf-num{font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+        .pf-stats{display:grid;grid-template-columns:repeat(6,1fr);background:#fff;border:1px solid rgba(20,35,58,.1);border-radius:14px;overflow:hidden;margin-bottom:16px}
+        @media(max-width:680px){.pf-stats{grid-template-columns:repeat(3,1fr)}}
+        .pf-stat{padding:13px 14px;border-right:1px solid rgba(20,35,58,.06);border-bottom:1px solid rgba(20,35,58,.06)}
+        .pf-slabel{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6B7787;display:flex;align-items:center;gap:5px}
+        .pf-slabel svg{opacity:.55}
+        .pf-sval{font-size:19px;font-weight:800;margin-top:6px;color:#14233A;line-height:1.1}
+        html.dark .pf-stats{background:#1b222c;border-color:rgba(255,255,255,.1)}
+        html.dark .pf-stat{border-color:rgba(255,255,255,.07)}
+        html.dark .pf-sval{color:#e8ebf0}
         @media (prefers-reduced-motion:reduce) {
             *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
             html { scroll-behavior:auto; }
@@ -7724,54 +7757,59 @@
             const tab = t => t===activeTab
                 ? 'profile-tab px-3.5 py-4 font-bold text-sky-500 border-b-2 border-sky-500 bg-sky-50/50 whitespace-nowrap text-sm outline-none transition-all'
                 : 'profile-tab px-3.5 py-4 font-bold text-gray-400 hover:text-sky-500 hover:bg-sky-50/60 hover:border-b-2 hover:border-sky-200 transition-all whitespace-nowrap text-sm outline-none border-b-2 border-transparent';
+            const _svg = {
+                shield:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5z"/><path d="M9 12l2 2 4-4"/></svg>',
+                lock:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>',
+                cart:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg>',
+                wallet:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M16 12h3"/></svg>',
+                logout:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12H4m0 0l4-4m-4 4l4 4"/><path d="M14 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4"/></svg>',
+                chev:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>'
+            };
             return `
-            <div class="w-full max-w-5xl mx-auto fade-in">
-                <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 mb-6 overflow-hidden">
-                    <div class="hero-anim h-28 sm:h-36 bg-gradient-to-r from-sky-400 via-indigo-500 to-fuchsia-500 relative overflow-hidden">
-                        <div class="absolute inset-0 opacity-25" style="background-image:radial-gradient(circle at 25% 30%, white 1.5px, transparent 1.5px);background-size:26px 26px"></div>
-                        <div class="absolute -bottom-10 -left-6 w-44 h-44 bg-white/15 rounded-full blur-2xl"></div>
-                        <div class="absolute -top-10 right-10 w-56 h-56 bg-fuchsia-300/30 rounded-full blur-3xl"></div>
-                        <button onclick="handleLogout()" class="absolute top-3 right-3 text-white font-bold text-xs bg-white/20 hover:bg-white/35 px-3.5 py-1.5 rounded-xl transition-colors backdrop-blur-sm border border-white/30">Odhlásit se</button>
-                    </div>
-                    <div class="px-6 md:px-8 pb-6 relative z-10">
-                        <div class="-mt-16 mb-3 flex justify-center md:justify-start">
-                            <div id="profile-initials" class="w-28 h-28 rounded-full bg-gradient-to-tr from-sky-400 to-indigo-300 flex items-center justify-center text-white font-bold text-5xl shadow-xl ring-4 ring-white shrink-0 select-none">⌛</div>
-                        </div>
-                        <div class="text-center md:text-left">
-                            <div class="flex flex-col md:flex-row md:items-center gap-2 mb-1 justify-center md:justify-start">
-                                <h2 id="profile-name" class="text-2xl md:text-3xl font-extrabold text-pastel-text">Načítám…</h2>
-                                <span id="profile-verified-badge" class="hidden items-center gap-1 bg-gradient-to-r from-green-50 to-emerald-50 text-emerald-700 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide border border-emerald-200 w-max mx-auto md:mx-0 shadow-sm">
-                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>Ověřený účet
-                                </span>
-                            </div>
-                            <p id="profile-email" class="text-gray-400 text-sm">…</p>
-                            <div id="profile-hero-extra" class="flex flex-wrap items-center gap-2 mt-2.5 justify-center md:justify-start"></div>
+            <div class="w-full max-w-6xl mx-auto fade-in">
+              <div class="pf-grid">
+                <aside class="pf-rail">
+                    <div class="pf-rail-glow"></div>
+                    <div class="pf-id">
+                        <div id="profile-initials" class="pf-avatar select-none">⌛</div>
+                        <div style="min-width:0">
+                            <h2 id="profile-name" class="pf-name">Načítám…</h2>
+                            <div id="profile-email" class="pf-handle">…</div>
+                            <span id="profile-verified-badge" class="hidden pf-seal">${_svg.shield} Ověřený účet</span>
                         </div>
                     </div>
-                </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 mb-3">
-                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm min-w-0"><span class="w-9 h-9 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-lg shrink-0">📦</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">Aktivní</p><p id="profile-active-ads-count" class="text-lg font-black text-sky-600 leading-tight truncate">0</p></div></div>
-                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm min-w-0"><span class="w-9 h-9 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-lg shrink-0">🤝</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">Prodejů</p><p id="profile-sales-count" class="text-lg font-black text-green-600 leading-tight truncate">0</p></div></div>
-                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm min-w-0"><span class="w-9 h-9 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-lg shrink-0">🛍️</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">Nákupů</p><p id="profile-purchase-count" class="text-lg font-black text-pink-600 leading-tight truncate">0</p></div></div>
-                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm min-w-0"><span class="w-9 h-9 rounded-full bg-yellow-100 text-yellow-500 flex items-center justify-center text-lg shrink-0">★</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">Hodnocení</p><p id="profile-rating" class="text-lg font-black text-gray-800 leading-tight truncate">0.0</p></div></div>
-                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm min-w-0"><span class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg shrink-0">💰</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">Prodáno</p><p id="profile-earned" class="text-base sm:text-lg font-black text-emerald-600 leading-tight whitespace-nowrap">0 Kč</p></div></div>
-                    <div class="glass-tile rounded-2xl p-3 flex items-center gap-2.5 shadow-sm min-w-0"><span class="w-9 h-9 rounded-full bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center text-lg shrink-0">🛒</span><div class="min-w-0"><p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">Nakoupeno</p><p id="profile-spent" class="text-base sm:text-lg font-black text-fuchsia-600 leading-tight whitespace-nowrap">0 Kč</p></div></div>
-                </div>
-                ${verified ? `<div class="flex flex-wrap gap-3 mb-4">
-                    <button onclick="navigate('penezenka')" class="glass-tile flex items-center gap-2.5 rounded-2xl px-4 py-2.5 shadow-sm">
-                        <span class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg shrink-0">💰</span>
-                        <div class="text-left"><p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Peněženka</p><p class="text-sm font-black text-emerald-700" id="profile-wallet-balance">0 Kč</p></div>
+                    <div id="profile-hero-extra" class="pf-meta"></div>
+                    ${verified ? `
+                    <div class="pf-rule"></div>
+                    <span class="pf-eyebrow">Vaše úschova</span>
+                    <button onclick="navigate('escrow')" class="pf-row pf-hero">
+                        <span class="pf-lab"><span class="pf-ic">${_svg.lock}</span>Prodej — čeká na uvolnění</span>
+                        <span class="pf-val pf-num" id="profile-escrow-sell">—</span>
                     </button>
-                    <button onclick="navigate('escrow')" class="glass-tile flex items-center gap-2.5 rounded-2xl px-4 py-2.5 shadow-sm">
-                        <span class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg shrink-0">🔒</span>
-                        <div class="text-left"><p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Escrow prodej · úschova</p><p class="text-sm font-black text-indigo-700" id="profile-escrow-sell">—</p></div>
+                    <button onclick="navigate('escrow-nakup')" class="pf-row">
+                        <span class="pf-lab"><span class="pf-ic">${_svg.cart}</span>Nákup — v ochraně</span>
+                        <span class="pf-val pf-num" id="profile-escrow-buy">—</span>
                     </button>
-                    <button onclick="navigate('escrow-nakup')" class="glass-tile flex items-center gap-2.5 rounded-2xl px-4 py-2.5 shadow-sm">
-                        <span class="w-9 h-9 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-lg shrink-0">🛒</span>
-                        <div class="text-left"><p class="text-[10px] font-bold text-violet-600 uppercase tracking-wide">Escrow nákup · úschova</p><p class="text-sm font-black text-violet-700" id="profile-escrow-buy">—</p></div>
+                    <button onclick="navigate('penezenka')" class="pf-row">
+                        <span class="pf-lab"><span class="pf-ic">${_svg.wallet}</span>Peněženka</span>
+                        <span class="pf-val pf-num" id="profile-wallet-balance">0 Kč</span>
+                    </button>` : ''}
+                    <div class="pf-rule"></div>
+                    <button onclick="handleLogout()" class="pf-row" style="border-bottom:0">
+                        <span class="pf-lab"><span class="pf-ic">${_svg.logout}</span>Odhlásit se</span>
+                        <span style="color:#8C9AB2">${_svg.chev}</span>
                     </button>
-                </div>` : ''}
+                </aside>
+                <main style="min-width:0">
                 <div id="dac7-banner"></div>
+                <div class="pf-stats">
+                    <div class="pf-stat"><div class="pf-slabel"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>Aktivní</div><div id="profile-active-ads-count" class="pf-sval pf-num">0</div></div>
+                    <div class="pf-stat"><div class="pf-slabel"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V7H4v5M2 12h20v8H2z"/></svg>Prodejů</div><div id="profile-sales-count" class="pf-sval pf-num">0</div></div>
+                    <div class="pf-stat"><div class="pf-slabel"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8h12l-1 12H7z"/><path d="M9 8a3 3 0 016 0"/></svg>Nákupů</div><div id="profile-purchase-count" class="pf-sval pf-num">0</div></div>
+                    <div class="pf-stat"><div class="pf-slabel"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4l2.3 4.7 5.2.8-3.7 3.6.9 5.1L12 15.8 7.3 18.2l.9-5.1L4.5 9.5l5.2-.8z"/></svg>Hodnocení</div><div id="profile-rating" class="pf-sval pf-num">0.0</div></div>
+                    <div class="pf-stat"><div class="pf-slabel"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16v11H4z"/><path d="M9 9V5h6v4"/></svg>Prodáno</div><div id="profile-earned" class="pf-sval pf-num">0 Kč</div></div>
+                    <div class="pf-stat"><div class="pf-slabel"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg>Nakoupeno</div><div id="profile-spent" class="pf-sval pf-num">0 Kč</div></div>
+                </div>
                 <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 overflow-hidden">
                     <div class="flex border-b border-gray-100">
                         <div class="flex md:flex-wrap overflow-x-auto md:overflow-x-visible scrollbar-hide flex-1 min-w-0">
@@ -7789,6 +7827,8 @@
                     </div>
                     <div class="p-5 md:p-8" id="profile-tab-content">${renderProfileTabContent(activeTab)}</div>
                 </div>
+                </main>
+              </div>
             </div>`;
         },
 
