@@ -268,6 +268,24 @@
         .pfb-green.pfb-clk:hover .pfb-mchev{color:#0E9F6E}
         .pfb-amber.pfb-clk:hover .pfb-mchev{color:#C7621A}
         .pfb-stats-side{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+        /* === Mobilní filtr (bottom sheet) === */
+        .ft-grab,.ft-sheet-head,.ft-sheet-foot,.ft-backdrop{display:none}
+        @media(max-width:767px){
+            .ft-adv{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;flex-direction:column;align-items:stretch;gap:13px;background:#fff;border-radius:24px 24px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom));max-height:84vh;overflow-y:auto;transform:translateY(102%);transition:transform .34s cubic-bezier(.32,.72,0,1);box-shadow:0 -18px 50px -18px rgba(10,16,28,.45)}
+            .ft-adv.open{transform:translateY(0)}
+            .ft-adv>*{flex:0 0 auto;width:100%}
+            .ft-adv .ft-price-row{display:flex;align-items:center;width:100%}
+            .ft-adv .ft-price-row input{flex:1;width:auto;padding:12px 14px;font-size:15px}
+            .ft-adv select{width:100%;font-size:15px;padding:12px 14px}
+            .ft-grab{display:block;align-self:center;width:40px;height:4px;border-radius:99px;background:#d6dce6;margin:0 auto 4px}
+            .ft-sheet-head{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:inherit;padding-bottom:4px;z-index:2}
+            .ft-sheet-foot{display:flex;gap:10px;position:sticky;bottom:0;background:inherit;padding:8px 0 2px;z-index:2}
+            .ft-backdrop{display:block;position:fixed;inset:0;z-index:69;background:rgba(10,16,28,.5);opacity:0;pointer-events:none;transition:opacity .3s}
+            .ft-backdrop.open{opacity:1;pointer-events:auto}
+        }
+        html.dark .ft-adv{background:#121a26}
+        html.dark .ft-grab{background:rgba(255,255,255,.22)}
+        html.love .ft-adv{background:rgba(26,18,36,.96);backdrop-filter:blur(20px)}
         /* karty katalogu — glass v tmavém/love režimu + hover glow (konzistence s bento) */
         .ad-card{transition:border-color .2s,box-shadow .25s,transform .25s}
         .ad-card:hover{border-color:rgba(14,132,199,.4) !important;box-shadow:0 16px 38px -18px rgba(14,132,199,.32)}
@@ -1977,6 +1995,7 @@
         });
         const _sellers = Object.keys(_sellMap).map(id => ({ id, name: _sellMap[id].name, count: _sellMap[id].count }))
             .sort((a, b) => (b.count - a.count) || String(a.name).localeCompare(String(b.name), 'cs'));
+        const _activeCount = [(_listState.priceMin!=null||_listState.priceMax!=null),!!_listState.condition,!!_listState.carrier,!!_listState.kraj,!!_listState.seller,!!_listState.escrow].filter(Boolean).length;
         return `<div class="flex gap-2 mb-5">
             <div class="search-wrap flex-1">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/></svg>
@@ -1994,38 +2013,51 @@
             </select>
             <button type="button" onclick="saveCurrentSearch('${cat}')" title="Dostávejte upozornění, když přibude odpovídající inzerát" class="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold text-sm transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg><span class="hidden sm:inline">Hlídat</span></button>
         </div>
-        <div class="flex items-center gap-2 mb-4 flex-wrap">
+        <div id="ft-backdrop" class="ft-backdrop md:hidden" onclick="_closeFilterSheet('${view}')"></div>
+        <div class="flex items-center gap-2 mb-4">
+            <button type="button" onclick="_openFilterSheet()" class="ft-trigger md:hidden flex items-center gap-2 px-3.5 py-2 rounded-xl border border-gray-200 bg-white font-bold text-sm text-gray-700 shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h18M6 10h12M9 15h6M11 19h2"/></svg>
+                Filtry
+                <span id="ft-filter-count" class="${_activeCount?'':'hidden'} min-w-[18px] h-[18px] px-1 rounded-full bg-sky-500 text-white text-[11px] font-black inline-flex items-center justify-center">${_activeCount}</span>
+            </button>
+            <div id="ft-adv" class="ft-adv flex items-center gap-2 flex-wrap flex-1">
+            <div class="ft-grab md:hidden"></div>
+            <div class="ft-sheet-head md:hidden"><span class="font-extrabold text-base text-gray-800">Filtry</span><button type="button" onclick="_closeFilterSheet('${view}')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none px-1">×</button></div>
+            <div class="ft-price-row flex items-center gap-2">
             <span class="text-xs font-bold text-gray-400 shrink-0">Cena (Kč):</span>
             <input type="number" min="0" placeholder="Od" value="${_listState.priceMin||''}"
                 class="w-20 px-3 py-1.5 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white"
-                oninput="_listState.priceMin=this.value?Number(this.value):null; _debouncedListFilter('${view}')">
+                oninput="_listState.priceMin=this.value?Number(this.value):null; _debouncedListFilter('${view}'); _updateFilterBadge()">
             <span class="text-gray-300 font-bold">—</span>
             <input type="number" min="0" placeholder="Do" value="${_listState.priceMax||''}"
                 class="w-20 px-3 py-1.5 rounded-xl border border-gray-200 text-sm focus:outline-sky-400 bg-white"
-                oninput="_listState.priceMax=this.value?Number(this.value):null; _debouncedListFilter('${view}')">
-            <select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.condition=this.value; navigate('${view}','${cat}')">
+                oninput="_listState.priceMax=this.value?Number(this.value):null; _debouncedListFilter('${view}'); _updateFilterBadge()">
+            </div>
+            <select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.condition=this.value; _listFilterChanged('${view}','${cat}')">
                 <option value="" ${!_listState.condition?'selected':''}>Stav: vše</option>
                 ${['Nové','Rozbalené','Použité','Poškozené'].map(s=>`<option value="${s}" ${_listState.condition===s?'selected':''}>${s}</option>`).join('')}
             </select>
-            <select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.carrier=this.value; navigate('${view}','${cat}')">
+            <select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.carrier=this.value; _listFilterChanged('${view}','${cat}')">
                 <option value="" ${!_listState.carrier?'selected':''}>Doprava: vše</option>
                 ${['Zásilkovna','PPL','Česká pošta','Osobní předání'].map(c=>`<option value="${c}" ${_listState.carrier===c?'selected':''}>${c}</option>`).join('')}
             </select>
-            <select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.kraj=this.value; try{if(this.value)localStorage.setItem('ft_my_kraj',this.value)}catch(e){}; navigate('${view}','${cat}')">
+            <select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.kraj=this.value; try{if(this.value)localStorage.setItem('ft_my_kraj',this.value)}catch(e){}; _listFilterChanged('${view}','${cat}')">
                 <option value="" ${!_listState.kraj?'selected':''}>📍 Kraj: vše</option>
                 ${KRAJE.map(k=>`<option value="${k}" ${_listState.kraj===k?'selected':''}>${k}</option>`).join('')}
             </select>
-            ${_sellers.length ? `<select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0 max-w-[180px]" onchange="_listState.seller=this.value; navigate('${view}','${cat}')">
+            ${_sellers.length ? `<select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0 max-w-[180px]" onchange="_listState.seller=this.value; _listFilterChanged('${view}','${cat}')">
                 <option value="" ${!_listState.seller?'selected':''}>👤 Prodejce: vše</option>
                 ${_sellers.map(s=>`<option value="${s.id}" ${_listState.seller===s.id?'selected':''}>${esc(s.name)} (${s.count})</option>`).join('')}
             </select>` : ''}
-            ${window._directEnabled() ? `<select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.escrow=this.value; navigate('${view}','${cat}')">
+            ${window._directEnabled() ? `<select class="px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-semibold bg-white focus:outline-sky-400 shrink-0" onchange="_listState.escrow=this.value; _listFilterChanged('${view}','${cat}')">
                 <option value="" ${!_listState.escrow?'selected':''}>🔒 Escrow: vše</option>
                 <option value="escrow" ${_listState.escrow==='escrow'?'selected':''}>🔒 S escrow</option>
                 <option value="direct" ${_listState.escrow==='direct'?'selected':''}>🤝 Bez escrow</option>
             </select>` : ''}
             <button type="button" onclick="_nearbyFilter('${view}','${cat}')" title="Zobrazit inzeráty ve vašem kraji" class="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold text-sm transition-colors">📍 V okolí</button>
             ${(_listState.priceMin||_listState.priceMax||_listState.condition||_listState.carrier||_listState.kraj||_listState.escrow||_listState.seller)?`<button onclick="_listState.priceMin=null;_listState.priceMax=null;_listState.condition='';_listState.carrier='';_listState.kraj='';_listState.escrow='';_listState.seller='';navigate('${view}','${cat}')" class="text-xs text-gray-400 hover:text-red-400 transition-colors font-bold">✕ Zrušit filtry</button>`:''}
+            <div class="ft-sheet-foot md:hidden"><button type="button" onclick="_closeFilterSheet('${view}')" class="flex-1 py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-sm transition-colors">Zobrazit výsledky${_activeCount?` (${_activeCount})`:''}</button></div>
+            </div><!-- /ft-adv -->
             <div class="ml-auto inline-flex items-center rounded-xl border border-gray-200 bg-white overflow-hidden shrink-0">
                 <button type="button" data-layout-btn="grid" onclick="_setLayout('${view}','grid')" title="Dlaždice" class="px-2.5 py-1.5 transition-colors ${_listLayout==='grid'?'bg-gray-800 text-white':'text-gray-400 hover:bg-gray-50'}"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z"/></svg></button>
                 <button type="button" data-layout-btn="list" onclick="_setLayout('${view}','list')" title="Řádky" class="px-2.5 py-1.5 transition-colors ${_listLayout==='list'?'bg-gray-800 text-white':'text-gray-400 hover:bg-gray-50'}"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4h14v3H3V4zm0 5h14v3H3V9zm0 5h14v3H3v-3z"/></svg></button>
@@ -2090,6 +2122,36 @@
     window._debouncedListFilter = function(view) {
         clearTimeout(window._listFilterTimer);
         window._listFilterTimer = setTimeout(() => window._applyListFilter(view), 220);
+    };
+    // ── Mobilní filtr „bottom sheet" ──
+    window._activeFilterCount = function() {
+        return [
+            (_listState.priceMin != null || _listState.priceMax != null),
+            !!_listState.condition, !!_listState.carrier, !!_listState.kraj,
+            !!_listState.seller, !!_listState.escrow
+        ].filter(Boolean).length;
+    };
+    window._updateFilterBadge = function() {
+        const n = window._activeFilterCount();
+        const b = document.getElementById('ft-filter-count');
+        if (b) { b.textContent = n; b.classList.toggle('hidden', n === 0); }
+    };
+    window._openFilterSheet = function() {
+        const s = document.getElementById('ft-adv'), bd = document.getElementById('ft-backdrop');
+        if (s) s.classList.add('open');
+        if (bd) bd.classList.add('open');
+    };
+    window._closeFilterSheet = function(view) {
+        const s = document.getElementById('ft-adv'), bd = document.getElementById('ft-backdrop');
+        if (s) s.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+        if (view) { window._applyListFilter(view); window._updateFilterBadge(); }
+    };
+    // Změna filtru v otevřeném sheetu = živé filtrování (neztratí sheet); jinak plný re-render
+    window._listFilterChanged = function(view, cat) {
+        const s = document.getElementById('ft-adv');
+        if (s && s.classList.contains('open')) { window._applyListFilter(view); window._updateFilterBadge(); }
+        else navigate(view, cat);
     };
 
     // ── Dark mode ──
