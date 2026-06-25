@@ -271,12 +271,12 @@
         /* === Mobilní filtr (bottom sheet) === */
         .ft-grab,.ft-sheet-head,.ft-sheet-foot,.ft-backdrop{display:none}
         @media(max-width:767px){
-            .ft-adv{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;flex-direction:column;align-items:stretch;gap:13px;background:#fff;border-radius:24px 24px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom));max-height:84vh;overflow-y:auto;transform:translateY(102%);transition:transform .34s cubic-bezier(.32,.72,0,1);box-shadow:0 -18px 50px -18px rgba(10,16,28,.45)}
+            .ft-adv{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex!important;flex-direction:column!important;align-items:stretch!important;flex-wrap:nowrap!important;gap:13px;background:#fff;border-radius:24px 24px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom));max-height:84vh;overflow-y:auto;overflow-x:hidden;transform:translateY(102%);transition:transform .34s cubic-bezier(.32,.72,0,1);box-shadow:0 -18px 50px -18px rgba(10,16,28,.45)}
             .ft-adv.open{transform:translateY(0)}
             .ft-adv>*{flex:0 0 auto;width:100%}
             .ft-adv .ft-price-row{display:flex;align-items:center;width:100%}
             .ft-adv .ft-price-row input{flex:1;width:auto;padding:12px 14px;font-size:15px}
-            .ft-adv select{width:100%;font-size:15px;padding:12px 14px}
+            .ft-adv select{width:100%!important;max-width:none!important;font-size:15px;padding:12px 14px}
             .ft-grab{display:block;align-self:center;width:40px;height:4px;border-radius:99px;background:#d6dce6;margin:0 auto 4px}
             .ft-sheet-head{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:inherit;padding-bottom:4px;z-index:2}
             .ft-sheet-foot{display:flex;gap:10px;position:sticky;bottom:0;background:inherit;padding:8px 0 2px;z-index:2}
@@ -2056,8 +2056,8 @@
                 <option value="direct" ${_listState.escrow==='direct'?'selected':''}>🤝 Bez escrow</option>
             </select>` : ''}
             <button type="button" onclick="_nearbyFilter('${view}','${cat}')" title="Zobrazit inzeráty ve vašem kraji" class="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold text-sm transition-colors">📍 V okolí</button>
-            ${(_listState.priceMin||_listState.priceMax||_listState.condition||_listState.carrier||_listState.kraj||_listState.escrow||_listState.seller)?`<button onclick="_listState.priceMin=null;_listState.priceMax=null;_listState.condition='';_listState.carrier='';_listState.kraj='';_listState.escrow='';_listState.seller='';navigate('${view}','${cat}')" class="text-xs text-gray-400 hover:text-red-400 transition-colors font-bold">✕ Zrušit filtry</button>`:''}
-            <div class="ft-sheet-foot md:hidden"><button type="button" onclick="_closeFilterSheet('${view}')" class="flex-1 py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-sm transition-colors">Zobrazit výsledky${_activeCount?` (${_activeCount})`:''}</button></div>
+            ${(_listState.priceMin||_listState.priceMax||_listState.condition||_listState.carrier||_listState.kraj||_listState.escrow||_listState.seller)?`<button onclick="_listState.priceMin=null;_listState.priceMax=null;_listState.condition='';_listState.carrier='';_listState.kraj='';_listState.escrow='';_listState.seller='';navigate('${view}','${cat}')" class="hidden md:inline text-xs text-gray-400 hover:text-red-400 transition-colors font-bold">✕ Zrušit filtry</button>`:''}
+            <div class="ft-sheet-foot md:hidden"><button type="button" onclick="_clearFiltersMobile('${view}','${cat}')" class="px-5 py-3 rounded-xl border border-gray-200 text-gray-500 font-bold text-sm shrink-0">Zrušit</button><button type="button" onclick="_closeFilterSheet('${view}')" class="flex-1 py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-sm transition-colors">Zobrazit výsledky${_activeCount?` (${_activeCount})`:''}</button></div>
             </div><!-- /ft-adv -->
             <div class="ml-auto inline-flex items-center rounded-xl border border-gray-200 bg-white overflow-hidden shrink-0">
                 <button type="button" data-layout-btn="grid" onclick="_setLayout('${view}','grid')" title="Dlaždice" class="px-2.5 py-1.5 transition-colors ${_listLayout==='grid'?'bg-gray-800 text-white':'text-gray-400 hover:bg-gray-50'}"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z"/></svg></button>
@@ -2162,6 +2162,12 @@
         if (s) s.classList.remove('open');
         if (bd) bd.classList.remove('open');
         if (view) { window._applyListFilter(view); window._updateFilterBadge(); }
+    };
+    window._clearFiltersMobile = function(view, cat) {
+        _listState.priceMin = null; _listState.priceMax = null; _listState.condition = '';
+        _listState.carrier = ''; _listState.kraj = ''; _listState.escrow = ''; _listState.seller = '';
+        document.querySelectorAll('body > .ft-adv, body > .ft-backdrop').forEach(e => e.remove());
+        navigate(view, cat);   // čistý re-render: zavře sheet, resetuje ovládací prvky, ukáže vše
     };
     // Změna filtru v otevřeném sheetu = živé filtrování (neztratí sheet); jinak plný re-render
     window._listFilterChanged = function(view, cat) {
