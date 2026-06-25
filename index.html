@@ -522,12 +522,12 @@
                 </div>
                 <div class="w-px h-5 bg-gray-200 mx-2"></div>
                 <button onclick="navigate('jak-to-funguje')" class="px-2.5 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wide text-xs">Jak to funguje</button>
-                <button onclick="navigate('bezpecnost')" class="px-2.5 py-2 text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wide text-xs font-bold flex items-center gap-1">🛡️ Bezpečnost</button>
+                <button onclick="navigate('bezpecnost')" class="px-2.5 py-2 text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wide text-xs font-bold flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 7.5-8 9-4.8-1.5-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Bezpečnost</button>
                 <button onclick="navigate('kontakt')" class="px-2.5 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wide text-xs">Kontakt</button>
                 <button onclick="navigate('vop')" class="px-2.5 py-2 text-gray-500 hover:text-sky-500 transition-colors uppercase tracking-wide text-xs">VOP</button>
             </nav>
             <div class="flex items-center gap-1.5 sm:gap-2 ml-auto lg:ml-2">
-                <button id="theme-toggle" onclick="_toggleTheme()" class="flex items-center justify-center w-9 h-9 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-sky-500 transition-colors text-lg" aria-label="Přepnout světlý/tmavý režim" title="Světlý / tmavý režim">🌙</button>
+                <button id="theme-toggle" onclick="_toggleTheme()" class="flex items-center justify-center w-9 h-9 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-sky-500 transition-colors" aria-label="Přepnout světlý/tmavý režim" title="Světlý / tmavý režim"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
                 <!-- Košík ikona -->
                 <button id="nav-cart-btn" onclick="navigate('kosik')" style="display:none" class="relative flex items-center justify-center w-9 h-9 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-sky-500 transition-colors" aria-label="Košík">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -2121,7 +2121,7 @@
                 <option value="escrow" ${_listState.escrow==='escrow'?'selected':''}>🔒 S escrow</option>
                 <option value="direct" ${_listState.escrow==='direct'?'selected':''}>🤝 Bez escrow</option>
             </select>` : ''}
-            <button type="button" onclick="_nearbyFilter('${view}','${cat}')" title="Zobrazit inzeráty ve vašem kraji" class="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold text-sm transition-colors">📍 V okolí</button>
+            <button type="button" onclick="_nearbyFilter('${view}','${cat}')" title="Zobrazit inzeráty ve vašem kraji" class="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold text-sm transition-colors">${window._ic(window._IC.pin,13)} V okolí</button>
             ${(_listState.priceMin||_listState.priceMax||_listState.condition||_listState.carrier||_listState.kraj||_listState.escrow||_listState.seller)?`<button onclick="_listState.priceMin=null;_listState.priceMax=null;_listState.condition='';_listState.carrier='';_listState.kraj='';_listState.escrow='';_listState.seller='';navigate('${view}','${cat}')" class="hidden md:inline text-xs text-gray-400 hover:text-red-400 transition-colors font-bold">✕ Zrušit filtry</button>`:''}
             <div class="ft-sheet-foot md:hidden"><button type="button" onclick="_clearFiltersMobile('${view}','${cat}')" class="px-5 py-3 rounded-xl border border-gray-200 text-gray-500 font-bold text-sm shrink-0">Zrušit</button><button type="button" onclick="_closeFilterSheet('${view}')" class="flex-1 py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-sm transition-colors">Zobrazit výsledky${_activeCount?` (${_activeCount})`:''}</button></div>
             </div><!-- /ft-adv -->
@@ -2250,7 +2250,10 @@
         r.classList.toggle('love', t === 'love');
         const b = document.getElementById('theme-toggle');
         if (b) {
-            b.textContent = t === 'light' ? '🌙' : (t === 'dark' ? '💗' : '☀️');
+            const _tsvg = p => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+            b.innerHTML = t === 'light' ? _tsvg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>')
+                : (t === 'dark' ? _tsvg('<path d="M12 20S3 14.5 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 14.5 12 20 12 20z"/>')
+                : _tsvg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/>'));
             b.title = 'Režim: ' + (t === 'light' ? 'světlý (klik → tmavý)' : t === 'dark' ? 'tmavý (klik → FairTrade ♥)' : 'FairTrade ♥ (klik → světlý)');
         }
         if (t === 'love') { try { window._loveBg.start(); } catch(e) {} }
