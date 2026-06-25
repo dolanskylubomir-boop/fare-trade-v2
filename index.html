@@ -136,6 +136,22 @@
         html.dark .pf-stats{background:#1b222c;border-color:rgba(255,255,255,.1)}
         html.dark .pf-stat{border-color:rgba(255,255,255,.07)}
         html.dark .pf-sval{color:#e8ebf0}
+        /* taby profilu — moderní pill + hover + sticky ukotvení pod hlavičkou */
+        .pf-tabbar{position:sticky;top:64px;z-index:15;display:flex;align-items:center;gap:3px;padding:9px 11px;overflow-x:auto;scrollbar-width:none;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(20,35,58,.08);border-radius:2rem 2rem 0 0}
+        .pf-tabbar::-webkit-scrollbar{display:none}
+        .pf-tab{position:relative;font-family:inherit;font-size:13px;font-weight:600;color:#6B7787;background:0;border:0;cursor:pointer;padding:9px 13px;border-radius:11px;white-space:nowrap;display:inline-flex;align-items:center;gap:7px;letter-spacing:.01em;transition:color .16s,background .16s,transform .12s}
+        .pf-tab svg{opacity:.6;transition:opacity .16s}
+        .pf-tab:hover{color:#14233A;background:rgba(20,35,58,.05)}
+        .pf-tab:hover svg{opacity:1}
+        .pf-tab:active{transform:translateY(1px)}
+        .pf-tab-on{color:#0E84C7;background:rgba(14,132,199,.12)}
+        .pf-tab-on svg{opacity:1}
+        .pf-tab-admin{color:#D8412F}
+        .pf-tab-admin:hover,.pf-tab-admin.pf-tab-on{color:#fff;background:#D8412F}
+        html.dark .pf-tabbar{background:rgba(27,34,44,.92);border-color:rgba(255,255,255,.08)}
+        html.dark .pf-tab{color:#8C9AB2}
+        html.dark .pf-tab:hover{color:#e8ebf0;background:rgba(255,255,255,.06)}
+        html.dark .pf-tab-on{color:#46BEF7;background:rgba(70,190,247,.14)}
         @media (prefers-reduced-motion:reduce) {
             *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
             html { scroll-behavior:auto; }
@@ -7754,16 +7770,24 @@
             const verified = window._isSellerVerified();
             if (!activeTab) activeTab = verified ? 'inzeraty' : 'objednavky';
             setTimeout(() => { loadProfileData(activeTab); }, 0);
-            const tab = t => t===activeTab
-                ? 'profile-tab px-3.5 py-4 font-bold text-sky-500 border-b-2 border-sky-500 bg-sky-50/50 whitespace-nowrap text-sm outline-none transition-all'
-                : 'profile-tab px-3.5 py-4 font-bold text-gray-400 hover:text-sky-500 hover:bg-sky-50/60 hover:border-b-2 hover:border-sky-200 transition-all whitespace-nowrap text-sm outline-none border-b-2 border-transparent';
+            const tab = t => 'pf-tab' + (t===activeTab ? ' pf-tab-on' : '');
             const _svg = {
                 shield:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5z"/><path d="M9 12l2 2 4-4"/></svg>',
                 lock:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>',
                 cart:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg>',
                 wallet:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M16 12h3"/></svg>',
                 logout:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12H4m0 0l4-4m-4 4l4 4"/><path d="M14 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4"/></svg>',
-                chev:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>'
+                chev:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
+                list:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+                swap:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10L4 7l3-3M4 7h11M17 14l3 3-3 3M20 17H9"/></svg>',
+                box:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>',
+                id:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M13 9h5M13 13h5M5.5 16c.5-1.4 1.6-2 3-2s2.5.6 3 2"/></svg>',
+                heart:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20S3 15 3 8.5A4.5 4.5 0 0112 6a4.5 4.5 0 019 2.5C21 15 12 20 12 20z"/></svg>',
+                spark:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>',
+                star:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4l2.3 4.7 5.2.8-3.7 3.6.9 5.1L12 15.8 7.3 18.2l.9-5.1L4.5 9.5l5.2-.8z"/></svg>',
+                chat:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 01-11.5 7.2L4 20l.8-5.5A8 8 0 1121 12z"/></svg>',
+                bell:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9a6 6 0 1112 0c0 6 2 7 2 7H4s2-1 2-7M10 21h4"/></svg>',
+                gear:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V20a2 2 0 11-4 0v-.2A1.6 1.6 0 006 18.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00-1.1-2.7H2a2 2 0 110-4h.2A1.6 1.6 0 003.7 6l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H8a1.6 1.6 0 001-1.5V2a2 2 0 114 0v.2a1.6 1.6 0 002.7 1.1l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V8a1.6 1.6 0 001.5 1H22a2 2 0 110 4h-.2a1.6 1.6 0 00-1.4 1z"/></svg>'
             };
             return `
             <div class="w-full max-w-6xl mx-auto fade-in">
@@ -7810,20 +7834,18 @@
                     <div class="pf-stat"><div class="pf-slabel"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16v11H4z"/><path d="M9 9V5h6v4"/></svg>Prodáno</div><div id="profile-earned" class="pf-sval pf-num">0 Kč</div></div>
                     <div class="pf-stat"><div class="pf-slabel"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg>Nakoupeno</div><div id="profile-spent" class="pf-sval pf-num">0 Kč</div></div>
                 </div>
-                <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 overflow-hidden">
-                    <div class="flex border-b border-gray-100">
-                        <div class="flex md:flex-wrap overflow-x-auto md:overflow-x-visible scrollbar-hide flex-1 min-w-0">
-                            ${verified ? `<button id="tab-btn-inzeraty"  onclick="navigate('profil/inzeraty')"   class="${tab('inzeraty')} relative">Inzeráty</button>` : ''}
-                            ${verified ? `<button id="tab-btn-transakce" onclick="navigate('profil/transakce')"  class="${tab('transakce')} relative">Transakce</button>` : ''}
-                            <button id="tab-btn-objednavky" onclick="navigate('profil/objednavky')" class="${tab('objednavky')} relative">Objednávky 📦<span id="objednavky-alert-dot" class="unread-dot hidden" style="background:#f97316" title="Čekají objednávky k odeslání">!</span></button>
-                            <button id="tab-btn-kyc"       onclick="navigate('profil/kyc')"        class="${tab('kyc')} relative">KYC</button>
-                            ${verified ? `<button id="tab-btn-oblibene"  onclick="navigate('profil/oblibene')"   class="${tab('oblibene')} relative">Oblíbené ❤️</button>` : ''}
-                            ${verified ? `<button id="tab-btn-provas"    onclick="navigate('profil/provas')"     class="${tab('provas')} relative">💎 Pro vás</button>` : ''}
-                            ${verified ? `<button id="tab-btn-hodnoceni" onclick="navigate('profil/hodnoceni')"  class="${tab('hodnoceni')} relative">⭐ Hodnocení</button>` : ''}
-                            ${verified ? `<button onclick="navigate('profil/zpravy')"    class="${tab('zpravy')} relative" id="tab-btn-zpravy">Zprávy 💬<span id="zpravy-unread-dot" class="unread-dot hidden"></span></button>` : ''}
-                            ${verified ? `<button onclick="navigate('profil/aktivity')"  class="${tab('aktivity')} relative" id="tab-btn-aktivity">🔔 Aktivity<span id="aktivity-unread-dot" class="unread-dot hidden"></span></button>` : ''}
-                        </div>
-                        ${window._userRole === 'admin' ? `<button onclick="navigate('profil/admin')" class="${tab('admin')} shrink-0 border-l border-gray-100 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-extrabold">⚙️ Admin<span id="admin-activity-badge" class="${(window._adminBadgeCount||0) > 0 ? '' : 'hidden'} ml-1 min-w-[16px] h-4 rounded-full bg-red-600 text-white text-[9px] font-black inline-flex items-center justify-center px-1 shadow">${(window._adminBadgeCount||0) > 0 ? ((window._adminBadgeCount > 99 ? '99+' : window._adminBadgeCount)) : ''}</span></button>` : ''}
+                <div class="bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50">
+                    <div class="pf-tabbar">
+                            ${verified ? `<button id="tab-btn-inzeraty"  onclick="navigate('profil/inzeraty')"   class="${tab('inzeraty')}">${_svg.list}Inzeráty</button>` : ''}
+                            ${verified ? `<button id="tab-btn-transakce" onclick="navigate('profil/transakce')"  class="${tab('transakce')}">${_svg.swap}Transakce</button>` : ''}
+                            <button id="tab-btn-objednavky" onclick="navigate('profil/objednavky')" class="${tab('objednavky')}">${_svg.box}Objednávky<span id="objednavky-alert-dot" class="unread-dot hidden" style="background:#f97316" title="Čekají objednávky k odeslání">!</span></button>
+                            <button id="tab-btn-kyc"       onclick="navigate('profil/kyc')"        class="${tab('kyc')}">${_svg.id}KYC</button>
+                            ${verified ? `<button id="tab-btn-oblibene"  onclick="navigate('profil/oblibene')"   class="${tab('oblibene')}">${_svg.heart}Oblíbené</button>` : ''}
+                            ${verified ? `<button id="tab-btn-provas"    onclick="navigate('profil/provas')"     class="${tab('provas')}">${_svg.spark}Pro vás</button>` : ''}
+                            ${verified ? `<button id="tab-btn-hodnoceni" onclick="navigate('profil/hodnoceni')"  class="${tab('hodnoceni')}">${_svg.star}Hodnocení</button>` : ''}
+                            ${verified ? `<button onclick="navigate('profil/zpravy')"    class="${tab('zpravy')}" id="tab-btn-zpravy">${_svg.chat}Zprávy<span id="zpravy-unread-dot" class="unread-dot hidden"></span></button>` : ''}
+                            ${verified ? `<button onclick="navigate('profil/aktivity')"  class="${tab('aktivity')}" id="tab-btn-aktivity">${_svg.bell}Aktivity<span id="aktivity-unread-dot" class="unread-dot hidden"></span></button>` : ''}
+                            ${window._userRole === 'admin' ? `<button onclick="navigate('profil/admin')" class="${tab('admin')} pf-tab-admin" style="margin-left:auto">${_svg.gear}Admin<span id="admin-activity-badge" class="${(window._adminBadgeCount||0) > 0 ? '' : 'hidden'} ml-1 min-w-[16px] h-4 rounded-full bg-red-600 text-white text-[9px] font-black inline-flex items-center justify-center px-1 shadow">${(window._adminBadgeCount||0) > 0 ? ((window._adminBadgeCount > 99 ? '99+' : window._adminBadgeCount)) : ''}</span></button>` : ''}
                     </div>
                     <div class="p-5 md:p-8" id="profile-tab-content">${renderProfileTabContent(activeTab)}</div>
                 </div>
