@@ -286,6 +286,7 @@
         html.dark .ft-adv{background:#121a26}
         html.dark .ft-grab{background:rgba(255,255,255,.22)}
         html.love .ft-adv{background:rgba(26,18,36,.96);backdrop-filter:blur(20px)}
+        @media(min-width:768px){body>.ft-adv,body>.ft-backdrop{display:none!important}}
         /* karty katalogu — glass v tmavém/love režimu + hover glow (konzistence s bento) */
         .ad-card{transition:border-color .2s,box-shadow .25s,transform .25s}
         .ad-card:hover{border-color:rgba(14,132,199,.4) !important;box-shadow:0 16px 38px -18px rgba(14,132,199,.32)}
@@ -2137,12 +2138,17 @@
         if (b) { b.textContent = n; b.classList.toggle('hidden', n === 0); }
     };
     window._openFilterSheet = function() {
+        // Přesun do <body> — rodič katalogu má backdrop-filter, který by jinak ukotvil
+        // position:fixed vůči sobě (panel by skončil na konci stránky, ne dole na obrazovce).
+        document.querySelectorAll('body > .ft-adv, body > .ft-backdrop').forEach(e => e.remove());
         const s = document.getElementById('ft-adv'), bd = document.getElementById('ft-backdrop');
-        if (s) s.classList.add('open');
-        if (bd) bd.classList.add('open');
+        if (bd) document.body.appendChild(bd);
+        if (s) document.body.appendChild(s);
+        requestAnimationFrame(() => { if (bd) bd.classList.add('open'); if (s) s.classList.add('open'); });
     };
     window._closeFilterSheet = function(view) {
-        const s = document.getElementById('ft-adv'), bd = document.getElementById('ft-backdrop');
+        const s = document.querySelector('body > .ft-adv') || document.getElementById('ft-adv');
+        const bd = document.querySelector('body > .ft-backdrop') || document.getElementById('ft-backdrop');
         if (s) s.classList.remove('open');
         if (bd) bd.classList.remove('open');
         if (view) { window._applyListFilter(view); window._updateFilterBadge(); }
