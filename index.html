@@ -284,6 +284,12 @@
         .pfb-statgrid{display:grid;grid-template-columns:1fr 1fr}
         .pfb-si{padding:14px 14px}
         .pfb-statbox .pfb-sv{font-size:20px}
+        /* zvýrazněné promo dlaždice na home (Aukce / Kup teď) */
+        .home-promo{box-shadow:0 16px 40px -16px rgba(20,35,58,.5),0 0 0 1px rgba(255,255,255,.4)}
+        .home-promo::after{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;box-shadow:inset 0 0 0 2px rgba(70,190,247,.5);transition:box-shadow .25s;z-index:2}
+        .home-promo:hover{box-shadow:0 24px 54px -16px rgba(14,132,199,.6),0 0 0 1px rgba(255,255,255,.5)}
+        .home-promo:hover::after{box-shadow:inset 0 0 0 2px rgba(70,190,247,.95)}
+        html.dark .home-promo{box-shadow:0 18px 44px -16px rgba(0,0,0,.6),0 0 0 1px rgba(70,190,247,.3)}
         .pfb-si:nth-child(odd){border-right:1px solid rgba(20,35,58,.07)}
         .pfb-si:not(:nth-last-child(-n+2)){border-bottom:1px solid rgba(20,35,58,.07)}
         html.dark .pfb-si:nth-child(odd),html.dark .pfb-si:not(:nth-last-child(-n+2)){border-color:rgba(255,255,255,.08)}
@@ -7215,12 +7221,13 @@
         setTimeout(function(){ window._renderFullRegPromo && window._renderFullRegPromo(); window._renderVipStories && window._renderVipStories(); window._renderVipShowcase && window._renderVipShowcase(); }, 0);
         const guest = !window.currentUser;
         const promoCard = (route, img, badge, title, h) => `
-            <div onclick="navigate('${route}','Vše')" class="card-lift relative ${h} rounded-2xl overflow-hidden shadow-md cursor-pointer group">
+            <div onclick="navigate('${route}','Vše')" class="card-lift home-promo relative ${h} rounded-2xl overflow-hidden cursor-pointer group">
                 <div class="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image:url('${img}')"></div>
-                <div class="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent"></div>
-                <div class="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-                    <span class="text-[10px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full uppercase tracking-wide inline-block mb-1">${badge}</span>
-                    <h2 class="text-sm sm:text-lg font-extrabold text-white drop-shadow-md leading-tight">${title}</h2>
+                <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+                <div class="absolute inset-x-0 bottom-0 p-3 sm:p-5">
+                    <span class="text-[10px] font-black bg-white/25 text-white px-2.5 py-1 rounded-full uppercase tracking-wide inline-flex items-center gap-1 mb-1.5">${badge}</span>
+                    <h2 class="text-base sm:text-xl font-extrabold text-white drop-shadow-md leading-tight">${title}</h2>
+                    <span class="hidden sm:inline-flex items-center gap-1 text-white/90 text-xs font-bold mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">Vstoupit <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></span>
                 </div>
             </div>`;
         if (guest) {
