@@ -5100,9 +5100,9 @@
         if (!el) return;
         if (window.currentUser) { el.innerHTML = ''; return; }   // jen host
         el.innerHTML = `
-        <div class="vip-band rounded-[2rem] p-6 sm:p-8 mb-3 relative overflow-hidden fade-in">
+        <div class="vip-band rounded-[2rem] p-6 sm:p-8 h-full relative overflow-hidden fade-in">
             <div class="vip-shine-wrap"><span class="vip-shine"></span></div>
-            <div class="relative flex flex-col md:flex-row md:items-center gap-5 justify-between">
+            <div class="relative flex flex-col md:flex-row md:items-center gap-5 justify-between h-full">
                 <div class="min-w-0">
                     <span class="inline-flex items-center gap-1.5 bg-amber-400/20 text-amber-200 text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full mb-2">👑 Plný účet</span>
                     <h2 class="gold-text text-2xl sm:text-3xl font-black leading-tight">Odemkněte vše, co FairTrade umí</h2>
@@ -7213,28 +7213,41 @@
     const views = {
         home: () => {
         setTimeout(function(){ window._renderFullRegPromo && window._renderFullRegPromo(); window._renderVipStories && window._renderVipStories(); window._renderVipShowcase && window._renderVipShowcase(); }, 0);
+        const guest = !window.currentUser;
+        const promoCard = (route, img, badge, title, h) => `
+            <div onclick="navigate('${route}','Vše')" class="card-lift relative ${h} rounded-2xl overflow-hidden shadow-md cursor-pointer group">
+                <div class="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image:url('${img}')"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent"></div>
+                <div class="absolute inset-x-0 bottom-0 p-3 sm:p-4">
+                    <span class="text-[10px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full uppercase tracking-wide inline-block mb-1">${badge}</span>
+                    <h2 class="text-sm sm:text-lg font-extrabold text-white drop-shadow-md leading-tight">${title}</h2>
+                </div>
+            </div>`;
+        if (guest) {
+            // Bento: upsell (2/3) + promo dlaždice vyplní pravou 1/3
+            return `
+            <div class="w-full max-w-[1240px] mx-auto">
+                <div class="grid lg:grid-cols-3 gap-3 mb-3 fade-in items-stretch">
+                    <div id="fullreg-promo" class="lg:col-span-2"></div>
+                    <div class="grid grid-rows-2 gap-3 min-h-[230px]">
+                        ${promoCard('aukce','book.png','Aukce','Přihazuj a získej nejlepší cenu','h-full min-h-[105px]')}
+                        ${promoCard('pevna-cena','taska.png','Kup teď','Kup hned bez čekání','h-full min-h-[105px]')}
+                    </div>
+                </div>
+                <div id="vip-stories" class="w-full fade-in"></div>
+                <div id="vip-showcase" class="w-full fade-in"></div>
+            </div>`;
+        }
         return `
-        <div id="fullreg-promo" class="w-full"></div>
-        <div id="vip-stories" class="w-full fade-in"></div>
-        <div class="grid grid-cols-2 gap-3 w-full fade-in mb-2">
-            <div onclick="navigate('aukce','Vše')" class="card-lift relative h-[120px] sm:h-[150px] rounded-2xl overflow-hidden shadow-md cursor-pointer group">
-                <div class="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image:url('book.png')"></div>
-                <div class="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent"></div>
-                <div class="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-                    <span class="text-[10px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full uppercase tracking-wide inline-block mb-1">Aukce</span>
-                    <h2 class="text-sm sm:text-lg font-extrabold text-white drop-shadow-md leading-tight">Přihazuj a získej nejlepší cenu</h2>
-                </div>
+        <div class="w-full max-w-[1240px] mx-auto">
+            <div id="fullreg-promo" class="w-full"></div>
+            <div id="vip-stories" class="w-full fade-in"></div>
+            <div class="grid grid-cols-2 gap-3 w-full fade-in mb-2">
+                ${promoCard('aukce','book.png','Aukce','Přihazuj a získej nejlepší cenu','h-[120px] sm:h-[150px]')}
+                ${promoCard('pevna-cena','taska.png','Kup teď','Kup hned bez čekání','h-[120px] sm:h-[150px]')}
             </div>
-            <div onclick="navigate('pevna-cena','Vše')" class="card-lift relative h-[120px] sm:h-[150px] rounded-2xl overflow-hidden shadow-md cursor-pointer group">
-                <div class="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image:url('taska.png')"></div>
-                <div class="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent"></div>
-                <div class="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-                    <span class="text-[10px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full uppercase tracking-wide inline-block mb-1">Kup teď</span>
-                    <h2 class="text-sm sm:text-lg font-extrabold text-white drop-shadow-md leading-tight">Kup hned bez čekání</h2>
-                </div>
-            </div>
-        </div>
-        <div id="vip-showcase" class="w-full fade-in"></div>`;
+            <div id="vip-showcase" class="w-full fade-in"></div>
+        </div>`;
         },
 
         kontakt: () => {
