@@ -178,10 +178,10 @@
         html.dark .pf-stat{border-color:rgba(255,255,255,.07)}
         html.dark .pf-sval{color:#e8ebf0}
         /* taby profilu — moderní pill + hover + sticky ukotvení pod hlavičkou */
-        .pf-tabbar{position:sticky;top:80px;z-index:15;display:flex;align-items:center;gap:3px;padding:9px 11px;overflow-x:auto;scrollbar-width:none;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(20,35,58,.08);border-radius:2rem 2rem 0 0}
+        .pf-tabbar{position:sticky;top:80px;z-index:15;display:flex;align-items:center;gap:1px;padding:8px 8px;overflow-x:auto;scrollbar-width:none;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(20,35,58,.08);border-radius:2rem 2rem 0 0}
         @media(max-width:880px){.pf-tabbar{top:62px}}
         .pf-tabbar::-webkit-scrollbar{display:none}
-        .pf-tab{position:relative;font-family:inherit;font-size:13px;font-weight:600;color:#6B7787;background:0;border:0;cursor:pointer;padding:9px 13px;border-radius:11px;white-space:nowrap;display:inline-flex;align-items:center;gap:7px;letter-spacing:.01em;transition:color .16s,background .16s,transform .12s}
+        .pf-tab{position:relative;font-family:inherit;font-size:12.5px;font-weight:600;color:#6B7787;background:0;border:0;cursor:pointer;padding:8px 9px;border-radius:10px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;letter-spacing:.01em;transition:color .16s,background .16s,transform .12s}
         .pf-tab svg{opacity:.6;transition:opacity .16s}
         .pf-tab:hover{color:#14233A;background:rgba(20,35,58,.05)}
         .pf-tab:hover svg{opacity:1}
@@ -239,7 +239,7 @@
         .pfb-sv{font-size:22px;font-weight:800;margin-top:4px;color:#14233A;letter-spacing:-.01em}
         html.dark .pfb-sv{color:#EAF0F8}
         /* === Profil: dashboard layout (boční panel + obsah) === */
-        .pfb-dash{display:grid;grid-template-columns:300px 300px minmax(0,1fr);gap:18px;align-items:start}
+        .pfb-dash{display:grid;grid-template-columns:290px 270px minmax(0,1fr);gap:18px;align-items:start}
         .pfb-side{display:flex;flex-direction:column;gap:14px;min-width:0;grid-column:1;grid-row:1}
         .pfb-c2{min-width:0;grid-column:2;grid-row:1}
         .pfb-main{display:flex;flex-direction:column;gap:0;min-width:0;grid-column:3;grid-row:1}
@@ -280,7 +280,8 @@
         .pfb-stats-side{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
         .pfb-statbox{padding:0;overflow:hidden}
         .pfb-statgrid{display:grid;grid-template-columns:1fr 1fr}
-        .pfb-si{padding:15px 16px}
+        .pfb-si{padding:14px 14px}
+        .pfb-statbox .pfb-sv{font-size:20px}
         .pfb-si:nth-child(odd){border-right:1px solid rgba(20,35,58,.07)}
         .pfb-si:not(:nth-last-child(-n+2)){border-bottom:1px solid rgba(20,35,58,.07)}
         html.dark .pfb-si:nth-child(odd),html.dark .pfb-si:not(:nth-last-child(-n+2)){border-color:rgba(255,255,255,.08)}
@@ -467,7 +468,7 @@
 
     <!-- ===== HEADER ===== -->
     <header class="w-full py-3 sm:py-3.5 px-4 sm:px-6 bg-white/80 backdrop-blur-xl border-b border-gray-100 shadow-[0_2px_14px_-10px_rgba(0,0,0,0.25)] z-40 sticky top-0 transition-all">
-        <div class="max-w-[1560px] mx-auto flex items-center gap-3 sm:gap-4">
+        <div class="max-w-[1680px] mx-auto flex items-center gap-3 sm:gap-4">
             <div class="cursor-pointer shrink-0 flex items-center gap-2.5" onclick="navigate('home')">
                 <span class="hidden sm:flex w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 items-center justify-center shadow-md shadow-sky-500/30 shrink-0">
                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -540,7 +541,7 @@
 
     <!-- ===== PWA INSTALL BANNER (Android/desktop) ===== -->
     <div id="pwa-banner" class="hidden w-full bg-gradient-to-r from-sky-500 to-sky-600 text-white z-30">
-        <div class="max-w-[1560px] mx-auto px-4 py-2.5 flex items-center gap-3">
+        <div class="max-w-[1680px] mx-auto px-4 py-2.5 flex items-center gap-3">
             <span class="text-xl shrink-0">📲</span>
             <div class="flex-1 min-w-0 cursor-pointer" onclick="window._triggerPwaInstall()">
                 <span class="font-bold text-sm">Nainstalovat FairTrade</span>
@@ -554,7 +555,7 @@
     </div>
     <!-- ===== PWA INSTALL BANNER (iOS Safari) ===== -->
     <div id="pwa-banner-ios" class="hidden w-full bg-gradient-to-r from-sky-500 to-sky-600 text-white z-30">
-        <div class="max-w-[1560px] mx-auto px-4 py-3 flex items-start gap-3">
+        <div class="max-w-[1680px] mx-auto px-4 py-3 flex items-start gap-3">
             <span class="text-xl shrink-0 mt-0.5">📲</span>
             <div class="flex-1 min-w-0">
                 <div class="font-bold text-sm">Přidat FairTrade na plochu</div>
@@ -568,7 +569,7 @@
         </div>
     </div>
 
-    <main id="app" class="flex-grow w-full max-w-[1560px] mx-auto px-3 py-5 sm:px-5 md:p-8 pb-28 md:pb-8 flex flex-col justify-center relative"></main>
+    <main id="app" class="flex-grow w-full max-w-[1680px] mx-auto px-3 py-5 sm:px-5 md:p-8 pb-28 md:pb-8 flex flex-col justify-center relative"></main>
 
     <!-- ===== MOBILNÍ NAVIGACE ===== -->
     <nav id="mobile-nav" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-6px_25px_-10px_rgba(0,0,0,0.15)]">
@@ -8088,7 +8089,7 @@
                 gear:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V20a2 2 0 11-4 0v-.2A1.6 1.6 0 006 18.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00-1.1-2.7H2a2 2 0 110-4h.2A1.6 1.6 0 003.7 6l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H8a1.6 1.6 0 001-1.5V2a2 2 0 114 0v.2a1.6 1.6 0 002.7 1.1l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V8a1.6 1.6 0 001.5 1H22a2 2 0 110 4h-.2a1.6 1.6 0 00-1.4 1z"/></svg>'
             };
             return `
-            <div class="w-full max-w-[1560px] mx-auto fade-in">
+            <div class="w-full max-w-[1680px] mx-auto fade-in">
               <div class="pfb-dash">
                 <aside class="pfb-side">
                 <!-- Identita -->
