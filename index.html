@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://mpioazyvtgcpxjrhbflp.supabase.co wss://mpioazyvtgcpxjrhbflp.supabase.co https://api.mapy.cz https://nominatim.openstreetmap.org https://www.fio.cz https://cdn.jsdelivr.net https://unpkg.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-src 'none'; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://mpioazyvtgcpxjrhbflp.supabase.co wss://mpioazyvtgcpxjrhbflp.supabase.co https://api.mapy.cz https://nominatim.openstreetmap.org https://www.fio.cz https://cdn.jsdelivr.net https://unpkg.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-src 'none'; upgrade-insecure-requests">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="description" content="FairTrade Tržiště – moderní a bezpečné aukční a inzertní prostředí s ověřenými prodejci a escrow ochranou plateb.">
     <meta name="theme-color" content="#0ea5e9">
@@ -19,26 +19,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="tailwind.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-                        display: ['"Sora"', '"Plus Jakarta Sans"', 'sans-serif']
-                    },
-                    colors: {
-                        pastel: { blue:'#E0F2FE', pink:'#FCE7F3', bg:'#FDF8F3', text:'#334155' },
-                        top: { 50:'#fffbeb', 100:'#fef3c7', 400:'#fbbf24', 500:'#f59e0b', 600:'#d97706' }
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Tailwind: lokální build (tailwind.css) místo Play CDN; config viz tailwind.config.js -->
     <style>
         /* === Animace === */
         .fade-in { animation: fadeIn .2s ease-in; }

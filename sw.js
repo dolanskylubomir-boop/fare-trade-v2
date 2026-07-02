@@ -1,9 +1,10 @@
 // FairTrade Service Worker — verze cache je jediný zdroj pravdy níže (CACHE)
-const CACHE = 'fairtrade-v4';
+const CACHE = 'fairtrade-v5';
 const OFFLINE_PAGE = './index.html';
 
 const PRECACHE = [
   './index.html',
+  './tailwind.css',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
@@ -13,7 +14,6 @@ const BYPASS_DOMAINS = [
   'supabase.co',
   'fonts.googleapis.com',
   'fonts.gstatic.com',
-  'cdn.tailwindcss.com',
   'cdn.jsdelivr.net',
   'images.unsplash.com',
   'api.qrserver.com'
