@@ -1,5 +1,5 @@
-// FairTrade Service Worker — verze cache je jediný zdroj pravdy níže (CACHE)
-const CACHE = 'fairtrade-v5';
+// passion4all Service Worker — verze cache je jediný zdroj pravdy níže (CACHE)
+const CACHE = 'fairtrade-v6';   // v6: nove logo passion4all (icon-192/512)
 const OFFLINE_PAGE = './index.html';
 
 const PRECACHE = [
@@ -72,7 +72,7 @@ self.addEventListener('fetch', event => {
         .catch(async () => {
           const cached = await caches.match(OFFLINE_PAGE);
           return cached || new Response(
-            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>FairTrade</title></head><body style="font-family:sans-serif;text-align:center;padding:3rem"><h2>Jste offline</h2><p>Připojte se k internetu a zkuste to znovu.</p></body></html>',
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>passion4all</title></head><body style="font-family:sans-serif;text-align:center;padding:3rem"><h2>Jste offline</h2><p>Připojte se k internetu a zkuste to znovu.</p></body></html>',
             { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
           );
         })
@@ -106,7 +106,7 @@ self.addEventListener('push', event => {
   if (!event.data) return;
   const data = event.data.json();
   event.waitUntil(
-    self.registration.showNotification(data.title || 'FairTrade', {
+    self.registration.showNotification(data.title || 'passion4all', {
       body: data.body || '',
       icon: './icon-192.png',
       badge: './icon-192.png',
