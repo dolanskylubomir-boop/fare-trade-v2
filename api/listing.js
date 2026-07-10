@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────
-//  FairTrade — serverless OG/SEO náhled inzerátu  (/inzerat/:id)
+//  passion4all — serverless OG/SEO náhled inzerátu  (/inzerat/:id)
 //  Crawleři (Google, Facebook, WhatsApp…) dostanou prerenderované
 //  meta tagy + JSON-LD; skuteční návštěvníci se přesměrují do SPA.
 // ───────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ module.exports = async (req, res) => {
   if (!item) {
     res.statusCode = 404;
     res.setHeader('Cache-Control', 'public, max-age=60');
-    res.end(`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Inzerát nenalezen — FairTrade</title><meta name="robots" content="noindex"><script>location.replace('/#pevna-cena')</script></head><body>Inzerát nenalezen. <a href="/">Zpět na tržiště</a></body></html>`);
+    res.end(`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Inzerát nenalezen — passion4all</title><meta name="robots" content="noindex"><script>location.replace('/#pevna-cena')</script></head><body>Inzerát nenalezen. <a href="/">Zpět na tržiště</a></body></html>`);
     return;
   }
 
@@ -50,10 +50,10 @@ module.exports = async (req, res) => {
   const price = Number(item.price || item.current_price || item.starting_price || 0);
   const img = (Array.isArray(item.images) && item.images[0]) ? item.images[0] : (base + '/icon-512.png');
   const descRaw = (item.description || '').replace(/\s+/g, ' ').trim();
-  const metaDesc = esc((descRaw ? descRaw.slice(0, 155) : `${title} za ${fmtCzk(price)} Kč na FairTrade Tržišti — bezpečný nákup přes escrow.`));
+  const metaDesc = esc((descRaw ? descRaw.slice(0, 155) : `${title} za ${fmtCzk(price)} Kč na tržišti passion4all — bezpečný nákup přes escrow.`));
   const url = `${base}/inzerat/${esc(id)}`;
   const appUrl = `/#${view}/${esc(id)}`;
-  const fullTitle = esc(`${title} — ${fmtCzk(price)} Kč | FairTrade Tržiště`);
+  const fullTitle = esc(`${title} — ${fmtCzk(price)} Kč | passion4all`);
   const condition = item.condition
     ? (/nov/i.test(item.condition) ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition')
     : undefined;
@@ -76,7 +76,7 @@ module.exports = async (req, res) => {
 <meta property="og:description" content="${metaDesc}">
 <meta property="og:image" content="${esc(img)}">
 <meta property="og:url" content="${url}">
-<meta property="og:site_name" content="FairTrade Tržiště">
+<meta property="og:site_name" content="passion4all">
 <meta property="og:locale" content="cs_CZ">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${fullTitle}">
@@ -98,7 +98,7 @@ module.exports = async (req, res) => {
   <p style="font-size:22px;font-weight:bold;color:#db2777;margin:0 0 14px">${fmtCzk(price)} Kč</p>
   <img src="${esc(img)}" alt="${esc(title)}" style="max-width:100%;border-radius:12px;display:block;margin-bottom:14px">
   <p style="color:#374151">${esc(descRaw.slice(0, 300))}</p>
-  <p><a href="${appUrl}" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Zobrazit na FairTrade →</a></p>
+  <p><a href="${appUrl}" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Zobrazit na passion4all →</a></p>
   <p style="font-size:12px;color:#9ca3af;margin-top:24px">🔒 Bezpečný nákup přes escrow — peníze se uvolní prodejci až po potvrzení doručení.</p>
 </body></html>`);
 };

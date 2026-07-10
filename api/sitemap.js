@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────
-//  FairTrade — sitemap.xml (aktivní inzeráty pro Google)
+//  passion4all — sitemap.xml (aktivní inzeráty pro Google)
 // ───────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://mpioazyvtgcpxjrhbflp.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1waW9henl2dGdjcHhqcmhiZmxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMDM1MjksImV4cCI6MjA5NjU3OTUyOX0.pNgPqE1aOrsA2efj5H5FIkNjdcKxo7MVycEjfyEVc4s';

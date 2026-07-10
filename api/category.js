@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────
-//  FairTrade — serverless SEO stránka kategorie  (/kategorie/:slug)
+//  passion4all — serverless SEO stránka kategorie  (/kategorie/:slug)
 //  Crawleři (Google, AI boti) dostanou indexovatelný HTML výpis
 //  aktivních inzerátů kategorie s odkazy na /inzerat/:id;
 //  skuteční návštěvníci se přesměrují do SPA (#pevna-cena/Název).
@@ -48,7 +48,7 @@ module.exports = async (req, res) => {
   if (!cat) {
     res.statusCode = 404;
     res.setHeader('Cache-Control', 'public, max-age=300');
-    res.end(`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Kategorie nenalezena — FairTrade</title><meta name="robots" content="noindex"><script>location.replace('/')</script></head><body>Kategorie nenalezena. <a href="/">Zpět na tržiště</a></body></html>`);
+    res.end(`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Kategorie nenalezena — passion4all</title><meta name="robots" content="noindex"><script>location.replace('/')</script></head><body>Kategorie nenalezena. <a href="/">Zpět na tržiště</a></body></html>`);
     return;
   }
 
@@ -59,16 +59,16 @@ module.exports = async (req, res) => {
 
   const url = `${BASE}/kategorie/${slug}`;
   const appUrl = `/#pevna-cena/${encodeURIComponent(cat.name)}`;
-  const fullTitle = esc(`${cat.name} — bazar a aukce | FairTrade Tržiště`);
+  const fullTitle = esc(`${cat.name} — bazar a aukce | passion4all`);
   const metaDesc = esc(`${cat.desc} ${items.length ? items.length + '+ aktivních inzerátů.' : ''} Bezpečný nákup s escrow ochranou plateb.`.trim());
 
   const jsonld = JSON.stringify({
     '@context': 'https://schema.org',
     '@graph': [
-      { '@type': 'CollectionPage', '@id': url, url: url, name: `${cat.name} — FairTrade Tržiště`,
+      { '@type': 'CollectionPage', '@id': url, url: url, name: `${cat.name} — passion4all`,
         description: cat.desc, inLanguage: 'cs', isPartOf: { '@id': `${BASE}/#website` } },
       { '@type': 'BreadcrumbList', itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'FairTrade Tržiště', item: `${BASE}/` },
+        { '@type': 'ListItem', position: 1, name: 'passion4all', item: `${BASE}/` },
         { '@type': 'ListItem', position: 2, name: cat.name, item: url },
       ] },
       { '@type': 'ItemList', numberOfItems: items.length,
@@ -102,7 +102,7 @@ module.exports = async (req, res) => {
 <meta property="og:description" content="${metaDesc}">
 <meta property="og:url" content="${url}">
 <meta property="og:image" content="${BASE}/icon-512.png">
-<meta property="og:site_name" content="FairTrade Tržiště">
+<meta property="og:site_name" content="passion4all">
 <meta property="og:locale" content="cs_CZ">
 <script type="application/ld+json">${jsonld}</script>
 <script>
@@ -114,11 +114,11 @@ module.exports = async (req, res) => {
   } catch (e) { location.replace('${appUrl}'); }
 </script>
 </head><body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1f2937;line-height:1.6">
-  <p style="font-size:13px;color:#9ca3af;margin:0 0 4px"><a href="/" style="color:#0ea5e9;text-decoration:none">FairTrade Tržiště</a> › ${esc(cat.name)}</p>
+  <p style="font-size:13px;color:#9ca3af;margin:0 0 4px"><a href="/" style="color:#0ea5e9;text-decoration:none">passion4all</a> › ${esc(cat.name)}</p>
   <h1 style="font-size:24px;margin:0 0 6px">${esc(cat.name)} — bazar a aukce</h1>
   <p style="color:#374151;margin:0 0 18px">${esc(cat.desc)}</p>
   <ul style="list-style:none;margin:0;padding:0">${rows || '<li style="color:#6b7280">V této kategorii právě nejsou žádné aktivní inzeráty.</li>'}</ul>
-  <p style="margin-top:22px"><a href="${appUrl}" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Procházet ${esc(cat.name)} na FairTrade →</a></p>
+  <p style="margin-top:22px"><a href="${appUrl}" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Procházet ${esc(cat.name)} na passion4all →</a></p>
   <p style="font-size:14px;color:#6b7280;margin-top:26px">Další kategorie: ${others}</p>
   <p style="font-size:12px;color:#9ca3af;margin-top:18px">🔒 Bezpečný nákup přes escrow — peníze se uvolní prodejci až po potvrzení doručení.</p>
 </body></html>`);
