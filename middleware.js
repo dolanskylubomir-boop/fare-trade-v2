@@ -41,9 +41,19 @@ function loginPage(error) {
     <h1>🔒 Privátní náhled</h1>
     <p>Stránka je dočasně chráněná heslem.</p>
     <input type="password" name="pw" placeholder="Zadej heslo" autofocus required>
+    <input type="hidden" name="h" value="">
+    <input type="hidden" name="q" value="">
     <button type="submit">Vstoupit</button>
     ${error ? `<div class="err">${error}</div>` : ''}
   </form>
+  <script>
+    // Zachovej hash i query (Supabase auth tokeny: reset hesla, potvrzení e-mailu)
+    // — jinak by se přes bránu ztratily a odkaz z e-mailu by nefungoval.
+    try {
+      document.querySelector('input[name=h]').value = location.hash || '';
+      document.querySelector('input[name=q]').value = location.search || '';
+    } catch (e) {}
+  </script>
 </body>
 </html>`;
   return new Response(html, {
@@ -67,13 +77,22 @@ export default async function middleware(request) {
   // Odeslání formuláře s heslem
   if (request.method === 'POST') {
     const body = await request.text();
-    const submitted = new URLSearchParams(body).get('pw');
+    const params = new URLSearchParams(body);
+    const submitted = params.get('pw');
     if (submitted === pass) {
       const url = new URL(request.url);
+      // Přenes původní query a hash (auth tokeny z e-mailových odkazů).
+      // Sanitizace: žádné CR/LF (header injection), rozumná délka.
+      const clean = (s, prefix) => {
+        s = (s || '').replace(/[\r\n]/g, '').slice(0, 2000);
+        return s && s.startsWith(prefix) ? s : '';
+      };
+      const q = clean(params.get('q'), '?');
+      const h = clean(params.get('h'), '#');
       return new Response(null, {
         status: 303,
         headers: {
-          Location: url.pathname || '/',
+          Location: (url.pathname || '/') + q + h,
           'Set-Cookie': `${COOKIE}=${token}; Path=/; Max-Age=86400; HttpOnly; Secure; SameSite=Lax`,
         },
       });
