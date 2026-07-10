@@ -39,8 +39,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="tailwind.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js" crossorigin="anonymous"></script>
+    <!-- CDN závislosti: pinované verze + SRI (plovoucí @2 = riziko breaking změny / kompromitace CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.2/dist/umd/supabase.js" integrity="sha384-yifgV8iFWyp5cgu+V1G1rtlEHpEErPlL5fTrkUELIsWq0CIVDON2WP/NlXVJT3vO" crossorigin="anonymous"></script>
+    <!-- qrcode: 1.5.3 build na CDN neexistuje (byl 404 → QR jely přes fallback api.qrserver.com); 1.5.1 build má -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" integrity="sha384-HGmnkDZJy7mRkoARekrrj0VjEFSh9a0Z8qxGri/kTTAJkgR8hqD1lHsYSh3JdzRi" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
     <!-- Tailwind: lokální build (tailwind.css) místo Play CDN; config viz tailwind.config.js -->
     <style>
@@ -48,6 +50,8 @@
         @media (max-width: 767px) {
             input, select, textarea { font-size: 16px !important; }
         }
+        /* Kontrast: text-gray-400 (2,8:1) je pod WCAG AA — ve světlém režimu ztmavit */
+        html:not(.dark) .text-gray-400 { color: #6b7280; }
         /* === Animace === */
         .fade-in { animation: fadeIn .2s ease-in; }
         @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
@@ -1872,16 +1876,26 @@
     };
 
     window.getTimeRemaining = function(dateString) {
-        if (!dateString) return { text:'Vyprší brzy', urgent:false };
-        const diff = new Date(dateString).getTime() - Date.now();
-        if (diff <= 0) return { text:'Skončeno', urgent:false };
+        if (!dateString) return { text:'Vyprší brzy', urgent:false, end:'' };
+        const end = new Date(dateString).getTime();
+        const diff = end - Date.now();
+        if (diff <= 0) return { text:'Skončeno', urgent:false, end };
         const days = Math.floor(diff / 86400000);
         const hrs  = Math.floor((diff % 86400000) / 3600000);
         const mins = Math.floor((diff % 3600000) / 60000);
-        if (days > 0) return { text:`${days}d ${hrs}h`, urgent: days <= 1 };
-        if (hrs > 0)  return { text:`${hrs}h ${mins}m`, urgent: hrs <= 2 };
-        return { text:`${mins} min`, urgent:true };
+        if (days > 0) return { text:`${days}d ${hrs}h`, urgent: days <= 1, end };
+        if (hrs > 0)  return { text:`${hrs}h ${mins}m`, urgent: hrs <= 2, end };
+        return { text:`${mins} min`, urgent:true, end };
     };
+    // Živý odpočet: každých 30 s přepočítej všechny viditelné countdowny
+    // (dřív zamrzaly na hodnotě z posledního renderu)
+    setInterval(() => {
+        document.querySelectorAll('[data-cd]').forEach(el => {
+            const end = Number(el.getAttribute('data-cd'));
+            if (!end) return;
+            try { el.textContent = window.getTimeRemaining(end).text; } catch(e) {}
+        });
+    }, 30000);
 
     window.renderSkeleton = function(n) {
       n = n || 4;
@@ -2209,6 +2223,19 @@
     };
 
     // Živé filtrování BEZ překreslení celé stránky (zachová focus ve vyhledávání)
+    // Stránkování katalogu — render jen prvních N karet + „Načíst další"
+    // (šetří DOM: 1000 inzerátů ≈ 50 000 uzlů; scroll pozice zůstává)
+    window._catalogGridHtml = function(view, fd) {
+        window._pageShown = window._pageShown || {};
+        const key = 'katalog-' + view;
+        const shown = window._pageShown[key] || 24;
+        const cards = fd.slice(0, shown).map(i => _renderItem(i)).join('');
+        const more = fd.length > shown
+            ? `<div class="col-span-full"><button onclick="window._pageShown['${key}']=(window._pageShown['${key}']||24)+24;_applyListFilter('${view}')" class="w-full text-center text-sm bg-sky-50 hover:bg-sky-100 text-sky-600 font-bold py-3 rounded-xl transition-colors">Načíst další (${fd.length - shown})</button></div>`
+            : '';
+        return cards + more;
+    };
+
     window._applyListFilter = function(view) {
         const isAuk = view === 'aukce';
         const src = isAuk ? dataAukce : dataPevnaCena;
@@ -2219,7 +2246,7 @@
         );
         const fd = sortAndFilterItems(all);
         const grid = document.getElementById('listing-grid');
-        if (grid) { grid.className = _gridContainerClass(); grid.innerHTML = fd.length ? fd.map(i => _renderItem(i)).join('') : `<p class="col-span-full text-center text-gray-400 py-10">Nic nenalezeno pro zvolené filtry.</p>`; }
+        if (grid) { grid.className = _gridContainerClass(); grid.innerHTML = fd.length ? window._catalogGridHtml(view, fd) : `<p class="col-span-full text-center text-gray-400 py-10">Nic nenalezeno pro zvolené filtry.</p>`; }
         const cnt = document.getElementById('listing-count'); if (cnt) cnt.textContent = '(' + fd.length + ')';
         // Při hledání ukázat výsledky NAD sekcí „Naposledy zobrazené"
         const rrow = document.getElementById('recent-row');
@@ -3241,6 +3268,7 @@
                 const fileName = `${Date.now()}-${(crypto.randomUUID?.() || Math.random().toString(36).substring(7)).slice(0,8)}.${ext}`;
                 const { data, error: upErr } = await supabaseClient.storage.from('inzeraty').upload(fileName, resized.blob, { cacheControl:'3600', upsert:false });
                 if (!upErr && data) {
+                    window._uploadThumb(resized.blob, fileName);
                     const { data: pu } = supabaseClient.storage.from('inzeraty').getPublicUrl(fileName);
                     if (pu?.publicUrl) newUploaded.push(pu.publicUrl);
                 }
@@ -3743,22 +3771,27 @@
             // publicClient NIKDY nečeká na JWT refresh — zaručeně rychlé načtení
             const db = publicClient || supabaseClient;
             const _PROFILE_COLS_BASE = 'id,first_name,last_name,display_name,is_verified,rating,rating_count,total_sold_count,avatar_url';
-            let [r1, r2, r3, r4] = await Promise.all([
-                db.from('aukce').select('*').eq('status','aktivní').order('is_top', { ascending:false }),
-                db.from('pevna_cena').select('*').eq('status','aktivní').order('is_top', { ascending:false }),
-                // profiles vyžadují auth práva → přihlášený klient (anon dostává 401); host má fallback níže
-                (supabaseClient || db).from('profiles').select(_PROFILE_COLS_BASE + ',satisfaction_pct,avg_ship_hours'),
-                db.from('bids').select('auction_id,amount')
+            // Limity: katalog stahuje max 400 nejnovějších z každé tabulky (TOP první),
+            // příhozy jen jako agregát (počet + max) přes view auction_bid_stats.
+            let [r1, r2, r4] = await Promise.all([
+                db.from('aukce').select('*').eq('status','aktivní').order('is_top', { ascending:false }).order('created_at', { ascending:false }).limit(400),
+                db.from('pevna_cena').select('*').eq('status','aktivní').order('is_top', { ascending:false }).order('created_at', { ascending:false }).limit(400),
+                db.from('auction_bid_stats').select('auction_id,bid_count,max_amount')
             ]);
+            // Fallback: view auction_bid_stats není nasazené → původní dotaz na bids
+            if (r4.error) r4 = await db.from('bids').select('auction_id,amount');
 
-            // Pojistka proti chybě profiles dotazu:
-            //  - 400: reputační sloupce ještě nejsou (reputation-badges.sql nenasazen)
-            //  - 401: anon (publicClient) nemá práva číst profiles → zkus přihlášený klient
-            if (r3.error || !r3.data) {
-                let rb = await supabaseClient.from('profiles').select(_PROFILE_COLS_BASE + ',satisfaction_pct,avg_ship_hours');
-                if (rb.error || !rb.data) rb = await supabaseClient.from('profiles').select(_PROFILE_COLS_BASE);
-                if (rb.error || !rb.data) rb = await db.from('profiles').select(_PROFILE_COLS_BASE);
-                if (rb && rb.data) r3 = rb;
+            // Profily jen PRODEJCŮ načtených inzerátů — ne celá tabulka (výkon i soukromí)
+            const _sellerIds = [...new Set([...(r1.data||[]), ...(r2.data||[])].map(i => i.seller_id).filter(Boolean))];
+            let r3 = { data: [] };
+            if (_sellerIds.length) {
+                const _chunks = [];
+                for (let i = 0; i < _sellerIds.length; i += 100) _chunks.push(_sellerIds.slice(i, i + 100));
+                const _cli = supabaseClient || db;
+                let _res = await Promise.all(_chunks.map(ch => _cli.from('profiles').select(_PROFILE_COLS_BASE + ',satisfaction_pct,avg_ship_hours').in('id', ch)));
+                // Pojistka: reputační sloupce nemusí existovat (reputation-badges.sql nenasazen)
+                if (_res.some(r => r.error)) _res = await Promise.all(_chunks.map(ch => _cli.from('profiles').select(_PROFILE_COLS_BASE).in('id', ch)));
+                r3 = { data: _res.flatMap(r => r.data || []) };
             }
 
             const profilesMap = {};
@@ -3775,9 +3808,16 @@
             window._auctionBidCounts = {};
             if (r4.data) {
                 r4.data.forEach(bid => {
-                    window._auctionBidCounts[bid.auction_id] = (window._auctionBidCounts[bid.auction_id] || 0) + 1;
-                    if (!auctionBids[bid.auction_id] || bid.amount > auctionBids[bid.auction_id].amount)
-                        auctionBids[bid.auction_id] = { amount: bid.amount };
+                    if (bid.bid_count !== undefined) {
+                        // Agregát z auction_bid_stats (počet + max za aukci)
+                        window._auctionBidCounts[bid.auction_id] = bid.bid_count;
+                        if (bid.max_amount != null) auctionBids[bid.auction_id] = { amount: bid.max_amount };
+                    } else {
+                        // Fallback: syrové řádky bids
+                        window._auctionBidCounts[bid.auction_id] = (window._auctionBidCounts[bid.auction_id] || 0) + 1;
+                        if (!auctionBids[bid.auction_id] || bid.amount > auctionBids[bid.auction_id].amount)
+                            auctionBids[bid.auction_id] = { amount: bid.amount };
+                    }
                 });
             }
             // „Aukce kde přihazuji" — naplň jen z VLASTNÍCH příhozů přihlášeného uživatele.
@@ -4683,6 +4723,28 @@
         });
     }
 
+    // ── Miniatury: karta katalogu nepotřebuje 1920px originál ──
+    // Odvození URL miniatury (nahrává se vedle originálu jako *-thumb.jpg)
+    window._thumb = function(url) {
+        if (!url || typeof url !== 'string' || url.indexOf('/inzeraty/') === -1) return url;
+        return url.replace(/\.[a-z0-9]+$/i, '-thumb.jpg');
+    };
+    // Po uploadu originálu vytvoř a nahraj 420px JPEG miniaturu (fire-and-forget)
+    window._uploadThumb = async function(srcBlob, fileName) {
+        try {
+            const bmp = await createImageBitmap(srcBlob);
+            const scale = Math.min(1, 420 / Math.max(bmp.width, bmp.height));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(bmp.width * scale));
+            c.height = Math.max(1, Math.round(bmp.height * scale));
+            c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+            const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.78));
+            if (!blob) return;
+            const thumbName = fileName.replace(/\.[a-z0-9]+$/i, '-thumb.jpg');
+            await supabaseClient.storage.from('inzeraty').upload(thumbName, blob, { cacheControl: '86400', upsert: false });
+        } catch (e) { /* miniatura je bonus — karta má onerror fallback na originál */ }
+    };
+
     window._resizeImageForUpload = async function(file) {
         if (file.type === 'image/gif') return { blob: file, ext: 'gif' };  // GIF: zachovat animaci
         // 1) Zkus přímo canvas (JPEG/PNG/WEBP + HEIC na iOS Safari, který ho umí)
@@ -4973,6 +5035,7 @@
                     const fileName = `${Date.now()}-${(crypto.randomUUID?.() || Math.random().toString(36).substring(7)).slice(0,8)}.${ext}`;
                     const { data, error } = await supabaseClient.storage.from('inzeraty').upload(fileName, resized.blob, { cacheControl:'3600', upsert:false });
                     if (!error && data) {
+                        window._uploadThumb(resized.blob, fileName);
                         const { data:pu } = supabaseClient.storage.from('inzeraty').getPublicUrl(fileName);
                         if (pu?.publicUrl) uploadedImages.push(pu.publicUrl);
                     }
@@ -5172,7 +5235,7 @@
             <div class="relative overflow-hidden rounded-xl mb-3 h-36 sm:h-44 bg-gray-50">
                 ${item.is_top ? '<div class="top-badge"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>TOP</div>' : ''}
                 ${isReserved ? `<div class="absolute inset-0 bg-gray-900/55 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center z-10 pointer-events-none"><svg class="w-5 h-5 text-white mb-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg><span class="text-white font-extrabold text-xs tracking-wide">Rezervováno</span><span class="text-white/70 text-[10px] mt-0.5">${_reserveCountdown(item.reserved_until)}</span></div>` : ''}
-                <img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" loading="lazy" decoding="async" alt="${item.title}" class="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500">
+                <img src="${window._thumb(item.img)}" onerror="if(!this._o){this._o=1;this.src='${item.img}';}else{this.onerror=null;this.src='${FALLBACK_IMG}';}" loading="lazy" decoding="async" alt="${item.title}" class="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500">
                 ${(window.currentUser && window._videoVisible(item)) ? '<span class="absolute bottom-2 right-2 z-10 bg-black/60 text-white text-[11px] font-bold px-1.5 py-1 rounded-lg backdrop-blur-sm" title="Obsahuje video">${window._ic(window._IC.cam,12)}</span>' : ''}
                 <div class="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-lg backdrop-blur-sm leading-tight">
                     <div class="text-white/70 font-normal text-[9px]">Cena prodejce</div>
@@ -5245,7 +5308,7 @@
             <div class="relative overflow-hidden rounded-xl shrink-0 w-24 h-24 sm:w-32 sm:h-32 bg-gray-50">
                 ${item.is_top ? '<div class="top-badge"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>TOP</div>' : ''}
                 ${isReserved ? `<div class="absolute inset-0 bg-gray-900/55 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center z-10 pointer-events-none"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg><span class="text-white/80 text-[9px] mt-0.5">${_reserveCountdown(item.reserved_until)}</span></div>` : ''}
-                <img src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" loading="lazy" decoding="async" alt="${item.title}" class="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500">
+                <img src="${window._thumb(item.img)}" onerror="if(!this._o){this._o=1;this.src='${item.img}';}else{this.onerror=null;this.src='${FALLBACK_IMG}';}" loading="lazy" decoding="async" alt="${item.title}" class="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500">
                 ${dropped ? `<div class="absolute bottom-1 left-1 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shadow">🔻 −${dropPct}%</div>` : ''}
                 ${(window.currentUser && window._videoVisible(item)) ? '<span class="absolute bottom-1 right-1 z-10 bg-black/60 text-white text-[10px] font-bold px-1 py-0.5 rounded-md backdrop-blur-sm" title="Obsahuje video">${window._ic(window._IC.cam,12)}</span>' : ''}
                 <button onclick="event.stopPropagation();shareItem('${(item.title||'').replace(/'/g,'')}','${item.id}','${item.type==='aukce'?'aukce':'pevna-cena'}')" class="absolute top-1.5 right-9 w-7 h-7 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors" aria-label="Sdílet" title="Sdílet"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg></button>
@@ -6645,7 +6708,7 @@
                 const ext = resized.ext || 'jpg';
                 const fileName = `${Date.now()}-${(crypto.randomUUID?.()||Math.random().toString(36).substring(7)).slice(0,8)}.${ext}`;
                 const { data, error } = await supabaseClient.storage.from('inzeraty').upload(fileName, resized.blob, { cacheControl:'3600', upsert:false });
-                if (!error && data) { const { data:pu } = supabaseClient.storage.from('inzeraty').getPublicUrl(fileName); if (pu?.publicUrl) draft.img = pu.publicUrl; }
+                if (!error && data) { window._uploadThumb(resized.blob, fileName); const { data:pu } = supabaseClient.storage.from('inzeraty').getPublicUrl(fileName); if (pu?.publicUrl) draft.img = pu.publicUrl; }
                 window._renderBulkGrid();
                 const token = await _ensureValidToken();
                 const r = await fetch(`${SUPABASE_URL}/functions/v1/dynamic-api`, {
@@ -8466,7 +8529,7 @@
                     <!-- Kategorie — vizuální picker -->
                     <div class="flex flex-col gap-2">
                         <label class="text-xs font-bold text-gray-500 pl-1">Kategorie <span class="text-red-400">*</span></label>
-                        <div class="grid grid-cols-5 sm:grid-cols-5 gap-2" id="cat-grid">
+                        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2" id="cat-grid">
                             ${KATEGORIE.map(k => `<button type="button" onclick="selectAdCategory('${k.name}')" id="cat-btn-${k.id}" class="cat-card flex flex-col items-center gap-1 p-2 sm:p-3 rounded-2xl border-2 border-gray-100 bg-gray-50 hover:border-sky-300 hover:bg-sky-50 text-center"><span class="cat-icon text-gray-600">${window._catSvg(k.id, 24)}</span><span class="cat-label text-[9px] sm:text-[10px] font-bold text-gray-500 leading-tight">${k.name}</span></button>`).join('')}
                         </div>
                         <div id="ad-subcat-row" class="hidden flex-wrap gap-2"></div>
@@ -8588,7 +8651,7 @@
                         ${window._renderRecentRow()}
                         ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (window._dataLoadError ? renderEmptyState('⚠️', 'Nabídku se nepodařilo načíst', 'Zkontroluj připojení k internetu a zkus to znovu.', 'Zkusit znovu', "_retryFetchItems()") : (filteredData.length === 0 ? renderEmptyState('gavel', 'Žádné aktivní aukce', 'Momentálně neprobíhá žádná aukce. Sleduj to tady — aukce přibývají každý den.', 'Vložit aukci', "navigate('novy-inzerat')") : ''))}
                         <div id="listing-grid" class="${_gridContainerClass()}">
-                            ${filteredData.map(item => _renderItem(item)).join('')}
+                            ${window._catalogGridHtml('aukce', filteredData)}
                         </div>
                     </div>
                 </div>
@@ -8620,7 +8683,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                     <div>
                         <div class="bg-white rounded-3xl p-4 border border-gray-100 shadow-inner relative overflow-hidden group">
-                            <img id="main-img-${item.id}" src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" onclick="openImgZoom(this.src)" class="img-zoomable rounded-2xl object-contain w-full h-[280px] md:h-[420px] transition-all duration-300 bg-gray-50">
+                            <img id="main-img-${item.id}" src="${item.img}" alt="${item.title}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" onclick="openImgZoom(this.src)" class="img-zoomable rounded-2xl object-contain w-full h-[280px] md:h-[420px] transition-all duration-300 bg-gray-50">
                             ${item.has360 ? `<div class="absolute bottom-5 left-1/2 -translate-x-1/2"><button onclick="open360('${item.img}')" class="bg-white/95 backdrop-blur-md text-gray-800 px-5 py-2.5 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 hover:scale-105 transition-all"><svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>360° pohled</button></div>` : ''}
                         </div>
                         ${item.images&&item.images.length>1 ? `<div class="flex gap-2 mt-3 overflow-x-auto scrollbar-hide">${item.images.map(u=>`<div class="w-16 h-16 rounded-xl border-2 border-transparent hover:border-sky-500 cursor-pointer overflow-hidden shrink-0" onclick="document.getElementById('main-img-${item.id}').src='${u}'"><img src="${u}" class="w-full h-full object-cover"></div>`).join('')}</div>` : ''}
@@ -8644,7 +8707,7 @@
                                 <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${timeInfo.urgent?'bg-red-100 text-red-600':'bg-sky-100 text-sky-600'}">⏱</div>
                                 <div class="min-w-0">
                                     <div class="text-[10px] uppercase tracking-wider font-bold ${timeInfo.urgent?'text-red-400':'text-sky-400'}">Do konce aukce</div>
-                                    <div class="text-xl font-black ${timeInfo.urgent?'text-red-600 countdown-urgent':'text-gray-800'}">${timeInfo.text}</div>
+                                    <div class="text-xl font-black ${timeInfo.urgent?'text-red-600 countdown-urgent':'text-gray-800'}" data-cd="${timeInfo.end||''}">${timeInfo.text}</div>
                                 </div>
                             </div>
                             <button onclick="showBidTimeline('${item.id}')" class="flex-1 rounded-2xl p-3 border border-amber-100 bg-amber-50 hover:bg-amber-100 transition-colors flex items-center gap-3 text-left" title="Zobrazit časovou osu příhozů">
@@ -8751,7 +8814,7 @@
                         ${window._renderRecentRow()}
                         ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (window._dataLoadError ? renderEmptyState('⚠️', 'Nabídku se nepodařilo načíst', 'Zkontroluj připojení k internetu a zkus to znovu.', 'Zkusit znovu', "_retryFetchItems()") : (filteredData.length === 0 ? renderEmptyState('tag', 'Zatím žádné inzeráty', 'Buď první! Přidej svůj první inzerát a oslovíš tisíce kupujících.', 'Vložit inzerát', "navigate('novy-inzerat')") : ''))}
                         <div id="listing-grid" class="${_gridContainerClass()}">
-                            ${filteredData.map(item => _renderItem(item)).join('')}
+                            ${window._catalogGridHtml('pevna-cena', filteredData)}
                         </div>
                     </div>
                 </div>
@@ -8781,7 +8844,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                     <div>
                         <div class="bg-white rounded-3xl p-4 border border-gray-100 shadow-inner overflow-hidden group">
-                            <img id="main-img-${item.id}" src="${item.img}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" onclick="openImgZoom(this.src)" class="img-zoomable rounded-2xl object-contain w-full h-[280px] md:h-[420px] transition-all duration-300 bg-gray-50">
+                            <img id="main-img-${item.id}" src="${item.img}" alt="${item.title}" onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" onclick="openImgZoom(this.src)" class="img-zoomable rounded-2xl object-contain w-full h-[280px] md:h-[420px] transition-all duration-300 bg-gray-50">
                         </div>
                         ${item.images&&item.images.length>1 ? `<div class="flex gap-2 mt-3 overflow-x-auto scrollbar-hide">${item.images.map(u=>`<div class="w-16 h-16 rounded-xl border-2 border-transparent hover:border-pink-500 cursor-pointer overflow-hidden shrink-0" onclick="document.getElementById('main-img-${item.id}').src='${u}'"><img src="${u}" class="w-full h-full object-cover"></div>`).join('')}</div>` : ''}
                         ${window._detailVideoBlock(item, isOwner)}
@@ -8877,7 +8940,7 @@
         const sellerTotalSold = Number(sellerProfile.total_sold_count) || 0;
         return `
         <div class="w-full bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in min-h-[500px] border border-white/50">
-            <button onclick="history.back()" class="mb-5 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2">← Zpět</button>
+            <button onclick="(history.state&&history.state.view)?history.back():navigate('pevna-cena','Vše')" class="mb-5 text-sky-500 font-bold hover:text-sky-600 flex items-center gap-2">← Zpět</button>
             <div class="flex items-center gap-4 mb-4">
                 <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-400 to-sky-200 flex items-center justify-center text-white font-bold text-xl shrink-0">${sellerName.charAt(0).toUpperCase()}</div>
                 <div><h2 class="text-2xl font-extrabold text-pastel-text">${sellerName}</h2><p class="text-gray-400 text-sm">${all.length} aktivních inzerátů</p></div>
@@ -9518,7 +9581,7 @@
     // ── Aukce: zvýrazněný čas + počet příhozů + časová osa ──
     window._plurPrihoz = function(n) { n = Number(n) || 0; return n === 1 ? 'příhoz' : (n >= 2 && n <= 4 ? 'příhozy' : 'příhozů'); };
     window._auctionTimePill = function(timeInfo) {
-        return `<span class="chip-keepdark inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${timeInfo.urgent ? 'bg-red-100 text-red-600 countdown-urgent' : 'bg-sky-100 text-sky-700'}">⏱ ${timeInfo.text}</span>`;
+        return `<span class="chip-keepdark inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${timeInfo.urgent ? 'bg-red-100 text-red-600 countdown-urgent' : 'bg-sky-100 text-sky-700'}">⏱ <span data-cd="${timeInfo.end||''}">${timeInfo.text}</span></span>`;
     };
     window._bidChip = function(item) {
         const c = (window._auctionBidCounts && window._auctionBidCounts[item.id]) || 0;
@@ -10871,7 +10934,7 @@
         if (!window.currentUser) return `<div class="w-full bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl fade-in text-center"><p class="text-gray-500 mb-4">Přihlaste se.</p><button onclick="navigate('login')" class="bg-sky-500 text-white font-bold px-6 py-3 rounded-2xl">Přihlásit se</button></div>`;
         setTimeout(() => { _loadObjednavkaDetail(orderId).then(()=>window._scrollOrderChat()); _subscribeOrderChat(orderId); }, 0);
         return `<div class="w-full max-w-2xl mx-auto bg-white/90 backdrop-blur-xl p-5 md:p-8 rounded-[2rem] shadow-xl fade-in border border-white/50">
-            <button onclick="history.back()" class="flex items-center gap-2 text-gray-400 hover:text-gray-600 text-sm font-medium mb-5 transition-colors group"><svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>Zpět na objednávky</button>
+            <button onclick="(history.state&&history.state.view)?history.back():navigate('moje-objednavky')" class="flex items-center gap-2 text-gray-400 hover:text-gray-600 text-sm font-medium mb-5 transition-colors group"><svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>Zpět na objednávky</button>
             <div id="objednavka-detail-content"><div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div></div></div>
         </div>`;
     };
@@ -12385,7 +12448,14 @@
         setTimeout(() => { lb.style.display = 'none'; }, 340);
     };
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeImgZoom();
+        if (e.key !== 'Escape') return;
+        closeImgZoom();
+        try { _sheetClose(); } catch(err) {}
+        // Zavři nejvrchnější otevřený modál (přes jeho vlastní zavírací tlačítko)
+        try {
+            const open = Array.from(document.querySelectorAll('.modal-backdrop:not(.hidden)')).pop();
+            if (open) { const btn = open.querySelector('[onclick^="close"]'); if (btn) btn.click(); }
+        } catch(err) {}
     });
 
     // ──────────────────────────────────────────────────────────────
@@ -14933,6 +15003,10 @@
 
         setupRealtime();
         window._initGlobalChat && window._initGlobalChat();
+
+        // Offline/online informace — jinak appka při výpadku sítě mlčí
+        window.addEventListener('offline', () => { try { showToast('Jsi offline — obsah se nemusí načítat.', 'warning'); } catch(e) {} });
+        window.addEventListener('online',  () => { try { showToast('Připojení obnoveno.', 'success'); } catch(e) {} });
     });
 
     // === PWA Service Worker ===
