@@ -1,5 +1,5 @@
 // passion4all Service Worker — verze cache je jediný zdroj pravdy níže (CACHE)
-const CACHE = 'fairtrade-v6';   // v6: nove logo passion4all (icon-192/512)
+const CACHE = 'fairtrade-v7';   // v7: update flow s potvrzenim (bez skipWaiting)
 const OFFLINE_PAGE = './index.html';
 
 const PRECACHE = [
@@ -27,12 +27,18 @@ function shouldBypass(url) {
 }
 
 // === INSTALL ===
+// Bez skipWaiting() — nová verze čeká, dokud uživatel neklikne „Obnovit"
+// (jinak by se otevřené taby tiše reloadovaly uprostřed práce).
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE)
       .then(cache => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
   );
+});
+
+// Aktivaci spustí appka zprávou, když uživatel potvrdí obnovení
+self.addEventListener('message', event => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // === ACTIVATE ===

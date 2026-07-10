@@ -44,6 +44,10 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
     <!-- Tailwind: lokální build (tailwind.css) místo Play CDN; config viz tailwind.config.js -->
     <style>
+        /* iOS Safari zoomuje při fokusu do pole s písmem < 16px — na mobilu vynutit 16px */
+        @media (max-width: 767px) {
+            input, select, textarea { font-size: 16px !important; }
+        }
         /* === Animace === */
         .fade-in { animation: fadeIn .2s ease-in; }
         @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
@@ -799,7 +803,7 @@
 
     <!-- ===== MODAL: 360° ===== -->
     <div id="modal-360" class="hidden fixed inset-0 z-50 bg-black/80 modal-backdrop flex items-center justify-center p-4">
-        <div class="modal-panel bg-white rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl">
+        <div class="modal-panel bg-white rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl" style="max-height:92vh;overflow-y:auto">
             <div class="p-4 flex justify-between items-center border-b border-gray-100">
                 <h3 class="font-bold text-xl flex items-center gap-2">
                     <svg class="w-6 h-6 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -823,7 +827,7 @@
 
     <!-- ===== MODAL: TOP PLATBA ===== -->
     <div id="modal-top" class="hidden fixed inset-0 z-50 bg-black/70 modal-backdrop flex items-center justify-center p-4" onclick="closeTopModal(event)">
-        <div class="modal-panel bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+        <div class="modal-panel bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" style="max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
 
             <!-- Krok 1: Výběr tarifu -->
             <div id="top-step-1">
@@ -864,7 +868,7 @@
 
     <!-- ===== MODAL: PRODLOUŽENÍ INZERÁTU ===== -->
     <div id="modal-extend" class="hidden fixed inset-0 z-50 bg-black/70 modal-backdrop flex items-center justify-center p-4" onclick="closeExtendModal(event)">
-        <div class="modal-panel bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+        <div class="modal-panel bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" style="max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
 
             <!-- Krok 1: Výběr délky -->
             <div id="extend-step-1">
@@ -1132,7 +1136,7 @@
 
     <!-- ===== MODAL: ZPRÁVA PRODEJCI ===== -->
     <div id="modal-msg" class="hidden fixed inset-0 z-50 bg-black/70 modal-backdrop flex items-center justify-center p-4" onclick="closeMessageModal(event)">
-        <div class="modal-panel bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+        <div class="modal-panel bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" style="max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
             <div class="p-5 border-b border-gray-100 flex justify-between items-center gap-3">
                 <div class="min-w-0 flex-grow">
                     <p class="text-xs text-sky-500 uppercase font-bold tracking-wider mb-0.5">Dotaz prodejci</p>
@@ -1164,7 +1168,7 @@
 
     <!-- ===== MODAL: POPIS INZERÁTU ===== -->
     <div id="modal-desc" class="hidden fixed inset-0 z-50 bg-black/70 modal-backdrop flex items-center justify-center p-4" onclick="closeDescModal(event)">
-        <div class="modal-panel bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+        <div class="modal-panel bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" style="max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
             <div class="p-5 border-b border-gray-100 flex justify-between items-center gap-3">
                 <h3 id="desc-modal-title" class="font-extrabold text-base text-gray-800 leading-snug flex-grow min-w-0"></h3>
                 <button onclick="closeDescModal()" class="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50 shrink-0">
@@ -3555,7 +3559,7 @@
                 // Pojistka proti prázdné kartě — vždy ukaž aspoň titulek.
                 const title = (n.title && String(n.title).trim()) ? n.title : 'Nová aktivita';
                 const body  = (n.body && String(n.body).trim())   ? n.body  : '';
-                return `<div onclick="_openNotifLink('${n.id}','${n.link||''}')" class="flex items-start gap-3 p-4 rounded-2xl mb-2 cursor-pointer transition-all hover:shadow-md ${n.is_read?'bg-white border border-gray-100':'bg-sky-50 border border-sky-200'}">
+                return `<div onclick="_openNotifLink('${n.id}','${encodeURIComponent(n.link||'')}')" class="flex items-start gap-3 p-4 rounded-2xl mb-2 cursor-pointer transition-all hover:shadow-md ${n.is_read?'bg-white border border-gray-100':'bg-sky-50 border border-sky-200'}">
                     <span class="text-2xl shrink-0 mt-0.5">${icon}</span>
                     <div class="flex-1 min-w-0">
                         <p class="font-bold text-gray-800 text-sm">${esc(title)}</p>
@@ -3567,6 +3571,18 @@
             }).join('') + window._moreBtn('aktivity', items.length, "_reRenderTab('aktivity')");
         } catch(e) { container.innerHTML = '<p class="text-red-400 text-center py-8">Chyba načítání.</p>'; }
     }
+
+    // Opakované načtení nabídky po chybě (tlačítko „Zkusit znovu" v katalogu)
+    window._retryFetchItems = function() {
+        window._dataLoadError = false;
+        window.dataLoaded = false;
+        const h = (window.location.hash || '').replace('#','') || 'home';
+        try { navigate(h); } catch(e) {}   // ukáže skeleton
+        fetchDatabaseItems().then(() => {
+            const h2 = (window.location.hash || '').replace('#','') || 'home';
+            try { navigate(h2); } catch(e) {}
+        });
+    };
 
     async function _loadMojeHodnoceniTab() {
         const container = document.getElementById('hodnoceni-content');
@@ -3642,6 +3658,7 @@
     }
 
     window._openNotifLink = async function(notifId, link) {
+        try { link = decodeURIComponent(link || ''); } catch(e) { link = ''; }   // link chodí URL-encoded (XSS ochrana)
         const token = await _ensureValidToken();
         fetch(`${SUPABASE_URL}/rest/v1/notifications?id=eq.${notifId}`, {
             method:'PATCH',
@@ -3850,8 +3867,16 @@
             }
 
             window.dataLoaded = true;
+            window._dataLoadError = false;
         } catch (e) {
             window.dataLoaded = true;
+            window._dataLoadError = true;   // katalog ukáže chybu + retry místo „žádné inzeráty"
+            try { showToast('Nepodařilo se načíst nabídku — zkontroluj připojení.', 'error'); } catch(_) {}
+            try {
+                // Pokud uživatel kouká na katalog (skeleton), překresli ho na chybový stav
+                const h = (window.location.hash || '').replace('#','');
+                if (h.startsWith('pevna-cena') || h.startsWith('aukce')) navigate(h);
+            } catch(_) {}
         } finally {
             clearTimeout(_fallback);
             window._fetchDBPromise = null;
@@ -4050,7 +4075,11 @@
 
     window.loginWithProvider = async function(providerName) {
         if (!supabaseClient) return alert('Supabase není nakonfigurován!');
-        await supabaseClient.auth.signInWithOAuth({ provider: providerName });
+        // redirectTo: vrať uživatele na doménu, ze které přišel (ne na Site URL)
+        await supabaseClient.auth.signInWithOAuth({
+            provider: providerName,
+            options: { redirectTo: window.location.origin + window.location.pathname }
+        });
     };
 
     window.handleEmailAuth = async function(e) {
@@ -8557,7 +8586,7 @@
                         ${renderCategories('aukce', kategorieFilter, _currentSubcategory)}
                         ${renderSearchSort('aukce', kategorieFilter)}
                         ${window._renderRecentRow()}
-                        ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('gavel', 'Žádné aktivní aukce', 'Momentálně neprobíhá žádná aukce. Sleduj to tady — aukce přibývají každý den.', 'Vložit aukci', "navigate('novy-inzerat')") : '')}
+                        ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (window._dataLoadError ? renderEmptyState('⚠️', 'Nabídku se nepodařilo načíst', 'Zkontroluj připojení k internetu a zkus to znovu.', 'Zkusit znovu', "_retryFetchItems()") : (filteredData.length === 0 ? renderEmptyState('gavel', 'Žádné aktivní aukce', 'Momentálně neprobíhá žádná aukce. Sleduj to tady — aukce přibývají každý den.', 'Vložit aukci', "navigate('novy-inzerat')") : ''))}
                         <div id="listing-grid" class="${_gridContainerClass()}">
                             ${filteredData.map(item => _renderItem(item)).join('')}
                         </div>
@@ -8687,7 +8716,7 @@
                 </div>
             <div id="seller-more-${item.id}"></div>
             <div id="similar-${item.id}"></div>
-            ${!isOwner ? `<div class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-100 p-3 flex gap-2 shadow-lg sm:hidden" id="sticky-cta-aukce">
+            ${!isOwner ? `<div class="fixed left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-100 p-3 flex gap-2 shadow-lg sm:hidden" style="bottom:calc(3.5rem + env(safe-area-inset-bottom))" id="sticky-cta-aukce">
   <div class="flex-1 min-w-0">
     <div class="text-xs text-gray-500">Konečná cena pro kupujícího</div>
     <div class="font-extrabold text-sky-500 text-lg leading-tight">${prices.total.toLocaleString('cs-CZ')} Kč</div>
@@ -8696,7 +8725,7 @@
     🔨 Přihodit
   </button>
 </div>
-<div class="h-16 sm:hidden"></div>` : ''}
+<div class="h-36 sm:hidden"></div>` : ''}
             </div>`;
         },
 
@@ -8720,7 +8749,7 @@
                         ${renderCategories('pevna-cena', kategorieFilter, _currentSubcategory)}
                         ${renderSearchSort('pevna-cena', kategorieFilter)}
                         ${window._renderRecentRow()}
-                        ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (filteredData.length === 0 ? renderEmptyState('tag', 'Zatím žádné inzeráty', 'Buď první! Přidej svůj první inzerát a oslovíš tisíce kupujících.', 'Vložit inzerát', "navigate('novy-inzerat')") : '')}
+                        ${!window.dataLoaded ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${Array(8).fill(0).map(()=>'<div class="bg-white rounded-2xl p-3 border border-gray-100"><div class="skeleton h-36 mb-3"></div><div class="skeleton h-4 w-2/3 mb-2"></div><div class="skeleton h-6 w-1/2"></div></div>').join('')}</div>` : (window._dataLoadError ? renderEmptyState('⚠️', 'Nabídku se nepodařilo načíst', 'Zkontroluj připojení k internetu a zkus to znovu.', 'Zkusit znovu', "_retryFetchItems()") : (filteredData.length === 0 ? renderEmptyState('tag', 'Zatím žádné inzeráty', 'Buď první! Přidej svůj první inzerát a oslovíš tisíce kupujících.', 'Vložit inzerát', "navigate('novy-inzerat')") : ''))}
                         <div id="listing-grid" class="${_gridContainerClass()}">
                             ${filteredData.map(item => _renderItem(item)).join('')}
                         </div>
@@ -8821,7 +8850,7 @@
                 </div>
             <div id="seller-more-${item.id}"></div>
             <div id="similar-${item.id}"></div>
-            ${!isOwner ? `<div class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-100 p-3 flex gap-2 shadow-lg sm:hidden" id="sticky-cta">
+            ${!isOwner ? `<div class="fixed left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-100 p-3 flex gap-2 shadow-lg sm:hidden" style="bottom:calc(3.5rem + env(safe-area-inset-bottom))" id="sticky-cta">
   <div class="flex-1 min-w-0">
     <div class="text-xs text-gray-500">Cena</div>
     <div class="font-extrabold text-pink-500 text-lg leading-tight">${item.price.toLocaleString('cs-CZ')} Kč</div>
@@ -12205,7 +12234,7 @@
     // ──────────────────────────────────────────────────────────────
     // NAVIGACE (SPA)
     // ──────────────────────────────────────────────────────────────
-    function navigate(path, param = null) {
+    function navigate(path, param = null, fromPop = false) {
         let viewName = path;
         let idOrCategory = param;
         if (path.includes('/')) { const parts = path.split('/'); viewName = parts[0]; idOrCategory = parts[1]; }
@@ -12249,7 +12278,11 @@
         }
         window._lastRenderedView = viewName;
         const fullUrl = idOrCategory && !vsechnyKategorie.includes(idOrCategory) ? `${viewName}/${idOrCategory}` : viewName;
-        if (fullUrl !== 'home') history.pushState({ view:fullUrl, param:idOrCategory }, '', '#'+fullUrl);
+        if (fromPop) {
+            // Navigace vyvolaná tlačítkem Zpět/Vpřed — historii NEměnit (pushState by
+            // ořízl dopřednou historii a Zpět by fungovalo jen o 1 krok). Jen doplň state.
+            try { history.replaceState({ view: fullUrl, param: idOrCategory }, '', window.location.href); } catch(e) {}
+        } else if (fullUrl !== 'home') history.pushState({ view:fullUrl, param:idOrCategory }, '', '#'+fullUrl);
         else history.pushState({ view:'home' }, '', window.location.pathname);
         // Vyhledávání jen v sekcích aukce a pevná cena
         const searchSections = ['aukce', 'pevna-cena'];
@@ -12304,8 +12337,12 @@
     });
 
     window.addEventListener('popstate', (e) => {
-        if (e.state?.view) navigate(e.state.view, e.state.param);
-        else navigate('home');
+        if (e.state?.view) navigate(e.state.view, e.state.param, true);
+        else {
+            // Položka bez state (ruční změna hashe / externí odkaz) — čti hash, ne home
+            const h = (window.location.hash || '').replace('#','');
+            navigate(h || 'home', null, true);
+        }
     });
 
     // ──────────────────────────────────────────────────────────────
@@ -14900,17 +14937,41 @@
 
     // === PWA Service Worker ===
     if ('serviceWorker' in navigator) {
-        // Když nový Service Worker převezme kontrolu (po deployi), přenačti stránku,
-        // aby v paměti neběžela stará verze appky proti nové cache/API (version-skew).
+        // Reload až po výslovném souhlasu uživatele (lišta „Obnovit") — tichý reload
+        // uprostřed psaní zprávy / platby by zahodil rozdělanou práci.
         let _swReloaded = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (_swReloaded) return;
             _swReloaded = true;
             window.location.reload();
         });
+        const _showUpdateBar = (reg) => {
+            if (document.getElementById('sw-update-bar')) return;
+            const bar = document.createElement('div');
+            bar.id = 'sw-update-bar';
+            bar.className = 'fixed left-3 right-3 z-50 bg-gray-900 text-white rounded-2xl shadow-2xl p-3 flex items-center gap-3 fade-in';
+            bar.style.bottom = 'calc(4.5rem + env(safe-area-inset-bottom))';
+            const txt = document.createElement('span');
+            txt.className = 'text-sm font-semibold flex-1';
+            txt.textContent = '🔄 Je k dispozici nová verze aplikace.';
+            const btn = document.createElement('button');
+            btn.className = 'bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm px-4 py-2 rounded-xl shrink-0';
+            btn.textContent = 'Obnovit';
+            btn.onclick = () => { try { reg.waiting && reg.waiting.postMessage('SKIP_WAITING'); } catch(e) {} };
+            bar.appendChild(txt); bar.appendChild(btn);
+            document.body.appendChild(bar);
+        };
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js', { scope: './' })
                 .then(reg => {
+                    if (reg.waiting && navigator.serviceWorker.controller) _showUpdateBar(reg);
+                    reg.addEventListener('updatefound', () => {
+                        const nw = reg.installing;
+                        if (!nw) return;
+                        nw.addEventListener('statechange', () => {
+                            if (nw.state === 'installed' && navigator.serviceWorker.controller) _showUpdateBar(reg);
+                        });
+                    });
                     // Zkontroluj aktualizaci každých 60 minut
                     setInterval(() => reg.update(), 3600000);
                 })
