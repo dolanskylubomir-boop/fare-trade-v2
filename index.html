@@ -15,7 +15,26 @@
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-    <title>FairTrade Tržiště</title>
+    <title>FairTrade Tržiště — bezpečné aukce a inzeráty s escrow ochranou</title>
+    <!-- SEO: canonical + Open Graph + JSON-LD (hlavní doména www.passion4all.cz) -->
+    <link rel="canonical" href="https://www.passion4all.cz/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="FairTrade Tržiště">
+    <meta property="og:title" content="FairTrade Tržiště — bezpečné aukce a inzeráty s escrow ochranou">
+    <meta property="og:description" content="České tržiště pro nákup a prodej — aukce i pevné ceny, ověření prodejci přes BankID a escrow ochrana plateb: peníze se uvolní až po doručení.">
+    <meta property="og:url" content="https://www.passion4all.cz/">
+    <meta property="og:image" content="https://www.passion4all.cz/icon-512.png">
+    <meta property="og:locale" content="cs_CZ">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="FairTrade Tržiště — bezpečné aukce a inzeráty">
+    <meta name="twitter:description" content="Aukce i pevné ceny, ověření prodejci a escrow ochrana plateb.">
+    <meta name="twitter:image" content="https://www.passion4all.cz/icon-512.png">
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@graph":[
+      {"@type":"WebSite","@id":"https://www.passion4all.cz/#website","url":"https://www.passion4all.cz/","name":"FairTrade Tržiště","alternateName":"passion4all","description":"České online tržiště — aukce a inzeráty s escrow ochranou plateb a prodejci ověřenými přes BankID.","inLanguage":"cs"},
+      {"@type":"Organization","@id":"https://www.passion4all.cz/#organization","name":"FairTrade Tržiště","url":"https://www.passion4all.cz/","logo":"https://www.passion4all.cz/icon-512.png","email":"noreply@passion4all.cz"}
+    ]}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
@@ -12186,6 +12205,8 @@
         let viewName = path;
         let idOrCategory = param;
         if (path.includes('/')) { const parts = path.split('/'); viewName = parts[0]; idOrCategory = parts[1]; }
+        // Deep-link s diakritikou (#pevna-cena/M%C3%B3da z /kategorie/moda) — hash chodí URL-encoded
+        if (idOrCategory && idOrCategory.indexOf('%') !== -1) { try { idOrCategory = decodeURIComponent(idOrCategory); } catch (e) {} }
         if (viewName === 'novy-inzerat' && !window.currentUser) { viewName = 'login'; idOrCategory = null; }
         if (window._banInfo && viewName !== 'banned') { viewName = 'banned'; idOrCategory = null; }
         // Kupující ani neověření uživatelé nejsou nuceni do KYC — ověření (BankID) se řeší až u prodeje.

@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/inzerat/:id", "destination": "/api/listing?id=:id" },
     { "source": "/aukce/:id", "destination": "/api/listing?id=:id" },
+    { "source": "/kategorie/:slug", "destination": "/api/category?slug=:slug" },
     { "source": "/sitemap.xml", "destination": "/api/sitemap" }
   ],
   "headers": [

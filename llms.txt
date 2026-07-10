@@ -1,0 +1,37 @@
+# FairTrade Tržiště (passion4all.cz)
+
+> České online tržiště pro nákup a prodej z druhé ruky i nového zboží — inzeráty s pevnou cenou a aukce. Bezpečnost zajišťuje escrow ochrana plateb (peníze se prodejci uvolní až po potvrzení doručení kupujícím), ověření prodejců přes BankID a AI moderace obsahu.
+
+## Co web nabízí
+
+- Nákup: procházení katalogu inzerátů a aukcí bez registrace; nákup po přihlášení (e-mail + heslo).
+- Prodej: vkládání inzerátů s pevnou cenou nebo aukcí; prodejci jsou ověřeni přes BankID.
+- Escrow platby: kupující platí na chráněný účet, prodejce dostane peníze po potvrzení doručení. Alternativně přímá platba mezi stranami s nižší provizí.
+- Aukce: příhozy, automatické přihazování (auto-bid), nabídky prodejce zájemcům.
+- Hodnocení prodejců i kupujících, reputační odznaky, řešení sporů s rozhodčím procesem.
+- Doprava přes přepravce nebo osobní předání s chatem na objednávce.
+
+## Klíčové stránky
+
+- [Katalog inzerátů](https://www.passion4all.cz/): úvodní stránka s aktuální nabídkou
+- [Detail inzerátu](https://www.passion4all.cz/inzerat/ID): sdílitelný odkaz na konkrétní zboží
+- Jak to funguje, poplatky a pravidla: sekce „Jak to funguje" přímo v aplikaci
+
+## Kategorie
+
+- [Elektronika](https://www.passion4all.cz/kategorie/elektronika)
+- [Móda](https://www.passion4all.cz/kategorie/moda)
+- [Šperky a hodinky](https://www.passion4all.cz/kategorie/sperky)
+- [Sběratelství](https://www.passion4all.cz/kategorie/sberatelstvi)
+- [Domácnost](https://www.passion4all.cz/kategorie/domacnost)
+- [Sport a outdoor](https://www.passion4all.cz/kategorie/sport)
+- [Knihy a média](https://www.passion4all.cz/kategorie/knihy)
+- [Hračky a hry](https://www.passion4all.cz/kategorie/hracky)
+- [Auta a moto](https://www.passion4all.cz/kategorie/auta)
+- [Ostatní](https://www.passion4all.cz/kategorie/ostatni)
+
+## Fakta
+
+- Jazyk: čeština, měna: CZK, region: Česká republika
+- Provozní model: provize z prodeje (procento + fixní poplatek), výše dle typu platby (escrow / přímá)
+- Trvale zablokovaní uživatelé se nesmí znovu registrovat; obsah prochází automatickou moderací (zákaz sdílení kontaktů v chatu, AML kontroly)
