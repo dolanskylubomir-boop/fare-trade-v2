@@ -1215,7 +1215,7 @@
         });
     } catch(e) { /* Supabase init failed */ }
 
-    const ESCROW_FEE    = 49;    // poplatek escrow (kupující)
+    const ESCROW_FEE    = 20;    // poplatek escrow (kupující)
     const BANKID_FEE    = 65;    // vstupní ověření prodejce přes BankID (vrátí se do peněženky)
     // FIO účet provozovatele — NAHRAĎTE skutečnými údaji
     const FIO_ACCT      = '000000000/2010';           // ← NAHRAĎTE
@@ -1224,16 +1224,16 @@
 
     // Escrow topování (existující)
     const TOP_TIERS = [
-        { days:1,  amount:29,  label:'1 den',   popular:false },
-        { days:3,  amount:59,  label:'3 dny',   popular:false },
-        { days:7,  amount:99,  label:'7 dní',   popular:true  },
-        { days:30, amount:299, label:'30 dní',  popular:false }
+        { days:1,  amount:19,  label:'1 den',   popular:false },
+        { days:3,  amount:49,  label:'3 dny',   popular:false },
+        { days:7,  amount:89,  label:'7 dní',   popular:true  },
+        { days:30, amount:249, label:'30 dní',  popular:false }
     ];
     // Prodloužení inzerátu — délka a cena
     const EXTEND_TIERS = [
-        { days:10, amount:5,  label:'10 dní', popular:false },
-        { days:20, amount:9,  label:'20 dní', popular:true  },
-        { days:30, amount:13, label:'30 dní', popular:false }
+        { days:10, amount:10, label:'10 dní', popular:false },
+        { days:20, amount:19, label:'20 dní', popular:true  },
+        { days:30, amount:28, label:'30 dní', popular:false }
     ];
 
     const KATEGORIE = [
@@ -1280,7 +1280,7 @@
             ['3. Účet a ověření', 'Nákup: light účet (e-mail + heslo, i z pokladny). Prodej a aukce: ověření přes <strong>BankID</strong> (vstupních 65 Kč se vrací do peněženky). Trvale zablokovaný uživatel se nesmí znovu registrovat.'],
             ['4. Inzerování a aukce', 'Popis a fotografie musí věrně zobrazovat stav zboží. Inzerát za pevnou cenu je aktivní 30 dní; <strong>aukce trvá pevně 7 dní</strong> a nelze ji prodloužit. Aukce je závazná – vítěz musí zboží uhradit. Prodávající odesílá do 5 pracovních dnů.'],
             ['5. Zakázané zboží', 'Zakázáno inzerovat: střelné zbraně, drogy, padělky, kradené zboží, živá zvířata (CITES), léčiva bez oprávnění a obsah porušující práva třetích osob.'],
-            ['6. Poplatky', 'Escrow platba: 5% provize + 49 Kč. TOP inzeráty 29–299 Kč. Komunikujte a plaťte výhradně přes platformu — platba bokem není krytá escrow. <strong>Kredit v peněžence platí 60 dní od posledního pohybu</strong>, poté propadá; na konec platnosti předem upozorníme.'],
+            ['6. Poplatky', 'Escrow platba: 5% provize + 20 Kč. Bez escrow: 5 %, min. 25 Kč. TOP inzeráty 19–249 Kč. Komunikujte a plaťte výhradně přes platformu — platba bokem není krytá escrow. <strong>Kredit v peněžence platí 60 dní od posledního pohybu</strong>, poté propadá; na konec platnosti předem upozorníme.'],
             ['7. Escrow a rezervace', 'Platba je v úschově do potvrzení přijetí; po 14 dnech od odeslání se uvolní automaticky. Nákup rezervuje zboží na 2 hodiny — při nezaplacení se objednávka stornuje, peníze vrací a po <strong>3. nezaplacení následuje automatický BAN</strong>.'],
             ['8. Reklamace', 'Reklamaci je nutné uplatnit do 14 dní od přijetí. Stížnost lze řešit přes ČOI (coi.cz) nebo ODR (ec.europa.eu/consumers/odr).'],
             ['9. GDPR', 'Osobní údaje jsou zpracovávány dle GDPR a zák. 110/2019 Sb. Máte právo na přístup, opravu, výmaz a přenositelnost údajů. Stížnost u ÚOOÚ (uoou.cz).'],
@@ -2002,7 +2002,7 @@
             { icon:'↩️', title:'Vrácení peněz', text:'Při výhře kupujícího se vystaví předplacený štítek na vratku a vrátí se cena + provize + původní doprava (mínus zpětná doprava).', mock:'↩️ Peníze zpět do peněženky' },
         ]},
         direct: { icon:'🤝', color:'gray', title:'Prodej bez escrow (na dobírku)', intro:'Levnější varianta bez úschovy. Platformě zaplatíte jen provizi a dopravu předem; cenu zboží zaplatíte při převzetí na dobírku přímo prodejci. Bez escrow ochrany.', steps:[
-            { icon:'💳', title:'Zaplatíte platformě provizi + dopravu', text:'U pokladny zvolíte „Bez escrow". Hned zaplatíte jen provizi (3 % + 29 Kč) a dopravu — tím se objedná přeprava a vygeneruje štítek.', mock:_mockBox('K úhradě teď: provize + doprava') },
+            { icon:'💳', title:'Zaplatíte platformě provizi + dopravu', text:'U pokladny zvolíte „Bez escrow". Hned zaplatíte jen provizi (5 %, min. 25 Kč) a dopravu — tím se objedná přeprava a vygeneruje štítek.', mock:_mockBox('K úhradě teď: provize + doprava') },
             { icon:'📦', title:'Prodejce odešle do 2 prac. dnů', text:'Pokud neodešle, štítek propadne a vrátíme vám provizi + dopravu (zaplacená služba neproběhla).', mock:_mockBox('⏱ Odeslat do 2 pracovních dnů') },
             { icon:'💵', title:'Cenu zboží zaplatíte na dobírku', text:'Při převzetí zaplatíte cenu zboží dopravci (dobírka) — ten ji předá prodejci. Platforma cenu zboží nedrží ani neprovádí.', mock:_mockBox('💵 Dobírka při převzetí → prodejci') },
             { icon:'⚠️', title:'Po převzetí bez ochrany', text:'Platforma neručí za stav ani doručení. Případné vady řešíte přímo s prodejcem (práva spotřebitele uplatníte vůči němu). Chcete plnou ochranu? Zvolte escrow.', mock:_mockBox('⚠️ Bez escrow = bez úschovy') },
@@ -2893,18 +2893,18 @@
     // ──────────────────────────────────────────────────────────────
     // Tarify TOPu podle typu inzerátu.
     //  - Pevná cena: standardní balíčky 1/3/7/30 dní.
-    //  - Aukce: NELZE prodlužovat → jen 1 den (29 Kč) NEBO „do konce aukce" za
-    //    podílovou cenu (29 Kč/den poměrně dle zbývajícího času, TOP skončí
+    //  - Aukce: NELZE prodlužovat → jen 1 den (19 Kč) NEBO „do konce aukce" za
+    //    podílovou cenu (19 Kč/den poměrně dle zbývajícího času, TOP skončí
     //    přesně s aukcí, ne déle).
     function _topTiersFor(id, type) {
         if (type !== 'aukce') return TOP_TIERS;
-        const tiers = [{ days:1, amount:29, label:'1 den', popular:false }];
+        const tiers = [{ days:1, amount:19, label:'1 den', popular:false }];
         const item = dataAukce.find(i => i.id === id);
         const endMs = item && item.endTime ? new Date(item.endTime).getTime() : 0;
         const ms = endMs - Date.now();
         if (ms > 0) {
             const days   = ms / 86400000;
-            const amount = Math.max(15, Math.round(days * 29));
+            const amount = Math.max(15, Math.round(days * 19));
             const dd = Math.floor(days), hh = Math.floor((ms % 86400000) / 3600000);
             const lbl = dd > 0 ? `Do konce aukce · ${dd} d ${hh} h` : `Do konce aukce · ${hh} h`;
             tiers.push({ untilEnd:true, until:new Date(endMs).toISOString(), amount, label:lbl, popular:true });
@@ -4568,7 +4568,7 @@
         const price = parseFloat(priceEl.value);
         if (!price || price <= 0) { preview.classList.add('hidden'); return; }
         const commission = Math.round(price * 0.05);
-        preview.innerHTML = `<div class="flex justify-between"><span>Cena zboží (vy obdržíte)</span><span class="font-bold">${price.toLocaleString('cs-CZ')} Kč</span></div><div class="flex justify-between text-sky-600"><span>Kupující zaplatí celkem (bez dopravy)</span><span class="font-bold">${(price + commission + 49).toLocaleString('cs-CZ')} Kč</span></div><div class="flex justify-between text-gray-400 text-[11px]"><span>Provize 5% + 49 Kč escrow — platí kupující</span><span>+${commission + 49} Kč</span></div><div class="flex justify-between text-green-700 font-bold border-t border-sky-200 pt-1 mt-1"><span>Aktivace inzerátu escrow</span><span>zdarma</span></div>`;
+        preview.innerHTML = `<div class="flex justify-between"><span>Cena zboží (vy obdržíte)</span><span class="font-bold">${price.toLocaleString('cs-CZ')} Kč</span></div><div class="flex justify-between text-sky-600"><span>Kupující zaplatí celkem (bez dopravy)</span><span class="font-bold">${(price + commission + ESCROW_FEE).toLocaleString('cs-CZ')} Kč</span></div><div class="flex justify-between text-gray-400 text-[11px]"><span>Provize 5% + ${ESCROW_FEE} Kč escrow — platí kupující</span><span>+${commission + ESCROW_FEE} Kč</span></div><div class="flex justify-between text-green-700 font-bold border-t border-sky-200 pt-1 mt-1"><span>Aktivace inzerátu escrow</span><span>zdarma</span></div>`;
         preview.classList.remove('hidden');
     };
 
@@ -6827,7 +6827,7 @@
             items = [{ item_id:String(it.id), item_type:it.type, title:it.title, price:it.price, img:it.img }];
         }
         const mode = (kind === 'cart') ? cartMode : (window._checkoutMode === 'direct' ? 'direct' : 'escrow');
-        const fee = mode === 'direct' ? (Math.round(sub * 0.03) + 29) : (Math.round(sub * 0.05) + 49);
+        const fee = mode === 'direct' ? Math.max(Math.round(sub * 0.05), 25) : (Math.round(sub * 0.05) + ESCROW_FEE);
         const shipping = _checkoutCarrier.price;
         const total = mode === 'direct' ? (fee + shipping) : (sub + shipping + fee);
         window._fixedOrderCtx = { kind, ref, sellerId, sub, fee, shipping, total, mode, carrier:_checkoutCarrier.id, address:{name,street,city,zip,phone,email:email||null}, items, cartKey, cartItemIds: items.map(i => i.item_id) };
@@ -7421,7 +7421,7 @@
             window._offerCheckoutData = offer;
             const item = dataPevnaCena.find(i => i.id == offer.item_id) || {};
             const sub = Number(offer.offer_amount);
-            const fee = Math.round(sub * 0.05) + 49;
+            const fee = Math.round(sub * 0.05) + ESCROW_FEE;
             container.className = '';
             container.innerHTML = `
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
@@ -7476,7 +7476,7 @@
         const offer = window._offerCheckoutData;
         if (!offer || offer.id !== offerId) { showToast('Nabídka vypršela, načtěte stránku znovu.','warning'); return; }
         const sub = Number(offer.offer_amount);
-        const fee = Math.round(sub * 0.05) + 49;
+        const fee = Math.round(sub * 0.05) + ESCROW_FEE;
         const shipping = _checkoutCarrier.price;
         const total = sub + shipping + fee;
         window._offerOrderCtx = { offerId, sellerId: offer.seller_id, sub, fee, shipping, total, carrier:_checkoutCarrier.id, address:{name,street,city,zip,phone}, item:{ title: offer.item_title, img: offer.item_img } };
@@ -7945,7 +7945,7 @@
                     <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5">
                         <p class="font-extrabold text-gray-700 mb-2 flex items-center gap-2">🤝 Bez escrow (na dobírku)</p>
                         <ul class="text-sm text-gray-600 flex flex-col gap-1.5">
-                            <li>• Platformě platíte předem jen <strong>provizi + dopravu</strong> (3 % + 29 Kč)</li>
+                            <li>• Platformě platíte předem jen <strong>provizi + dopravu</strong> (5 %, min. 25 Kč)</li>
                             <li>• <strong>Cenu zboží zaplatíte na dobírku</strong> při převzetí dopravci</li>
                             <li>• Prodejce musí odeslat <strong>do 2 pracovních dnů</strong> — jinak štítek propadne a vrátíme vám provizi + dopravu</li>
                             <li class="text-amber-700">⚠️ Po odeslání <strong>bez ochrany</strong> — spory řešíte přímo s prodejcem (práva spotřebitele uplatníte vůči němu)</li>
@@ -8040,7 +8040,7 @@
                 <h3 class="text-2xl font-extrabold text-pastel-text mb-6">Nejčastější dotazy</h3>
                 <div class="flex flex-col gap-4">
                     ${[
-                        ['Je registrace skutečně zdarma?','Ano, 100 % zdarma. Platíte pouze 5% provizi z úspěšně prodaného zboží a 49 Kč escrow poplatek za transakci. Žádné měsíční poplatky, žádné skryté náklady.'],
+                        ['Je registrace skutečně zdarma?','Ano, 100 % zdarma. Platíte pouze 5% provizi z úspěšně prodaného zboží a 20 Kč escrow poplatek za transakci. Žádné měsíční poplatky, žádné skryté náklady.'],
                         ['Co když prodejce zboží nepošle?','Peníze jsou stále v escrow. Otevřete Spor přímo v detailu objednávky, popište situaci a přiložte důkazy. Náš admin případ prošetří a peníze vám vrátíme do 48 hodin. Podvodný prodejce dostane permanentní BAN.'],
                         ['Co když zboží nedorazí nebo je poškozené?','Neklikejte na Doručeno. Otevřete spor přímo v aplikaci — vyberte důvod, přiložte min. 2 fotky přijatého zboží. Platba zůstává v escrow po celou dobu šetření.'],
                         ['Jak fungují aukce — jsem vítěz, co teď?','Po skončení aukce se v sekci Moje objednávky zobrazí výzva k platbě. Zaplatíte přes escrow a prodejce zásilku odešle standardně. Pokud nezaplatíte do 48 hodin, může prodejce nabídnout zboží dalšímu zájemci.'],
@@ -8162,13 +8162,14 @@
                         <div class="grid grid-cols-2 gap-2 text-xs">
                             <div class="font-bold text-gray-500 uppercase tracking-wide">Poplatek</div><div class="font-bold text-gray-500 uppercase tracking-wide">Výše</div>
                             <div>Provize z ceny (escrow)</div><div class="font-bold text-sky-600">5 % z prodejní ceny</div>
-                            <div>Escrow ochrana</div><div class="font-bold text-sky-600">49 Kč / transakci</div>
-                            <div>Provize — přímý prodej (bez escrow)</div><div class="font-bold text-gray-600">3 % + 29 Kč (jen provize + doprava)</div>
+                            <div>Escrow ochrana</div><div class="font-bold text-sky-600">20 Kč / transakci</div>
+                            <div>Provize — přímý prodej (bez escrow)</div><div class="font-bold text-gray-600">5 %, min. 25 Kč (jen provize + doprava)</div>
                             <div>Vstupní ověření (BankID)</div><div class="font-bold text-green-600">65 Kč — vrací se do peněženky</div>
-                            <div>TOP inzerát 1 den</div><div class="font-bold text-amber-600">29 Kč</div>
-                            <div>TOP inzerát 3 dny</div><div class="font-bold text-amber-600">59 Kč</div>
-                            <div>TOP inzerát 7 dní</div><div class="font-bold text-amber-600">99 Kč</div>
-                            <div>TOP inzerát 30 dní</div><div class="font-bold text-amber-600">299 Kč</div>
+                            <div>TOP inzerát 1 den</div><div class="font-bold text-amber-600">19 Kč</div>
+                            <div>TOP inzerát 3 dny</div><div class="font-bold text-amber-600">49 Kč</div>
+                            <div>TOP inzerát 7 dní</div><div class="font-bold text-amber-600">89 Kč</div>
+                            <div>TOP inzerát 30 dní</div><div class="font-bold text-amber-600">249 Kč</div>
+                            <div>Prodloužení inzerátu 10 / 20 / 30 dní</div><div class="font-bold text-sky-600">10 / 19 / 28 Kč</div>
                             <div>Video u inzerátu (30 dní)</div><div class="font-bold text-fuchsia-600">49 Kč</div>
                             <div>Bonus za pozvání (referral)</div><div class="font-bold text-green-600">+50 Kč do peněženky</div>
                         </div>
@@ -8769,7 +8770,7 @@
                             <div class="border-t border-sky-200/50 pt-3">
                                 ${window._directOnly(item) ? `
                                 <p class="text-gray-500 text-xs font-semibold uppercase mb-1">🤝 Jen bez escrow (na dobírku)</p>
-                                <p class="text-sm text-gray-600 leading-relaxed">Vítěznou cenu zaplatíte <strong>na dobírku při převzetí</strong>. Platformě jen provize (3 % + 29 Kč) + doprava. Bez escrow ochrany.</p>
+                                <p class="text-sm text-gray-600 leading-relaxed">Vítěznou cenu zaplatíte <strong>na dobírku při převzetí</strong>. Platformě jen provize (5 %, min. 25 Kč) + doprava. Bez escrow ochrany.</p>
                                 <div class="hidden"><span id="total-${item.id}">${prices.total.toLocaleString('cs-CZ')} Kč</span></div>
                                 ` : `
                                 <p class="text-sky-700 text-[11px] font-bold uppercase tracking-wider mb-1">Konečná cena pro kupujícího</p>
@@ -9005,10 +9006,10 @@
     const _CAR_MAIL  = '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 7 12 13l8.5-6"/>';
     const _CAR_PEOPLE = '<circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.5a3 3 0 0 1 0 5.8M20.5 20a5.5 5.5 0 0 0-4-5.3"/>';
     const DOPRAVCI = [
-        { id:'zasilkovna', name:'Zásilkovna',  price:89,  tierKey:'Zásilkovna',  desc:'Výdejní místo nebo adresa', icon:_carSvg(_CAR_BOX) },
-        { id:'ppl',        name:'PPL Parcel',  price:119, tierKey:'PPL',         desc:'Doručení na adresu',         icon:_carSvg(_CAR_TRUCK) },
-        { id:'dpd',        name:'DPD',         price:109, tierKey:'DPD',         desc:'Adresa nebo DPD Pickup Box', icon:_carSvg(_CAR_TRUCK) },
-        { id:'cp',         name:'Česká pošta', price:89,  tierKey:'Česká pošta', desc:'Balík na poštu / do ruky',   icon:_carSvg(_CAR_MAIL) },
+        { id:'zasilkovna', name:'Zásilkovna',  price:93,  tierKey:'Zásilkovna',  desc:'Výdejní místo nebo adresa', icon:_carSvg(_CAR_BOX) },
+        { id:'ppl',        name:'PPL Parcel',  price:123, tierKey:'PPL',         desc:'Doručení na adresu',         icon:_carSvg(_CAR_TRUCK) },
+        { id:'dpd',        name:'DPD',         price:113, tierKey:'DPD',         desc:'Adresa nebo DPD Pickup Box', icon:_carSvg(_CAR_TRUCK) },
+        { id:'cp',         name:'Česká pošta', price:93,  tierKey:'Česká pošta', desc:'Balík na poštu / do ruky',   icon:_carSvg(_CAR_MAIL) },
     ];
     // Dopravci nabídnutí v pokladně = JEN ti, které prodejce zvolil u inzerátu (vč. ceny dle ceníku).
     // Staré inzeráty bez vyplněných shipping_methods → ukáží se všichni (žádná regrese).
@@ -9021,10 +9022,11 @@
     // Hmotnostní + rozměrový ceník dopravců (orientační pásma „do X kg = cena Kč";
     // maxLongestCm = nejdelší strana, maxSumCm = součet D+Š+V).
     const SHIPPING_TIERS = {
-        'Zásilkovna':     { maxKg: 5,        maxLongestCm: 70,       maxSumCm: 120,      tiers: [[1,79],[2,89],[5,109]] },
-        'PPL':            { maxKg: 50,       maxLongestCm: 200,      maxSumCm: 300,      tiers: [[2,99],[5,129],[10,159],[20,219],[50,329]] },
-        'DPD':            { maxKg: 50,       maxLongestCm: 175,      maxSumCm: 300,      tiers: [[2,109],[5,139],[10,169],[20,229],[50,339]] },
-        'Česká pošta':    { maxKg: 10,       maxLongestCm: 120,      maxSumCm: 200,      tiers: [[1,89],[2,109],[5,139],[10,179]] },
+        // Ceny = sazba dopravce + 4 Kč servisní marže platformy
+        'Zásilkovna':     { maxKg: 5,        maxLongestCm: 70,       maxSumCm: 120,      tiers: [[1,83],[2,93],[5,113]] },
+        'PPL':            { maxKg: 50,       maxLongestCm: 200,      maxSumCm: 300,      tiers: [[2,103],[5,133],[10,163],[20,223],[50,333]] },
+        'DPD':            { maxKg: 50,       maxLongestCm: 175,      maxSumCm: 300,      tiers: [[2,113],[5,143],[10,173],[20,233],[50,343]] },
+        'Česká pošta':    { maxKg: 10,       maxLongestCm: 120,      maxSumCm: 200,      tiers: [[1,93],[2,113],[5,143],[10,183]] },
         'Osobní předání': { maxKg: Infinity, maxLongestCm: Infinity, maxSumCm: Infinity, tiers: [[Infinity,0]] }
     };
     // Vejde se zboží do rozměrových limitů dopravce? (rozměr nezadán → neomezujeme)
@@ -9217,8 +9219,8 @@
     window._directEnabled = function() { return !!(window._appConfig && window._appConfig.direct_enabled === true); };
     // Inzerát se prodává JEN bez escrow (dobírka) — hlavní cena = cena zboží, žádný escrow markup
     window._directOnly = function(item) { return !!(window._directEnabled() && item && item.direct_only); };
-    // Provize platformě u prodeje bez escrow (3 % + 29 Kč)
-    window._directFee = function(price) { return Math.round((Number(price) || 0) * 0.03) + 29; };
+    // Provize platformě u prodeje bez escrow (5 %, minimálně 25 Kč)
+    window._directFee = function(price) { return Math.max(Math.round((Number(price) || 0) * 0.05), 25); };
     // Štítek „i bez escrow" na kartě (klik → vysvětlení); jen když režim zapnut a inzerát to povoluje
     window._directBadge = function(item) {
         if (!window._directEnabled() || !item || !item.allow_direct) return '';
@@ -9230,7 +9232,7 @@
     window._directDetailBlock = function(item) {
         if (!window._directEnabled() || !item || !item.allow_direct) return '';
         const price = Number(item.price) || 0;
-        const fee = Math.round(price * 0.03) + 29;
+        const fee = window._directFee(price);
         return `<div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-5">
             <button type="button" onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chev').classList.toggle('rotate-90')" class="w-full flex items-center justify-between gap-2 font-bold text-gray-800 text-sm">
                 <span class="flex items-center gap-2">🤝 Lze koupit i bez escrow (na dobírku)</span>
@@ -9240,7 +9242,7 @@
                 <div>
                     <p class="font-bold text-gray-700 mb-1.5 text-sm">💰 Rozpad ceny (bez escrow)</p>
                     <div class="bg-white rounded-xl border border-gray-100 p-3 flex flex-col gap-1 text-xs">
-                        <div class="flex justify-between"><span class="text-gray-500">Provize platformě (3 % + 29 Kč)</span><span class="font-semibold">${fee.toLocaleString('cs-CZ')} Kč</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Provize platformě (5 %, min. 25 Kč)</span><span class="font-semibold">${fee.toLocaleString('cs-CZ')} Kč</span></div>
                         <div class="flex justify-between"><span class="text-gray-500">Doprava</span><span class="font-semibold text-gray-400">vyberete v pokladně</span></div>
                         <div class="flex justify-between border-t border-gray-100 pt-1 mt-1"><span class="text-gray-600">Zaplatíte teď platformě</span><span class="font-bold">provize + doprava</span></div>
                         <div class="flex justify-between text-emerald-700"><span>💵 Cena zboží — dobírka při převzetí</span><span class="font-bold">${price.toLocaleString('cs-CZ')} Kč</span></div>
@@ -9787,11 +9789,11 @@
         if (feeEl) feeEl.textContent = price.toLocaleString('cs-CZ') + ' Kč';
         const sub = parseFloat(document.getElementById('checkout-subtotal')?.dataset?.val || 0);
         const direct = (window._checkoutMode === 'direct');
-        const fee = direct ? (Math.round(sub * 0.03) + 29) : (Math.round(sub * 0.05) + 49);
+        const fee = direct ? Math.max(Math.round(sub * 0.05), 25) : (Math.round(sub * 0.05) + ESCROW_FEE);
         const total = direct ? (fee + price) : (sub + price + fee);
         const feeRow = document.getElementById('checkout-fee-row');
         if (feeRow) feeRow.innerHTML = direct
-            ? `<span>Provize (3 % + 29 Kč)</span><span>${fee.toLocaleString('cs-CZ')} Kč</span>`
+            ? `<span>Provize (5 %, min. 25 Kč)</span><span>${fee.toLocaleString('cs-CZ')} Kč</span>`
             : `<span class="flex items-center gap-1">Ochrana escrow (5 % + ${ESCROW_FEE} Kč)</span><span>${fee.toLocaleString('cs-CZ')} Kč</span>`;
         const subLbl = document.getElementById('checkout-sub-label');
         const baseLbl = window._checkoutSubLabel || 'Zboží';
@@ -9828,7 +9830,7 @@
         if (!group?.items?.length) { showToast('Košík je prázdný.','warning'); return; }
         const sellerId = group.seller_id;
         const sub = group.items.reduce((s,i) => s + i.price, 0);
-        const fee = Math.round(sub * 0.05) + 49;
+        const fee = Math.round(sub * 0.05) + ESCROW_FEE;
         const total = sub + _checkoutCarrier.price + fee;
         const btn = document.getElementById('create-order-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Zpracovávám…'; }
@@ -10201,7 +10203,7 @@
         if (!item) { showToast('Položka nenalezena.','warning'); return; }
         if (item.reserved_until && item.reserved_until > Date.now()) { showToast('Položka je rezervována jiným kupujícím.','warning'); return; }
         if (!await window._ensureBuyerSession()) return;
-        const sub = item.price, fee = Math.round(sub * 0.05) + 49, total = sub + _checkoutCarrier.price + fee;
+        const sub = item.price, fee = Math.round(sub * 0.05) + ESCROW_FEE, total = sub + _checkoutCarrier.price + fee;
         const btn = document.getElementById('create-order-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Zpracovávám…'; }
         try {
@@ -10530,7 +10532,7 @@
             const hdr = isDirect
                 ? `<span class="inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full text-[11px] font-bold">🤝 Bez escrow · dobírka</span>`
                 : `<span class="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-[11px] font-bold">🔒 S escrow</span>`;
-            const note = isDirect ? 'Provize 3 % + 29 Kč · cenu zboží platíte na dobírku' : ('Provize 5 % + ' + ESCROW_FEE + ' Kč · peníze v úschově');
+            const note = isDirect ? 'Provize 5 %, min. 25 Kč · cenu zboží platíte na dobírku' : ('Provize 5 % + ' + ESCROW_FEE + ' Kč · peníze v úschově');
             const btnCls = isDirect ? 'bg-amber-500 hover:bg-amber-600' : 'bg-pink-500 hover:bg-pink-600';
             return `<div class="rounded-2xl border ${isDirect?'border-amber-100 bg-amber-50/30':'border-gray-100'} p-3 mb-3">
                 <div class="flex items-center justify-between mb-1.5">${hdr}<span class="text-sm font-extrabold ${isDirect?'text-amber-700':'text-pink-600'}">${bsub.toLocaleString('cs-CZ')} Kč</span></div>
@@ -10592,7 +10594,7 @@
         // Dopravci = PRŮNIK metod položek v tomto bloku (nabídneme jen ty, které podporují všechny)
         const _methodSets = items.map(i => (window._lookupMethods(i.id) || []));
         const _cartMethods = _methodSets.length ? _methodSets.reduce((acc, set) => acc.filter(m => set.includes(m))) : [];
-        const platformFee = isDirect ? (Math.round(sub * 0.03) + 29) : (Math.round(sub * 0.05) + 49);
+        const platformFee = isDirect ? Math.max(Math.round(sub * 0.05), 25) : (Math.round(sub * 0.05) + ESCROW_FEE);
         _checkoutCarrier = null;
         window._checkoutMode = mode;
         window._checkoutSubLabel = 'Zboží celkem';
@@ -10620,7 +10622,7 @@
                     </div>`;
         const itemRows = items.map(item => `<div class="flex items-center gap-3 py-3"><img src="${item.img}" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23f1f5f9%22/%3E%3C/svg%3E'" class="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0"><div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">${item.title}</p></div><span class="font-bold text-sm shrink-0 whitespace-nowrap">${item.price.toLocaleString('cs-CZ')} Kč</span></div>`).join('');
         const feeRowInner = isDirect
-            ? `<span>Provize (3 % + 29 Kč)</span><span>${platformFee.toLocaleString('cs-CZ')} Kč</span>`
+            ? `<span>Provize (5 %, min. 25 Kč)</span><span>${platformFee.toLocaleString('cs-CZ')} Kč</span>`
             : `<span>Ochrana escrow (5 % + ${ESCROW_FEE} Kč)</span><span>${platformFee.toLocaleString('cs-CZ')} Kč</span>`;
         const rightPanel = `
                     <div class="bg-gray-50 rounded-3xl p-5">
@@ -10666,7 +10668,7 @@
                 ${ctx.items.map(i=>`<div class="flex justify-between gap-2"><span class="truncate">${esc(i.title)}</span><span class="font-semibold shrink-0">${Number(i.price).toLocaleString('cs-CZ')} Kč</span></div>`).join('')}
                 <div class="flex justify-between text-gray-500 border-t border-gray-200 pt-2 mt-1"><span>Zboží${ctx.mode==='direct'?' (dobírka při převzetí)':''}</span><span>${ctx.sub.toLocaleString('cs-CZ')} Kč</span></div>
                 <div class="flex justify-between text-gray-500"><span>Doprava</span><span>${ctx.shipping.toLocaleString('cs-CZ')} Kč</span></div>
-                <div class="flex justify-between text-gray-500"><span>${ctx.mode==='direct'?'Provize 3 % + 29 Kč':'Provize 5% + escrow'}</span><span>${ctx.fee.toLocaleString('cs-CZ')} Kč</span></div>
+                <div class="flex justify-between text-gray-500"><span>${ctx.mode==='direct'?'Provize 5 %, min. 25 Kč':'Provize 5% + escrow'}</span><span>${ctx.fee.toLocaleString('cs-CZ')} Kč</span></div>
                 <div class="flex justify-between font-extrabold text-pink-600 text-base border-t border-gray-200 pt-2 mt-1"><span>${ctx.mode==='direct'?'K úhradě platformě':'Celkem k úhradě'}</span><span>${ctx.total.toLocaleString('cs-CZ')} Kč</span></div>
             </div>
             <div id="fixed-pay-body"></div>
@@ -10747,7 +10749,7 @@
                             <p class="text-xs font-bold text-gray-500 mb-2">Způsob platby</p>
                             <div class="grid grid-cols-2 gap-2">
                                 <button type="button" data-paymode="escrow" onclick="_setCheckoutMode('escrow')" class="border-2 border-sky-400 bg-sky-50 rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🔒 S escrow</span><span class="block text-[10px] text-gray-500">Chráněno · 5 % + ${ESCROW_FEE} Kč</span></button>
-                                <button type="button" data-paymode="direct" onclick="_setCheckoutMode('direct')" class="border-2 border-gray-200 bg-white rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🤝 Bez escrow</span><span class="block text-[10px] text-gray-500">3 % + 29 Kč · bez ochrany</span></button>
+                                <button type="button" data-paymode="direct" onclick="_setCheckoutMode('direct')" class="border-2 border-gray-200 bg-white rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🤝 Bez escrow</span><span class="block text-[10px] text-gray-500">5 %, min. 25 Kč · bez ochrany</span></button>
                             </div>
                             <div id="checkout-mode-note" class="mt-2 text-[11px] leading-relaxed text-gray-500 bg-white border border-gray-100 rounded-xl px-3 py-2">🔒 <strong>S escrow ochranou.</strong> Peníze držíme v úschově a uvolníme prodejci až po potvrzení doručení.</div>
                         </div>` : '')}
@@ -10869,7 +10871,7 @@
                                 <p class="text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Způsob platby</p>
                                 <div class="grid grid-cols-2 gap-2">
                                     <button type="button" data-paymode="escrow" onclick="_setCheckoutMode('escrow')" class="border-2 border-sky-400 bg-sky-50 rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🔒 S escrow</span><span class="block text-[10px] text-gray-500">5 % + ${ESCROW_FEE} Kč · plná ochrana</span></button>
-                                    <button type="button" data-paymode="direct" onclick="_setCheckoutMode('direct')" class="border-2 border-gray-200 bg-white rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🤝 Bez escrow</span><span class="block text-[10px] text-gray-500">3 % + 29 Kč · na dobírku</span></button>
+                                    <button type="button" data-paymode="direct" onclick="_setCheckoutMode('direct')" class="border-2 border-gray-200 bg-white rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🤝 Bez escrow</span><span class="block text-[10px] text-gray-500">5 %, min. 25 Kč · na dobírku</span></button>
                                 </div>
                                 <div id="checkout-mode-note" class="mt-2 text-[11px] leading-relaxed text-gray-500 bg-white border border-gray-100 rounded-xl px-3 py-2">🔒 <strong>S escrow ochranou.</strong> Peníze držíme v úschově a uvolníme prodejci až po potvrzení doručení.</div>
                             </div>` : ''}
@@ -10913,7 +10915,7 @@
             const expired = offer.offer_deadline && new Date(offer.offer_deadline) < new Date();
             const inputCls = 'w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-sky-400 bg-white text-sm';
             const labelCls = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide';
-            const platformFee = Math.round(Number(offer.bidder_amount || 0) * 0.05) + 49;
+            const platformFee = Math.round(Number(offer.bidder_amount || 0) * 0.05) + ESCROW_FEE;
             window._checkoutMode = 'escrow';
             window._checkoutSubLabel = 'Cena aukce';
             const _canDir = window._directEnabled() && window._lookupAllowDirect(offer.auction_id);
@@ -10950,7 +10952,7 @@
                                 <p class="text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Způsob platby</p>
                                 <div class="grid grid-cols-2 gap-2">
                                     <button type="button" data-paymode="escrow" onclick="_setCheckoutMode('escrow')" class="border-2 border-sky-400 bg-sky-50 rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🔒 S escrow</span><span class="block text-[10px] text-gray-500">5 % + ${ESCROW_FEE} Kč · plná ochrana</span></button>
-                                    <button type="button" data-paymode="direct" onclick="_setCheckoutMode('direct')" class="border-2 border-gray-200 bg-white rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🤝 Bez escrow</span><span class="block text-[10px] text-gray-500">3 % + 29 Kč · na dobírku</span></button>
+                                    <button type="button" data-paymode="direct" onclick="_setCheckoutMode('direct')" class="border-2 border-gray-200 bg-white rounded-xl p-2.5 text-left transition-colors"><span class="block text-sm font-bold text-gray-800">🤝 Bez escrow</span><span class="block text-[10px] text-gray-500">5 %, min. 25 Kč · na dobírku</span></button>
                                 </div>
                                 <div id="checkout-mode-note" class="mt-2 text-[11px] leading-relaxed text-gray-500 bg-white border border-gray-100 rounded-xl px-3 py-2">🔒 <strong>S escrow ochranou.</strong> Peníze držíme v úschově a uvolníme prodejci až po potvrzení doručení.</div>
                             </div>` : ''}
@@ -11496,7 +11498,7 @@
         const refund = Math.max(price + comm + ship - retc, 0);   // celá zaplacená částka − doprava vratky
         return `<div class="mt-1.5 bg-white/70 rounded-lg p-2 text-[11px] text-gray-600 border border-amber-100">
             <div class="flex justify-between"><span>Cena zboží</span><span>${cz(price)} Kč</span></div>
-            <div class="flex justify-between"><span>Provize (5 % + 49 Kč)</span><span>${cz(comm)} Kč</span></div>
+            <div class="flex justify-between"><span>Provize (5 % + ${ESCROW_FEE} Kč)</span><span>${cz(comm)} Kč</span></div>
             <div class="flex justify-between"><span>Doprava (původní)</span><span>${cz(ship)} Kč</span></div>
             <div class="flex justify-between text-red-500"><span>− Doprava vratky</span><span>−${cz(retc)} Kč</span></div>
             <div class="flex justify-between font-extrabold text-green-700 border-t border-amber-200 pt-1 mt-1"><span>K vrácení</span><span>${cz(refund)} Kč</span></div>
