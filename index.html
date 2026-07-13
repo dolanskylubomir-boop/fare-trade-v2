@@ -1280,7 +1280,7 @@
             ['3. Účet a ověření', 'Nákup: light účet (e-mail + heslo, i z pokladny). Prodej a aukce: ověření přes <strong>BankID</strong> (vstupních 65 Kč se vrací do peněženky). Trvale zablokovaný uživatel se nesmí znovu registrovat.'],
             ['4. Inzerování a aukce', 'Popis a fotografie musí věrně zobrazovat stav zboží. Inzerát za pevnou cenu je aktivní 30 dní; <strong>aukce trvá pevně 7 dní</strong> a nelze ji prodloužit. Aukce je závazná – vítěz musí zboží uhradit. Prodávající odesílá do 5 pracovních dnů.'],
             ['5. Zakázané zboží', 'Zakázáno inzerovat: střelné zbraně, drogy, padělky, kradené zboží, živá zvířata (CITES), léčiva bez oprávnění a obsah porušující práva třetích osob.'],
-            ['6. Poplatky', 'Escrow platba: 5% provize + 49 Kč. TOP inzeráty 29–299 Kč. Komunikujte a plaťte výhradně přes platformu — platba bokem není krytá escrow.'],
+            ['6. Poplatky', 'Escrow platba: 5% provize + 49 Kč. TOP inzeráty 29–299 Kč. Komunikujte a plaťte výhradně přes platformu — platba bokem není krytá escrow. <strong>Kredit v peněžence platí 60 dní od posledního pohybu</strong>, poté propadá; na konec platnosti předem upozorníme.'],
             ['7. Escrow a rezervace', 'Platba je v úschově do potvrzení přijetí; po 14 dnech od odeslání se uvolní automaticky. Nákup rezervuje zboží na 2 hodiny — při nezaplacení se objednávka stornuje, peníze vrací a po <strong>3. nezaplacení následuje automatický BAN</strong>.'],
             ['8. Reklamace', 'Reklamaci je nutné uplatnit do 14 dní od přijetí. Stížnost lze řešit přes ČOI (coi.cz) nebo ODR (ec.europa.eu/consumers/odr).'],
             ['9. GDPR', 'Osobní údaje jsou zpracovávány dle GDPR a zák. 110/2019 Sb. Máte právo na přístup, opravu, výmaz a přenositelnost údajů. Stížnost u ÚOOÚ (uoou.cz).'],
@@ -5099,7 +5099,7 @@
                 const fixPrice = parseInt(document.getElementById('ad-price').value, 10);
                 if (isNaN(fixPrice)||fixPrice<1||fixPrice>100000000) throw new Error('Neplatná cena.');
                 adData.price = fixPrice;
-                const exp = new Date(); exp.setDate(exp.getDate()+20);
+                const exp = new Date(); exp.setDate(exp.getDate()+30);   // 30 dní dle VOP čl. 5
                 adData.expires_at = exp.toISOString();
             }
             const { data: inserted, error } = await supabaseClient.from(tableName).insert([adData]).select('id,created_at,status').single();
@@ -5451,7 +5451,7 @@
             ['⚡','Aukce a přihazování','Zapojte se do aukcí a získejte vysněné kousky za nejlepší cenu.'],
             ['🛒','Košík','Nakupte více položek najednou — rychle a přehledně.'],
             ['💬','Zprávy s prodejci','Ptejte se přímo u inzerátu, bezpečně a bez sdílení kontaktů.'],
-            ['💰','Virtuální peněženka','Kredit, vratky a 65 Kč zpět za ověření — využijete na zviditelnění.'],
+            ['💰','Virtuální peněženka','Kredit, vratky a 65 Kč zpět za ověření — využijete na zviditelnění. Platnost kreditu: 60 dní od posledního pohybu.'],
             ['💎','Prémiový výběr na míru','Oblíbené kategorie + luxusní feed TOP nabídek jen pro vás.'],
             ['🚀','Zviditelnění s garancí dosahu','Dostaňte inzerát nahoru — garantujeme dosah, jinak vracíme kredit.'],
             ['🪪','Ověřený odznak (BankID)','Zlatá pečeť důvěry — prodáte rychleji a za lepší cenu. Ověření za vás splní DAC7 (neřešíte limit 50 000 Kč / 30 prodejů) a chrání vás před podvodníky. Vstupních 65 Kč se vrací do peněženky.'],
@@ -8097,7 +8097,7 @@
                         <li><strong>Escrow</strong> – bezpečnostní úschova platby Provozovatelem do doby potvrzení přijetí zboží Kupujícím.</li>
                         <li><strong>KYC / BankID</strong> – ověření totožnosti Uživatele bankovní identitou (BankID) dle směrnice DAC7 a zákona č. 253/2008 Sb. (AML).</li>
                         <li><strong>Light účet</strong> – základní účet Kupujícího (e-mail + heslo) vytvořený i v rámci dokončení nákupu; slouží ke sledování objednávek, potvrzení doručení a řešení sporů.</li>
-                        <li><strong>Peněženka</strong> – virtuální kreditní účet Uživatele u Provozovatele (vratky, vrácený poplatek za ověření, úhrada zviditelnění inzerátu).</li>
+                        <li><strong>Peněženka</strong> – virtuální kreditní účet Uživatele u Provozovatele (vratky, vrácený poplatek za ověření, úhrada zviditelnění inzerátu). Platnost kreditu je <strong>60 dnů od posledního pohybu</strong> Peněženky (čl. 7).</li>
                     </ul>
                 </section>
 
@@ -8174,6 +8174,7 @@
                         </div>
                     </div>
                     <p class="mb-2">Platby za zviditelnění (TOP) a prodloužení inzerátu probíhají QR platbou, kartou nebo z kreditu v peněžence. U zviditelnění Provozovatel uvádí orientační garanci dosahu — při nenaplnění garantovaného počtu zhlédnutí vrací poměrnou část ceny do peněženky. Provozovatel je oprávněn poplatky změnit s <strong>30denním předstihem</strong> oznámeným Uživateli.</p>
+                    <p class="mb-2"><strong>Platnost kreditu v peněžence:</strong> Kredit ve virtuální peněžence slouží výhradně k úhradě služeb Platformy (zviditelnění, prodloužení inzerátu, video, ověření) a jeho platnost je <strong>60 dnů od posledního pohybu peněženky</strong> — jakékoli dobití, připsání či čerpání platnost obnovuje o dalších 60 dnů. Nevyužitý kredit po uplynutí platnosti <strong>propadá</strong>. Na blížící se konec platnosti Provozovatel Uživatele upozorní nejpozději <strong>7 dnů předem</strong> (notifikace v aplikaci, push a e-mail). Aktuální zůstatek i konec platnosti jsou kdykoli viditelné v sekci Peněženka.</p>
                     <p class="mb-2"><strong>Referral program:</strong> Každý Uživatel má vlastní pozývací kód. Pokud se nový Uživatel zaregistruje přes tento kód a dokončí svůj <strong>první zaplacený nákup</strong>, připíše Provozovatel bonus <strong>50 Kč</strong> do peněženky zvoucímu i pozvanému. Bonus lze čerpat na platby v rámci Platformy. Provozovatel si vyhrazuje právo program kdykoli upravit či ukončit a vyloučit zneužití (např. zakládání fiktivních účtů).</p>
                     <p class="mb-2"><strong>Video u inzerátu (placená služba):</strong> Prodávající může k inzerátu přidat krátké video. Video je <strong>nepovinné a zpoplatněné</strong> (viz ceník) a před zveřejněním podléhá <strong>schválení Provozovatelem</strong>; platí se až po schválení a doba viditelnosti běží od zaplacení. Video je dostupné pouze <strong>přihlášeným uživatelům</strong> po zaplacenou dobu, poté (nebo po dokončení objednávky) je <strong>automaticky smazáno</strong>. Provozovatel může video kdykoli zamítnout či odstranit při porušení pravidel, a to bez nároku na vrácení ceny. Za obsah videa odpovídá Prodávající.</p>
                     <p><strong>Daňové doklady:</strong> Ke každé dokončené objednávce Provozovatel automaticky vystaví <strong>fakturu s pořadovým číslem</strong> ve formátu FV-{rok}-{pořadí}, dostupnou u dané objednávky a v sekci Transakce. Tamtéž si Uživatel může vytisknout <strong>roční přehled prodejů a poplatků</strong> pro vlastní daňovou evidenci.</p>
@@ -10278,6 +10279,21 @@
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
             });
             const hist = await rh.json();
+            // Platnost kreditu: 60 dní od posledního pohybu peněženky
+            if (bal > 0 && Array.isArray(hist) && hist.length) {
+                const last = new Date(hist[0].created_at);
+                const until = new Date(last.getTime() + 60 * 86400000);
+                const daysLeft = Math.max(0, Math.ceil((until.getTime() - Date.now()) / 86400000));
+                const vEl = document.getElementById('pw-validity');
+                if (vEl) vEl.textContent = '⏳ Platnost kreditu do ' + until.toLocaleDateString('cs-CZ') + ' (' + daysLeft + ' dní)';
+                const wEl = document.getElementById('pw-expiry-warn');
+                if (wEl && daysLeft <= 14) {
+                    wEl.innerHTML = '<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 mb-5 flex items-start gap-2.5">'
+                        + '<span class="text-xl shrink-0">⚠️</span>'
+                        + '<p class="text-xs text-amber-800 leading-relaxed"><strong>Kredit ' + bal.toLocaleString('cs-CZ') + ' Kč vyprší za ' + daysLeft + ' dní!</strong> '
+                        + 'Využij ho na TOP zviditelnění, prodloužení či video — nebo peněženku dobij. Jakýkoli pohyb platnost obnoví o dalších 60 dní.</p></div>';
+                }
+            }
             const histEl = document.getElementById('pw-history');
             if (histEl && Array.isArray(hist)) {
                 histEl.innerHTML = hist.length ? hist.map(function(tx) {
@@ -10298,7 +10314,9 @@
                 <h2 class="text-2xl font-extrabold text-pastel-text">Peněženka</h2>
                 <p class="text-4xl font-black text-emerald-600 mt-2" id="pw-balance">—</p>
                 <p class="text-xs text-gray-400 mt-1">Aktuální zůstatek</p>
+                <p class="text-xs font-semibold text-gray-500 mt-1.5" id="pw-validity"></p>
             </div>
+            <div id="pw-expiry-warn"></div>
             <div class="border-t border-gray-100 pt-5 mb-5">
                 <h3 class="font-bold text-gray-800 mb-3">Dobít kredit (QR platba)</h3>
                 <div class="grid grid-cols-4 gap-2 mb-4">
@@ -10323,6 +10341,7 @@
                 <h3 class="font-bold text-gray-800 mb-3">Historie transakcí</h3>
                 <div id="pw-history"><div class="text-gray-400 text-sm text-center py-4">Načítám…</div></div>
             </div>
+            <p class="text-[11px] text-gray-400 mt-4 leading-relaxed">⏳ <strong>Platnost kreditu je 60 dní od posledního pohybu peněženky</strong> — každé dobití, vratka i platba platnost obnoví o dalších 60 dní. Nevyužitý kredit poté propadá (VOP, čl. 7). Na blížící se konec platnosti tě předem upozorníme.</p>
         </div>`;
     };
 
