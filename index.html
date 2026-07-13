@@ -1190,7 +1190,7 @@
     // KONFIGURACE
     // ──────────────────────────────────────────────────────────────
     const SUPABASE_URL      = 'https://mpioazyvtgcpxjrhbflp.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1waW9henl2dGdjcHhqcmhiZmxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMDM1MjksImV4cCI6MjA5NjU3OTUyOX0.pNgPqE1aOrsA2efj5H5FIkNjdcKxo7MVycEjfyEVc4s';
+    const SUPABASE_ANON_KEY = 'sb_publishable_k9dnYiyJVLhfeUx5CLIbqw__fC92DMV';
     // Po vygenerování VAPID klíčů (generate-vapid.html) sem vlož Public Key
     const VAPID_PUBLIC_KEY  = 'BFPdJncF99xxJLN7ETYMqtBYsvdAwQ7u5xEP18jFXj_vf5ZnYPj_nXlCHCCVd0VVloBk7FoXWcSqKObk9EDAupM';
     let supabaseClient = null;
@@ -14867,7 +14867,7 @@
                 } else {
                     inp.value = ''; _chatGrow(inp);
                     // AI moderace (fire-and-forget) — když není webhook, spustí ji klient po vložení
-                    try { const rows = await r.json().catch(() => null); const id = Array.isArray(rows) ? rows[0]?.id : rows?.id; if (id) _chatModerate(id, token); } catch(_) {}
+                    // AI moderaci spouští DB trigger (_gcm_after_insert_ai) — klientské volání by ji duplikovalo (2× Groq)
                 }
             } catch(e) { showToast('Chyba spojení.','error'); }
             if (btn) btn.disabled = false; inp.disabled = false; inp.focus();
