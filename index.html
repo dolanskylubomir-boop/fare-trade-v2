@@ -4729,6 +4729,15 @@
         if (!url || typeof url !== 'string' || url.indexOf('/inzeraty/') === -1) return url;
         return url.replace(/\.[a-z0-9]+$/i, '-thumb.jpg');
     };
+    // SHA-256 otisk originálního souboru (detekce duplicitních inzerátů)
+    window._fileHash = async function(file) {
+        try {
+            const buf = await file.arrayBuffer();
+            const h = await crypto.subtle.digest('SHA-256', buf);
+            return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch (e) { return null; }
+    };
+
     // Po uploadu originálu vytvoř a nahraj 420px JPEG miniaturu (fire-and-forget)
     window._uploadThumb = async function(srcBlob, fileName) {
         try {
@@ -5025,10 +5034,13 @@
             if (!photoInputs.length) throw new Error('Přidejte alespoň 1 fotografii zboží.');
 
             const uploadedImages = [];
+            const photoHashes = [];   // SHA-256 originálů — detekce duplicitních inzerátů
             for (let input of document.querySelectorAll('input[type="file"]:not(#ad-video)')) {
                 if (input.files?.[0]) {
                     const check = validateImageFile(input.files[0]);
                     if (!check.ok && !check.error.includes('velikost')) throw new Error(check.error);
+                    const _ph = await window._fileHash(input.files[0]);
+                    if (_ph) photoHashes.push(_ph);
                     // Use pre-resized blob if available (prepared in previewImage), otherwise resize now
                     const resized = input._resizedBlob || await window._resizeImageForUpload(input.files[0]);
                     const ext = resized.ext || check.ext || 'jpg';
@@ -5065,6 +5077,7 @@
                 direct_only: ((document.querySelector('input[name="ad-sale-mode"]:checked')||{}).value === 'direct'),
                 shipping_methods: Array.from(document.querySelectorAll('input[name="shipping"]:checked')).map(el=>el.value),
                 images: uploadedImages, has_360: (uploadedImages.length >= 4),
+                photo_hashes: photoHashes,
                 payment_type: 'escrow',
                 status: 'aktivní',
                 is_top: false, views_count: 0
@@ -5090,7 +5103,20 @@
                 adData.expires_at = exp.toISOString();
             }
             const { data: inserted, error } = await supabaseClient.from(tableName).insert([adData]).select('id,created_at,status').single();
-            if (error) throw new Error(error.message);
+            if (error) {
+                // Ochrana proti duplicitám: server vrací duplicate_expired/_active:<id>
+                const dup = String(error.message || '').match(/duplicate_(expired|active):([0-9a-f-]{36})/);
+                if (dup) {
+                    if (dup[1] === 'expired') {
+                        showToast('🔁 Tento předmět už jsi tu měl. Místo nového vystavení ho prodluž — otevírám prodloužení původního inzerátu.', 'warning', 9000);
+                        setTimeout(() => { try { extendAd('pevna_cena', dup[2]); } catch (e) {} }, 700);
+                    } else {
+                        showToast('Tento předmět už máš aktivně vystavený. Uprav původní inzerát v profilu — duplicitní vystavení není povolené.', 'warning', 8000);
+                    }
+                    return;   // finally odemkne tlačítko
+                }
+                throw new Error(error.message);
+            }
             // Auto-moderace mohla inzerát pozdržet (status != 'aktivní')
             const heldByModeration = inserted?.status && inserted.status !== 'aktivní';
 
@@ -6704,6 +6730,8 @@
             window._bulkDrafts.push(draft);
             window._renderBulkGrid();
             try {
+                const _ph = await window._fileHash(file);
+                if (_ph) draft.photo_hash = _ph;
                 const resized = await window._resizeImageForUpload(file);
                 const ext = resized.ext || 'jpg';
                 const fileName = `${Date.now()}-${(crypto.randomUUID?.()||Math.random().toString(36).substring(7)).slice(0,8)}.${ext}`;
@@ -6737,20 +6765,23 @@
         const invalid = drafts.filter(d => !(d.title||'').trim() || !d.price || d.price < 1 || !d.category);
         if (invalid.length) { showToast(`Doplňte název, cenu a kategorii u ${invalid.length} konceptů.`,'warning',5000); return; }
         const btn = document.getElementById('bulk-publish-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Zveřejňuji…'; }
-        let ok = 0;
+        let ok = 0, dupl = 0;
         for (const d of drafts) {
             try {
                 const { error } = await supabaseClient.from('pevna_cena').insert([{
                     seller_id: window.currentUser.id, title: esc(d.title.trim()), description: esc((d.description||'').trim()),
                     category: d.category, subcategory: null, condition: d.condition, price: d.price,
                     images: [d.img], has_360: false, weight: d.weight || null, dimensions: d.dimensions || null,
+                    photo_hashes: d.photo_hash ? [d.photo_hash] : [],
                     shipping_methods: d.shipping || [], payment_type: 'escrow', status: 'aktivní', is_top: false, views_count: 0
                 }]);
                 if (!error) ok++;
+                else if (/duplicate_(expired|active):/.test(String(error.message||''))) dupl++;
             } catch(e) {}
         }
         window._bulkDrafts = [];
         window.dataLoaded = false; if (window.fetchDatabaseItems) await window.fetchDatabaseItems();
+        if (dupl) showToast(`⚠️ ${dupl}× přeskočeno jako duplicita dřívějšího inzerátu (prodluž původní v profilu).`, 'warning', 8000);
         showToast(`✅ Zveřejněno ${ok} inzerátů.`, 'success', 5000);
         navigate('profil/inzeraty');
     };
